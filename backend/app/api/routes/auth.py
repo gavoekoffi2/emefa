@@ -1,17 +1,19 @@
 """Auth routes - register, login, refresh, me."""
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.deps import get_current_user
-from app.models.user import User
+from app.models.user import User, WorkspaceMember
 from app.schemas.auth import (
     LoginRequest,
     RefreshRequest,
     RegisterRequest,
     TokenResponse,
     UserResponse,
+    WorkspaceInfo,
 )
 from app.services.auth_service import login_user, refresh_access_token, register_user
 
@@ -51,11 +53,35 @@ async def refresh(req: RefreshRequest, db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/me", response_model=UserResponse)
-async def me(user: User = Depends(get_current_user)):
+async def me(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    # Fetch user's workspaces with roles
+    result = await db.execute(
+        select(WorkspaceMember).where(WorkspaceMember.user_id == user.id)
+    )
+    memberships = result.scalars().all()
+
+    workspaces = []
+    for m in memberships:
+        # Load workspace name
+        from app.models.user import Workspace
+        ws_result = await db.execute(select(Workspace).where(Workspace.id == m.workspace_id))
+        ws = ws_result.scalar_one_or_none()
+        if ws:
+            workspaces.append(WorkspaceInfo(
+                id=str(ws.id),
+                name=ws.name,
+                slug=ws.slug,
+                role=m.role.value,
+            ))
+
     return UserResponse(
         id=str(user.id),
         email=user.email,
         full_name=user.full_name,
         is_active=user.is_active,
         avatar_url=user.avatar_url,
+        workspaces=workspaces,
     )

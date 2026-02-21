@@ -31,12 +31,22 @@ class GoogleAuthRequest(BaseModel):
     id_token: str
 
 
+class WorkspaceInfo(BaseModel):
+    id: str
+    name: str
+    slug: str
+    role: str
+
+    model_config = {"from_attributes": True}
+
+
 class UserResponse(BaseModel):
     id: str
     email: str
     full_name: str
     is_active: bool
     avatar_url: Optional[str] = None
+    workspaces: list[WorkspaceInfo] = []
 
     model_config = {"from_attributes": True}
 

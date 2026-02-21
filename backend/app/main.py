@@ -5,9 +5,14 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 
 from app.api.routes import actions, admin, assistants, auth, chat, knowledge, livekit, telegram, whatsapp
 from app.core.config import get_settings
+from app.core.database import engine, Base
+
+# Import all models so Base.metadata knows about them
+from app.models import user, assistant, knowledge as kb_models, conversation, audit  # noqa: F401
 
 settings = get_settings()
 
@@ -21,6 +26,21 @@ logger = logging.getLogger("emefa")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("EMEFA Platform starting up...")
+    # Auto-create tables if they don't exist (dev convenience)
+    try:
+        async with engine.begin() as conn:
+            result = await conn.execute(text(
+                "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'users')"
+            ))
+            tables_exist = result.scalar()
+            if not tables_exist:
+                logger.info("Database tables not found - creating schema...")
+                await conn.run_sync(Base.metadata.create_all)
+                logger.info("Database schema created successfully.")
+            else:
+                logger.info("Database tables already exist.")
+    except Exception as e:
+        logger.warning(f"Could not auto-create tables (DB may not be ready): {e}")
     yield
     logger.info("EMEFA Platform shutting down...")
 
