@@ -54,8 +54,8 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: Optional[str] = None
     OPENAI_MODEL: str = "gpt-4o-mini"
 
-    # IronClaw Agent Runtime
-    IRONCLAW_URL: str = "http://localhost:8090"
+    # IronClaw Agent Runtime (Web Gateway on port 3000)
+    IRONCLAW_URL: str = "http://localhost:3000"
 
     # LiveKit
     LIVEKIT_URL: str = "ws://localhost:7880"

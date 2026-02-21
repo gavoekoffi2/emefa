@@ -149,5 +149,5 @@ docker compose --profile whatsapp-qr up -d
 | MinIO       | 9000  | Stockage S3                |
 | Ollama      | 11434 | LLM local                  |
 | LiveKit     | 7880  | Serveur WebRTC             |
-| IronClaw    | 8090  | Agent runtime              |
+| IronClaw    | 3001  | Agent runtime (Web Gateway)|
 | WA QR       | 8095  | Bridge WhatsApp (optionnel)|

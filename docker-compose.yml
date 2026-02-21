@@ -134,8 +134,10 @@ services:
       LLM_BASE_URL: http://ollama:11434
       LLM_MODEL: llama3.2:3b
       DATABASE_URL: postgres://emefa:emefa@postgres:5432/ironclaw
+      HTTP_HOST: "0.0.0.0"
+      HTTP_PORT: "3000"
     ports:
-      - "8090:8090"
+      - "3001:3000"
     depends_on:
       postgres:
         condition: service_healthy
