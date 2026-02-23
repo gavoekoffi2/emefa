@@ -20,10 +20,17 @@ export async function api<T = unknown>(path: string, options: FetchOptions = {})
     headers["X-Workspace-ID"] = workspaceId;
   }
 
-  const res = await fetch(`${API_URL}/api/v1${path}`, {
-    ...fetchOptions,
-    headers,
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}/api/v1${path}`, {
+      ...fetchOptions,
+      headers,
+    });
+  } catch {
+    throw new Error(
+      "Impossible de contacter le serveur. Vérifiez que le backend est démarré sur " + API_URL
+    );
+  }
 
   if (!res.ok) {
     const error = await res.json().catch(() => ({ detail: res.statusText }));

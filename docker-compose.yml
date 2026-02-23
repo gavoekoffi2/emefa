@@ -89,7 +89,19 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    env_file: .env
+    env_file:
+      - .env
+    environment:
+      # Docker inter-service defaults (override via .env if needed)
+      DATABASE_URL: postgresql+asyncpg://emefa:emefa@postgres:5432/emefa
+      REDIS_URL: redis://redis:6379/0
+      QDRANT_HOST: qdrant
+      S3_ENDPOINT: http://minio:9000
+      OLLAMA_BASE_URL: http://ollama:11434
+      IRONCLAW_URL: http://ironclaw:3000
+      LIVEKIT_URL: ws://livekit:7880
+      WHATSAPP_QR_SERVICE_URL: http://whatsapp-qr:8095
+      ALLOWED_ORIGINS: '["http://localhost:3000","http://127.0.0.1:3000","http://0.0.0.0:3000"]'
     ports:
       - "8000:8000"
     depends_on:
