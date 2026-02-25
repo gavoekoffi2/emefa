@@ -37,20 +37,33 @@ export default function AssistantDetailPage() {
   const id = params.id as string;
   const { token, workspaceId } = useAuth();
   const [assistant, setAssistant] = useState<Assistant | null>(null);
+  const [error, setError] = useState("");
 
   const load = useCallback(async () => {
     if (!token) return;
     try {
+      setError("");
       const data = await assistantApi.get(token, workspaceId || "", id);
       setAssistant(data as Assistant);
     } catch (e) {
-      console.error(e);
+      setError(e instanceof Error ? e.message : "Impossible de charger l'assistant");
     }
   }, [token, workspaceId, id]);
 
   useEffect(() => {
     load();
   }, [load]);
+
+  if (error) {
+    return (
+      <div className="p-8 flex flex-col items-center justify-center min-h-[400px]">
+        <p className="text-destructive mb-4">{error}</p>
+        <button onClick={load} className="px-4 py-2 bg-primary text-primary-foreground rounded-lg">
+          Réessayer
+        </button>
+      </div>
+    );
+  }
 
   if (!assistant) {
     return (

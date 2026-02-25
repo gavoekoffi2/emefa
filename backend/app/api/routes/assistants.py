@@ -62,7 +62,7 @@ async def create_assistant(
         status=AssistantStatus.ACTIVE,
     )
     db.add(assistant)
-    await db.flush()
+    await db.commit()
 
     return AssistantResponse(
         id=str(assistant.id),
@@ -164,7 +164,7 @@ async def update_assistant(
         if hasattr(assistant, key):
             setattr(assistant, key, value)
 
-    await db.flush()
+    await db.commit()
 
     return AssistantResponse(
         id=str(assistant.id),
@@ -205,4 +205,4 @@ async def delete_assistant(
         raise HTTPException(status_code=404, detail="Assistant not found")
 
     await db.delete(assistant)
-    await db.flush()
+    await db.commit()

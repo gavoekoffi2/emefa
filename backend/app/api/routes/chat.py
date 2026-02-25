@@ -57,6 +57,16 @@ async def list_conversations(
     workspace: Workspace = Depends(get_current_workspace),
     db: AsyncSession = Depends(get_db),
 ):
+    # Verify assistant belongs to workspace before listing conversations
+    assistant_result = await db.execute(
+        select(Assistant).where(
+            Assistant.id == uuid.UUID(assistant_id),
+            Assistant.workspace_id == workspace.id,
+        )
+    )
+    if not assistant_result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Assistant not found")
+
     result = await db.execute(
         select(Conversation)
         .where(Conversation.assistant_id == uuid.UUID(assistant_id))
@@ -78,6 +88,16 @@ async def get_messages(
     workspace: Workspace = Depends(get_current_workspace),
     db: AsyncSession = Depends(get_db),
 ):
+    # Verify assistant belongs to workspace before listing messages
+    assistant_result = await db.execute(
+        select(Assistant).where(
+            Assistant.id == uuid.UUID(assistant_id),
+            Assistant.workspace_id == workspace.id,
+        )
+    )
+    if not assistant_result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Assistant not found")
+
     result = await db.execute(
         select(Message)
         .where(Message.conversation_id == uuid.UUID(conversation_id))

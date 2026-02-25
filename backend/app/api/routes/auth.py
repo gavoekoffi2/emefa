@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.deps import get_current_user
-from app.models.user import User, WorkspaceMember
+from app.models.user import User, Workspace, WorkspaceMember
 from app.schemas.auth import (
     LoginRequest,
     RefreshRequest,
@@ -57,25 +57,24 @@ async def me(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    # Fetch user's workspaces with roles
+    # Fetch user's workspaces with roles in a single query (join)
+    from sqlalchemy.orm import selectinload
     result = await db.execute(
-        select(WorkspaceMember).where(WorkspaceMember.user_id == user.id)
+        select(WorkspaceMember, Workspace)
+        .join(Workspace, WorkspaceMember.workspace_id == Workspace.id)
+        .where(WorkspaceMember.user_id == user.id)
     )
-    memberships = result.scalars().all()
+    rows = result.all()
 
-    workspaces = []
-    for m in memberships:
-        # Load workspace name
-        from app.models.user import Workspace
-        ws_result = await db.execute(select(Workspace).where(Workspace.id == m.workspace_id))
-        ws = ws_result.scalar_one_or_none()
-        if ws:
-            workspaces.append(WorkspaceInfo(
-                id=str(ws.id),
-                name=ws.name,
-                slug=ws.slug,
-                role=m.role.value,
-            ))
+    workspaces = [
+        WorkspaceInfo(
+            id=str(ws.id),
+            name=ws.name,
+            slug=ws.slug,
+            role=m.role.value,
+        )
+        for m, ws in rows
+    ]
 
     return UserResponse(
         id=str(user.id),

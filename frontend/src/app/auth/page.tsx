@@ -95,8 +95,11 @@ export default function AuthPage() {
               className="w-full px-4 py-2.5 rounded-lg border border-input bg-background focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
               placeholder="\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"
               required
-              minLength={6}
+              minLength={8}
             />
+            {!isLogin && password.length > 0 && password.length < 8 && (
+              <p className="text-xs text-muted-foreground mt-1">8 caractères minimum</p>
+            )}
           </div>
 
           {error && (

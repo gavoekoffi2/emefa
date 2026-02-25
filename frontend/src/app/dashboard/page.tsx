@@ -26,14 +26,17 @@ export default function DashboardPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState({ name: "", objective: "", tone: "professional", language: "fr" });
+  const [error, setError] = useState("");
+  const [createError, setCreateError] = useState("");
 
   const loadAssistants = useCallback(async () => {
     if (!token) return;
     try {
+      setError("");
       const data = await assistantApi.list(token, workspaceId || "");
       setAssistants(data as Assistant[]);
     } catch (e) {
-      console.error(e);
+      setError(e instanceof Error ? e.message : "Impossible de charger les assistants");
     }
   }, [token, workspaceId]);
 
@@ -45,13 +48,14 @@ export default function DashboardPage() {
     e.preventDefault();
     if (!token) return;
     setCreating(true);
+    setCreateError("");
     try {
       await assistantApi.create(token, workspaceId || "", form);
       setShowCreate(false);
       setForm({ name: "", objective: "", tone: "professional", language: "fr" });
       loadAssistants();
     } catch (e) {
-      console.error(e);
+      setCreateError(e instanceof Error ? e.message : "Impossible de créer l'assistant");
     } finally {
       setCreating(false);
     }
@@ -75,9 +79,19 @@ export default function DashboardPage() {
         </button>
       </div>
 
+      {error && (
+        <div className="mb-6 p-4 rounded-xl bg-destructive/10 text-destructive text-sm">
+          {error}
+        </div>
+      )}
+
       {/* Create Modal */}
       {showCreate && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={(e) => { if (e.target === e.currentTarget) setShowCreate(false); }}
+          onKeyDown={(e) => { if (e.key === "Escape") setShowCreate(false); }}
+        >
           <div className="bg-card rounded-2xl border border-border p-8 w-full max-w-lg">
             <h2 className="text-2xl font-bold mb-6">Cr\u00e9er un assistant</h2>
             <form onSubmit={handleCreate} className="space-y-4">
@@ -129,6 +143,9 @@ export default function DashboardPage() {
                   </select>
                 </div>
               </div>
+              {createError && (
+                <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm">{createError}</div>
+              )}
               <div className="flex gap-3 pt-4">
                 <button
                   type="button"

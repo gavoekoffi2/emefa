@@ -33,15 +33,17 @@ export default function KnowledgePage() {
   const [name, setName] = useState("");
   const [url, setUrl] = useState("");
   const [text, setText] = useState("");
+  const [error, setError] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
     if (!token) return;
     try {
+      setError("");
       const data = await kbApi.list(token, workspaceId || "", assistantId);
       setKbs(data as KnowledgeBase[]);
     } catch (e) {
-      console.error(e);
+      setError(e instanceof Error ? e.message : "Impossible de charger les sources");
     }
   }, [token, workspaceId, assistantId]);
 
@@ -53,10 +55,17 @@ export default function KnowledgePage() {
     e.preventDefault();
     if (!token) return;
     setLoading(true);
+    setError("");
 
     try {
       if (mode === "file" && fileRef.current?.files?.[0]) {
-        await kbApi.uploadFile(token, workspaceId || "", assistantId, name, fileRef.current.files[0]);
+        const file = fileRef.current.files[0];
+        if (file.size > 10 * 1024 * 1024) {
+          setError("Le fichier ne doit pas dépasser 10 Mo");
+          setLoading(false);
+          return;
+        }
+        await kbApi.uploadFile(token, workspaceId || "", assistantId, name, file);
       } else if (mode === "url") {
         await kbApi.addUrl(token, workspaceId || "", assistantId, { name, url });
       } else if (mode === "text") {
@@ -68,7 +77,7 @@ export default function KnowledgePage() {
       setText("");
       load();
     } catch (e) {
-      console.error(e);
+      setError(e instanceof Error ? e.message : "Erreur lors de l'ajout de la source");
     } finally {
       setLoading(false);
     }
@@ -76,11 +85,12 @@ export default function KnowledgePage() {
 
   const handleDelete = async (kbId: string) => {
     if (!token) return;
+    setError("");
     try {
       await kbApi.delete(token, workspaceId || "", assistantId, kbId);
       load();
     } catch (e) {
-      console.error(e);
+      setError(e instanceof Error ? e.message : "Erreur lors de la suppression");
     }
   };
 
@@ -101,6 +111,12 @@ export default function KnowledgePage() {
           </p>
         </div>
       </div>
+
+      {error && (
+        <div className="mb-6 p-4 rounded-xl bg-destructive/10 text-destructive text-sm">
+          {error}
+        </div>
+      )}
 
       {/* Add source buttons */}
       <div className="flex gap-3 mb-8">

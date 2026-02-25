@@ -43,11 +43,23 @@ def decode_token(token: str) -> dict[str, Any]:
 # Fernet encryption for data at rest (memory, secrets)
 _fernet: Optional[Fernet] = None
 
+import logging as _logging
+_security_logger = _logging.getLogger("emefa.security")
+
 
 def get_fernet() -> Fernet:
     global _fernet
     if _fernet is None:
-        _fernet = Fernet(settings.ENCRYPTION_KEY.encode() if len(settings.ENCRYPTION_KEY) == 44 else Fernet.generate_key())
+        key = settings.ENCRYPTION_KEY
+        if key == "change-me-fernet-key" or len(key) != 44:
+            _security_logger.warning(
+                "ENCRYPTION_KEY is not set or invalid. Generating a temporary key. "
+                "Data encrypted with this key will be LOST on restart. "
+                "Set a valid Fernet key via: python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())'"
+            )
+            _fernet = Fernet(Fernet.generate_key())
+        else:
+            _fernet = Fernet(key.encode())
     return _fernet
 
 

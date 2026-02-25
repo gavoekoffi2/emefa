@@ -81,9 +81,10 @@ async def upload_file(
         kb.status = KBStatus.READY
     except Exception as e:
         kb.status = KBStatus.ERROR
+        kb.status = KBStatus.ERROR
         kb.error_message = str(e)[:500]
 
-    await db.flush()
+    await db.commit()
     return KBResponse(
         id=str(kb.id), assistant_id=str(kb.assistant_id),
         name=kb.name, source_type=kb.source_type.value,
@@ -124,7 +125,7 @@ async def add_url(
         kb.status = KBStatus.ERROR
         kb.error_message = str(e)[:500]
 
-    await db.flush()
+    await db.commit()
     return KBResponse(
         id=str(kb.id), assistant_id=str(kb.assistant_id),
         name=kb.name, source_type=kb.source_type.value,
@@ -164,7 +165,7 @@ async def add_text(
         kb.status = KBStatus.ERROR
         kb.error_message = str(e)[:500]
 
-    await db.flush()
+    await db.commit()
     return KBResponse(
         id=str(kb.id), assistant_id=str(kb.assistant_id),
         name=kb.name, source_type=kb.source_type.value,
@@ -199,4 +200,4 @@ async def delete_knowledge_base(
             pass
 
     await db.delete(kb)
-    await db.flush()
+    await db.commit()

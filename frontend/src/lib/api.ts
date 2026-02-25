@@ -9,9 +9,13 @@ export async function api<T = unknown>(path: string, options: FetchOptions = {})
   const { token, workspaceId, ...fetchOptions } = options;
 
   const headers: Record<string, string> = {
-    "Content-Type": "application/json",
     ...(options.headers as Record<string, string>),
   };
+
+  // Only set Content-Type for non-FormData bodies
+  if (!(fetchOptions.body instanceof FormData)) {
+    headers["Content-Type"] = "application/json";
+  }
 
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
@@ -34,7 +38,12 @@ export async function api<T = unknown>(path: string, options: FetchOptions = {})
 
   if (!res.ok) {
     const error = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(error.detail || "API Error");
+    throw new Error(error.detail || "Erreur serveur");
+  }
+
+  // Handle empty responses (204 No Content)
+  if (res.status === 204 || res.headers.get("content-length") === "0") {
+    return undefined as T;
   }
 
   return res.json();

@@ -43,7 +43,7 @@ export default function ChatPage() {
       const resp = (await chatApi.send(token, workspaceId || "", assistantId, {
         message: userMsg,
         conversation_id: conversationId || undefined,
-      })) as { conversation_id: string; message: string; sources?: { sources: Message["sources"] }; tokens_used: number };
+      })) as { conversation_id: string; message: string; sources?: Message["sources"]; tokens_used: number };
 
       setConversationId(resp.conversation_id);
       setMessages((prev) => [
@@ -51,7 +51,7 @@ export default function ChatPage() {
         {
           role: "assistant",
           content: resp.message,
-          sources: resp.sources?.sources,
+          sources: resp.sources,
         },
       ]);
     } catch (e) {

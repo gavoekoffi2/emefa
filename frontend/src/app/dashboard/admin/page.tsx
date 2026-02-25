@@ -35,10 +35,12 @@ export default function AdminPage() {
   const { token, workspaceId } = useAuth();
   const [stats, setStats] = useState<Stats | null>(null);
   const [logs, setLogs] = useState<AuditLog[]>([]);
+  const [error, setError] = useState("");
 
   const load = useCallback(async () => {
     if (!token) return;
     try {
+      setError("");
       const [s, l] = await Promise.all([
         adminApi.stats(token, workspaceId || ""),
         adminApi.auditLogs(token, workspaceId || ""),
@@ -46,7 +48,7 @@ export default function AdminPage() {
       setStats(s as Stats);
       setLogs(l as AuditLog[]);
     } catch (e) {
-      console.error(e);
+      setError(e instanceof Error ? e.message : "Impossible de charger les données admin");
     }
   }, [token, workspaceId]);
 
@@ -70,6 +72,12 @@ export default function AdminPage() {
       <p className="text-muted-foreground mb-8">
         Vue d&apos;ensemble de votre workspace et journal d&apos;audit
       </p>
+
+      {error && (
+        <div className="mb-6 p-4 rounded-xl bg-destructive/10 text-destructive text-sm">
+          {error}
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-10">
