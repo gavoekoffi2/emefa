@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Bot } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
@@ -14,8 +14,15 @@ export default function AuthPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const { login, register } = useAuth();
+  const { user, token, loading: authLoading, login, register } = useAuth();
   const router = useRouter();
+
+  // Redirect to dashboard if already authenticated
+  useEffect(() => {
+    if (!authLoading && token && user) {
+      router.replace("/dashboard");
+    }
+  }, [authLoading, token, user, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,7 +35,8 @@ export default function AuthPage() {
       } else {
         await register(email, password, fullName, workspaceName || undefined);
       }
-      router.push("/dashboard");
+      // Use replace to prevent back-button returning to auth page
+      router.replace("/dashboard");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Une erreur est survenue");
     } finally {

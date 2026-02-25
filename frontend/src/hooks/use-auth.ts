@@ -40,6 +40,12 @@ function extractWorkspaceId(user: User, savedId: string | null): string | null {
   return null;
 }
 
+async function fetchUserProfile(token: string, savedWsId: string | null): Promise<Omit<AuthState, "loading">> {
+  const user = (await authApi.me(token)) as User;
+  const wsId = extractWorkspaceId(user, savedWsId);
+  return { user, token, workspaceId: wsId };
+}
+
 export function useAuth() {
   const [state, setState] = useState<AuthState>({
     user: null,
@@ -52,12 +58,9 @@ export function useAuth() {
     const token = localStorage.getItem("emefa_token");
     const workspaceId = localStorage.getItem("emefa_workspace_id");
     if (token) {
-      authApi
-        .me(token)
-        .then((data) => {
-          const user = data as User;
-          const wsId = extractWorkspaceId(user, workspaceId);
-          setState({ user, token, workspaceId: wsId, loading: false });
+      fetchUserProfile(token, workspaceId)
+        .then((profile) => {
+          setState({ ...profile, loading: false });
         })
         .catch(() => {
           localStorage.removeItem("emefa_token");
@@ -76,10 +79,9 @@ export function useAuth() {
     localStorage.setItem("emefa_token", tokens.access_token);
     localStorage.setItem("emefa_refresh", tokens.refresh_token);
 
-    const user = (await authApi.me(tokens.access_token)) as User;
-    const wsId = extractWorkspaceId(user, null);
-    setState({ user, token: tokens.access_token, workspaceId: wsId, loading: false });
-    return user;
+    const profile = await fetchUserProfile(tokens.access_token, null);
+    setState({ ...profile, loading: false });
+    return profile.user;
   }, []);
 
   const register = useCallback(
@@ -93,10 +95,17 @@ export function useAuth() {
       localStorage.setItem("emefa_token", tokens.access_token);
       localStorage.setItem("emefa_refresh", tokens.refresh_token);
 
-      const user = (await authApi.me(tokens.access_token)) as User;
-      const wsId = extractWorkspaceId(user, null);
-      setState({ user, token: tokens.access_token, workspaceId: wsId, loading: false });
-      return user;
+      // Fetch user profile — if this fails, still store the token
+      // so the dashboard can retry on mount
+      try {
+        const profile = await fetchUserProfile(tokens.access_token, null);
+        setState({ ...profile, loading: false });
+        return profile.user;
+      } catch {
+        // Token is already in localStorage, dashboard will fetch profile on mount
+        setState((s) => ({ ...s, token: tokens.access_token, loading: false }));
+        return null;
+      }
     },
     []
   );
