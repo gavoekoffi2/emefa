@@ -58,6 +58,13 @@ async def upload_file(
     db: AsyncSession = Depends(get_db),
 ):
     assistant = await _get_assistant(assistant_id, workspace, db)
+
+    # Validate file size (10 MB max)
+    MAX_FILE_SIZE = 10 * 1024 * 1024
+    content = await file.read()
+    if len(content) > MAX_FILE_SIZE:
+        raise HTTPException(status_code=413, detail="Le fichier ne doit pas dépasser 10 Mo")
+
     collection_name = f"emefa_{assistant.id.hex}"
 
     kb = KnowledgeBase(
@@ -72,7 +79,6 @@ async def upload_file(
     await db.flush()
 
     try:
-        content = await file.read()
         text = extract_text_from_file(content, file.filename or "file.txt")
         chunk_count = await ingest_text(
             collection_name, text, str(kb.id), name, assistant.llm_provider
@@ -80,7 +86,6 @@ async def upload_file(
         kb.chunk_count = chunk_count
         kb.status = KBStatus.READY
     except Exception as e:
-        kb.status = KBStatus.ERROR
         kb.status = KBStatus.ERROR
         kb.error_message = str(e)[:500]
 

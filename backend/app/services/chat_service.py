@@ -26,12 +26,14 @@ async def chat_with_assistant(
     """Process a user message: RAG lookup + memory + LLM call."""
     # 1. Get or create conversation
     if conversation_id:
-        result = await db.execute(
-            select(Conversation).where(
-                Conversation.id == uuid.UUID(conversation_id),
-                Conversation.assistant_id == assistant.id,
-            )
-        )
+        filters = [
+            Conversation.id == uuid.UUID(conversation_id),
+            Conversation.assistant_id == assistant.id,
+        ]
+        # For web channel, verify user ownership
+        if user_id and channel == ChannelType.WEB:
+            filters.append(Conversation.user_id == user_id)
+        result = await db.execute(select(Conversation).where(*filters))
         convo = result.scalar_one_or_none()
         if not convo:
             raise ValueError("Conversation not found")

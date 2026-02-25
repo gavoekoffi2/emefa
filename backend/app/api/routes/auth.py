@@ -58,7 +58,6 @@ async def me(
     db: AsyncSession = Depends(get_db),
 ):
     # Fetch user's workspaces with roles in a single query (join)
-    from sqlalchemy.orm import selectinload
     result = await db.execute(
         select(WorkspaceMember, Workspace)
         .join(Workspace, WorkspaceMember.workspace_id == Workspace.id)

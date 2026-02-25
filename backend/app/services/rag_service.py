@@ -163,10 +163,48 @@ def extract_text_from_file(content: bytes, filename: str) -> str:
         return content.decode("utf-8", errors="replace")
 
 
+def _validate_url(url: str) -> None:
+    """Validate URL to prevent SSRF attacks."""
+    from urllib.parse import urlparse
+    import ipaddress
+
+    parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https"):
+        raise ValueError(f"Unsupported URL scheme: {parsed.scheme}")
+    if not parsed.hostname:
+        raise ValueError("URL must have a hostname")
+
+    # Block private/internal hostnames
+    hostname = parsed.hostname.lower()
+    blocked_hosts = {"localhost", "127.0.0.1", "0.0.0.0", "::1", "metadata.google.internal"}
+    if hostname in blocked_hosts:
+        raise ValueError("URL points to a blocked host")
+
+    # Block private IP ranges
+    try:
+        ip = ipaddress.ip_address(hostname)
+        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved:
+            raise ValueError("URL points to a private/internal IP address")
+    except ValueError:
+        pass  # Not an IP address, it's a hostname - that's fine
+
+
 async def crawl_url(url: str) -> str:
     """Crawl a URL and extract text content."""
-    async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
+    _validate_url(url)
+
+    async with httpx.AsyncClient(timeout=30.0, follow_redirects=False) as client:
         resp = await client.get(url, headers={"User-Agent": "EMEFA-Bot/1.0"})
+        # Follow redirects manually to validate each hop
+        redirects = 0
+        while resp.is_redirect and redirects < 5:
+            redirect_url = str(resp.next_request.url) if resp.next_request else None
+            if not redirect_url:
+                break
+            _validate_url(redirect_url)
+            resp = await client.get(redirect_url, headers={"User-Agent": "EMEFA-Bot/1.0"})
+            redirects += 1
+
         resp.raise_for_status()
         html = resp.text
 
