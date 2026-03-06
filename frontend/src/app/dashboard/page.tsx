@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { Bot, MessageSquare, Mic, Plus, Send } from "lucide-react";
+import { AlertTriangle, Bot, MessageSquare, Mic, Plus, RefreshCw, Send } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { assistantApi } from "@/lib/api";
 
@@ -28,6 +28,7 @@ export default function DashboardPage() {
   const [form, setForm] = useState({ name: "", objective: "", tone: "professional", language: "fr" });
   const [error, setError] = useState("");
   const [createError, setCreateError] = useState("");
+  const [initialLoading, setInitialLoading] = useState(true);
 
   const loadAssistants = useCallback(async () => {
     if (!token) return;
@@ -37,6 +38,8 @@ export default function DashboardPage() {
       setAssistants(data as Assistant[]);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Impossible de charger les assistants");
+    } finally {
+      setInitialLoading(false);
     }
   }, [token, workspaceId]);
 
@@ -61,27 +64,44 @@ export default function DashboardPage() {
     }
   };
 
+  const statusLabel: Record<string, string> = {
+    active: "Actif",
+    draft: "Brouillon",
+    inactive: "Inactif",
+  };
+
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-3xl font-bold">Mes Assistants</h1>
           <p className="text-muted-foreground mt-1">
-            Cr\u00e9ez et g\u00e9rez vos assistants IA personnalis\u00e9s
+            Créez et gérez vos assistants IA personnalisés
           </p>
         </div>
-        <button
-          onClick={() => setShowCreate(true)}
-          className="flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-xl font-semibold hover:opacity-90 transition-opacity"
-        >
-          <Plus className="w-5 h-5" />
-          Nouvel assistant
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={loadAssistants}
+            className="p-2.5 rounded-lg hover:bg-secondary transition-colors"
+            aria-label="Rafraîchir"
+          >
+            <RefreshCw className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => setShowCreate(true)}
+            className="flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-xl font-semibold hover:opacity-90 transition-opacity"
+          >
+            <Plus className="w-5 h-5" />
+            <span className="hidden sm:inline">Nouvel assistant</span>
+          </button>
+        </div>
       </div>
 
       {error && (
-        <div className="mb-6 p-4 rounded-xl bg-destructive/10 text-destructive text-sm">
+        <div className="mb-6 p-4 rounded-xl bg-destructive/10 text-destructive text-sm flex items-center gap-2">
+          <AlertTriangle className="w-4 h-4 flex-shrink-0" />
           {error}
+          <button onClick={loadAssistants} className="ml-auto underline text-xs">Réessayer</button>
         </div>
       )}
 
@@ -90,36 +110,42 @@ export default function DashboardPage() {
         <div
           className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
           onClick={(e) => { if (e.target === e.currentTarget) setShowCreate(false); }}
-          onKeyDown={(e) => { if (e.key === "Escape") setShowCreate(false); }}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Créer un assistant"
         >
           <div className="bg-card rounded-2xl border border-border p-8 w-full max-w-lg">
-            <h2 className="text-2xl font-bold mb-6">Cr\u00e9er un assistant</h2>
+            <h2 className="text-2xl font-bold mb-6">Créer un assistant</h2>
             <form onSubmit={handleCreate} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-1.5">Nom</label>
+                <label htmlFor="create-name" className="block text-sm font-medium mb-1.5">Nom</label>
                 <input
+                  id="create-name"
                   type="text"
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
                   className="w-full px-4 py-2.5 rounded-lg border border-input bg-background focus:ring-2 focus:ring-primary outline-none"
                   placeholder="Mon Assistant Commercial"
                   required
+                  autoFocus
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1.5">Objectif</label>
+                <label htmlFor="create-objective" className="block text-sm font-medium mb-1.5">Objectif</label>
                 <textarea
+                  id="create-objective"
                   value={form.objective}
                   onChange={(e) => setForm({ ...form, objective: e.target.value })}
                   className="w-full px-4 py-2.5 rounded-lg border border-input bg-background focus:ring-2 focus:ring-primary outline-none min-h-[100px]"
-                  placeholder="D\u00e9crivez ce que votre assistant doit faire..."
+                  placeholder="Décrivez ce que votre assistant doit faire..."
                   required
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1.5">Ton</label>
+                  <label htmlFor="create-tone" className="block text-sm font-medium mb-1.5">Ton</label>
                   <select
+                    id="create-tone"
                     value={form.tone}
                     onChange={(e) => setForm({ ...form, tone: e.target.value })}
                     className="w-full px-4 py-2.5 rounded-lg border border-input bg-background"
@@ -127,29 +153,33 @@ export default function DashboardPage() {
                     <option value="professional">Professionnel</option>
                     <option value="friendly">Amical</option>
                     <option value="formal">Formel</option>
-                    <option value="casual">D\u00e9contract\u00e9</option>
+                    <option value="casual">Décontracté</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1.5">Langue</label>
+                  <label htmlFor="create-lang" className="block text-sm font-medium mb-1.5">Langue</label>
                   <select
+                    id="create-lang"
                     value={form.language}
                     onChange={(e) => setForm({ ...form, language: e.target.value })}
                     className="w-full px-4 py-2.5 rounded-lg border border-input bg-background"
                   >
-                    <option value="fr">Fran\u00e7ais</option>
+                    <option value="fr">Français</option>
                     <option value="en">English</option>
-                    <option value="es">Espa\u00f1ol</option>
+                    <option value="es">Español</option>
                   </select>
                 </div>
               </div>
               {createError && (
-                <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm">{createError}</div>
+                <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                  {createError}
+                </div>
               )}
               <div className="flex gap-3 pt-4">
                 <button
                   type="button"
-                  onClick={() => setShowCreate(false)}
+                  onClick={() => { setShowCreate(false); setCreateError(""); }}
                   className="flex-1 py-3 rounded-lg border border-border hover:bg-secondary transition-colors"
                 >
                   Annuler
@@ -159,7 +189,7 @@ export default function DashboardPage() {
                   disabled={creating}
                   className="flex-1 py-3 bg-primary text-primary-foreground rounded-lg font-semibold hover:opacity-90 disabled:opacity-50"
                 >
-                  {creating ? "Cr\u00e9ation..." : "Cr\u00e9er"}
+                  {creating ? "Création..." : "Créer"}
                 </button>
               </div>
             </form>
@@ -167,20 +197,35 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Assistants Grid */}
-      {assistants.length === 0 ? (
+      {/* Loading skeleton */}
+      {initialLoading ? (
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="p-6 rounded-2xl border border-border bg-card animate-pulse">
+              <div className="flex justify-between mb-4">
+                <div className="w-12 h-12 rounded-xl bg-muted" />
+                <div className="w-16 h-6 rounded-full bg-muted" />
+              </div>
+              <div className="h-5 w-40 bg-muted rounded mb-2" />
+              <div className="h-4 w-full bg-muted rounded mb-1" />
+              <div className="h-4 w-2/3 bg-muted rounded mb-4" />
+              <div className="h-3 w-24 bg-muted rounded" />
+            </div>
+          ))}
+        </div>
+      ) : assistants.length === 0 ? (
         <div className="text-center py-20">
           <Bot className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
           <h2 className="text-xl font-semibold mb-2">Aucun assistant</h2>
           <p className="text-muted-foreground mb-6">
-            Cr\u00e9ez votre premier assistant IA pour commencer
+            Créez votre premier assistant IA pour commencer
           </p>
           <button
             onClick={() => setShowCreate(true)}
             className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-xl font-semibold"
           >
             <Plus className="w-5 h-5" />
-            Cr\u00e9er un assistant
+            Créer un assistant
           </button>
         </div>
       ) : (
@@ -202,14 +247,14 @@ export default function DashboardPage() {
                       : "bg-yellow-500/10 text-yellow-500"
                   }`}
                 >
-                  {a.status === "active" ? "Actif" : "Brouillon"}
+                  {statusLabel[a.status] || a.status}
                 </span>
               </div>
               <h3 className="text-lg font-semibold mb-1 group-hover:text-primary transition-colors">
                 {a.name}
               </h3>
               <p className="text-sm text-muted-foreground line-clamp-2 mb-4">{a.objective}</p>
-              <div className="flex items-center gap-3 text-xs text-muted-foreground">
+              <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                 {a.web_chat_enabled && (
                   <span className="flex items-center gap-1">
                     <MessageSquare className="w-3 h-3" /> Chat
@@ -225,7 +270,7 @@ export default function DashboardPage() {
                     <Send className="w-3 h-3" /> Telegram
                   </span>
                 )}
-                <span className="ml-auto">{a.total_tokens_used.toLocaleString()} tokens</span>
+                <span className="ml-auto">{a.total_tokens_used.toLocaleString("fr-FR")} tokens</span>
               </div>
             </Link>
           ))}

@@ -175,10 +175,10 @@
   transform: translateY(-6px);
   box-shadow: 0 20px 60px rgba(139,92,246,.12), 0 8px 20px rgba(0,0,0,.06);
 }
-:root .glass { background: rgba(0,0,0,.02); border-color: rgba(0,0,0,.05); }
-:root .glass-strong { background: rgba(0,0,0,.04); border-color: rgba(0,0,0,.07); }
-:root .glass-card { background: rgba(0,0,0,.02); border-color: rgba(0,0,0,.06); }
-:root .glass-card:hover { background: rgba(0,0,0,.04); border-color: rgba(139,92,246,.2); }
+:root .glass { background: rgba(0,0,0,.03); border-color: rgba(0,0,0,.08); }
+:root .glass-strong { background: rgba(255,255,255,.9); border-color: rgba(0,0,0,.1); backdrop-filter: blur(20px); box-shadow: 0 4px 20px rgba(0,0,0,.05); }
+:root .glass-card { background: rgba(255,255,255,.7); border-color: rgba(0,0,0,.08); box-shadow: 0 2px 12px rgba(0,0,0,.04); }
+:root .glass-card:hover { background: rgba(255,255,255,.85); border-color: rgba(139,92,246,.25); box-shadow: 0 12px 40px rgba(139,92,246,.08), 0 4px 16px rgba(0,0,0,.04); }
 
 /* ═══════ UTILITIES ═══════ */
 .perspective { perspective: 1200px; }
@@ -244,3 +244,45 @@
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: hsl(262,83%,58%,.2); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: hsl(262,83%,58%,.4); }
+
+/* Toast slide-in animation */
+@keyframes slide-in-from-right {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+.animate-in.slide-in-from-right {
+  animation: slide-in-from-right 0.3s ease-out;
+}
+
+/* Focus visible ring for keyboard navigation */
+*:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Skip to content link for screen readers */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Light mode text gradient fix */
+:root .text-gradient {
+  background: linear-gradient(135deg, #7C3AED, #9333EA, #C026D3, #9333EA);
+}
+
+/* Print styles */
+@media print {
+  .glass, .glass-strong, .glass-card {
+    background: white !important;
+    backdrop-filter: none !important;
+  }
+}

@@ -23,27 +23,29 @@ interface AuthState {
   user: User | null;
   token: string | null;
   workspaceId: string | null;
+  workspaceRole: string | null;
   loading: boolean;
 }
 
-function extractWorkspaceId(user: User, savedId: string | null): string | null {
+function extractWorkspaceInfo(user: User, savedId: string | null): { id: string | null; role: string | null } {
   // If saved workspace is valid for this user, use it
-  if (savedId && user.workspaces?.some((w) => w.id === savedId)) {
-    return savedId;
+  if (savedId) {
+    const ws = user.workspaces?.find((w) => w.id === savedId);
+    if (ws) return { id: ws.id, role: ws.role };
   }
   // Otherwise use first workspace
   const first = user.workspaces?.[0];
   if (first) {
     localStorage.setItem("emefa_workspace_id", first.id);
-    return first.id;
+    return { id: first.id, role: first.role };
   }
-  return null;
+  return { id: null, role: null };
 }
 
 async function fetchUserProfile(token: string, savedWsId: string | null): Promise<Omit<AuthState, "loading">> {
   const user = (await authApi.me(token)) as User;
-  const wsId = extractWorkspaceId(user, savedWsId);
-  return { user, token, workspaceId: wsId };
+  const { id: workspaceId, role: workspaceRole } = extractWorkspaceInfo(user, savedWsId);
+  return { user, token, workspaceId, workspaceRole };
 }
 
 export function useAuth() {
@@ -51,6 +53,7 @@ export function useAuth() {
     user: null,
     token: null,
     workspaceId: null,
+    workspaceRole: null,
     loading: true,
   });
 
@@ -64,7 +67,7 @@ export function useAuth() {
         })
         .catch(() => {
           localStorage.removeItem("emefa_token");
-          setState({ user: null, token: null, workspaceId: null, loading: false });
+          setState({ user: null, token: null, workspaceId: null, workspaceRole: null, loading: false });
         });
     } else {
       setState((s) => ({ ...s, loading: false }));
@@ -95,14 +98,11 @@ export function useAuth() {
       localStorage.setItem("emefa_token", tokens.access_token);
       localStorage.setItem("emefa_refresh", tokens.refresh_token);
 
-      // Fetch user profile — if this fails, still store the token
-      // so the dashboard can retry on mount
       try {
         const profile = await fetchUserProfile(tokens.access_token, null);
         setState({ ...profile, loading: false });
         return profile.user;
       } catch {
-        // Token is already in localStorage, dashboard will fetch profile on mount
         setState((s) => ({ ...s, token: tokens.access_token, loading: false }));
         return null;
       }
@@ -114,12 +114,15 @@ export function useAuth() {
     localStorage.removeItem("emefa_token");
     localStorage.removeItem("emefa_refresh");
     localStorage.removeItem("emefa_workspace_id");
-    setState({ user: null, token: null, workspaceId: null, loading: false });
+    setState({ user: null, token: null, workspaceId: null, workspaceRole: null, loading: false });
   }, []);
 
   const setWorkspace = useCallback((id: string) => {
     localStorage.setItem("emefa_workspace_id", id);
-    setState((s) => ({ ...s, workspaceId: id }));
+    setState((prev) => {
+      const ws = prev.user?.workspaces?.find((w) => w.id === id);
+      return { ...prev, workspaceId: id, workspaceRole: ws?.role || null };
+    });
   }, []);
 
   return { ...state, login, register, logout, setWorkspace };
