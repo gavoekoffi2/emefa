@@ -7,7 +7,7 @@ from typing import Optional
 
 import httpx
 from qdrant_client import AsyncQdrantClient
-from qdrant_client.models import Distance, PointStruct, VectorParams
+from qdrant_client.models import Distance, FieldCondition, Filter, MatchValue, PointStruct, VectorParams
 
 from app.core.config import get_settings
 from app.services.llm_service import get_llm_provider
@@ -129,7 +129,7 @@ async def search_knowledge(
 
 
 async def delete_collection(collection_name: str):
-    """Delete a Qdrant collection."""
+    """Delete a Qdrant collection entirely."""
     client = _get_qdrant()
     try:
         await client.delete_collection(collection_name)
@@ -137,11 +137,38 @@ async def delete_collection(collection_name: str):
         await client.close()
 
 
+async def delete_points_by_source(collection_name: str, source_id: str):
+    """Delete only points belonging to a specific source (knowledge base) from a collection."""
+    client = _get_qdrant()
+    try:
+        await client.delete(
+            collection_name=collection_name,
+            points_selector=Filter(
+                must=[
+                    FieldCondition(
+                        key="source_id",
+                        match=MatchValue(value=source_id),
+                    )
+                ]
+            ),
+        )
+    finally:
+        await client.close()
+
+
 def extract_text_from_file(content: bytes, filename: str) -> str:
-    """Extract text from uploaded files (PDF, DOC, TXT)."""
+    """Extract text from uploaded files (PDF, DOC, TXT, CSV, MD)."""
     lower = filename.lower()
-    if lower.endswith(".txt"):
+    if lower.endswith(".txt") or lower.endswith(".md"):
         return content.decode("utf-8", errors="replace")
+    elif lower.endswith(".csv"):
+        import csv
+        text_content = content.decode("utf-8", errors="replace")
+        reader = csv.reader(io.StringIO(text_content))
+        rows = []
+        for row in reader:
+            rows.append(" | ".join(row))
+        return "\n".join(rows)
     elif lower.endswith(".pdf"):
         try:
             import pymupdf

@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
-from app.api.routes import actions, admin, assistants, auth, chat, knowledge, livekit, telegram, whatsapp
+from app.api.routes import actions, admin, assistants, auth, chat, knowledge, livekit, telegram, whatsapp, workspace
 from app.core.config import get_settings
 from app.core.database import engine, Base
 
@@ -52,6 +52,10 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Rate Limiting (must be added before CORS so it runs after CORS in middleware stack)
+from app.core.rate_limit import RateLimitMiddleware  # noqa: E402
+app.add_middleware(RateLimitMiddleware)
+
 # CORS
 app.add_middleware(
     CORSMiddleware,
@@ -72,6 +76,7 @@ app.include_router(whatsapp.router, prefix="/api/v1")
 app.include_router(whatsapp.qr_router, prefix="/api/v1")
 app.include_router(actions.router, prefix="/api/v1")
 app.include_router(admin.router, prefix="/api/v1")
+app.include_router(workspace.router, prefix="/api/v1")
 
 
 @app.get("/health")

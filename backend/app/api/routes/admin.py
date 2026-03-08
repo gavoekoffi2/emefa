@@ -1,19 +1,18 @@
 """Admin routes - monitoring, audit, usage stats."""
 
-import uuid
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.core.deps import get_current_user, get_current_workspace
+from app.core.deps import get_current_workspace, require_admin
 from app.models.assistant import Assistant
 from app.models.audit import AuditLog
 from app.models.conversation import Conversation, Message
-from app.models.user import User, Workspace, WorkspaceMember, WorkspaceRole
+from app.models.user import Workspace, WorkspaceMember
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -39,20 +38,9 @@ class AuditLogResponse(BaseModel):
 @router.get("/stats", response_model=WorkspaceStats)
 async def get_workspace_stats(
     workspace: Workspace = Depends(get_current_workspace),
-    user: User = Depends(get_current_user),
+    _admin: WorkspaceMember = require_admin(),
     db: AsyncSession = Depends(get_db),
 ):
-    # Verify admin
-    result = await db.execute(
-        select(WorkspaceMember).where(
-            WorkspaceMember.workspace_id == workspace.id,
-            WorkspaceMember.user_id == user.id,
-        )
-    )
-    member = result.scalar_one_or_none()
-    if not member or member.role not in [WorkspaceRole.OWNER, WorkspaceRole.ADMIN]:
-        raise HTTPException(status_code=403, detail="Admin access required")
-
     # Gather stats
     assistants_count = (await db.execute(
         select(func.count(Assistant.id)).where(Assistant.workspace_id == workspace.id)
@@ -103,22 +91,11 @@ async def get_workspace_stats(
 @router.get("/audit", response_model=list[AuditLogResponse])
 async def get_audit_logs(
     workspace: Workspace = Depends(get_current_workspace),
-    user: User = Depends(get_current_user),
+    _admin: WorkspaceMember = require_admin(),
     db: AsyncSession = Depends(get_db),
     limit: int = Query(50, le=200),
     offset: int = Query(0),
 ):
-    # Verify admin
-    result = await db.execute(
-        select(WorkspaceMember).where(
-            WorkspaceMember.workspace_id == workspace.id,
-            WorkspaceMember.user_id == user.id,
-        )
-    )
-    member = result.scalar_one_or_none()
-    if not member or member.role not in [WorkspaceRole.OWNER, WorkspaceRole.ADMIN]:
-        raise HTTPException(status_code=403, detail="Admin access required")
-
     result = await db.execute(
         select(AuditLog)
         .where(AuditLog.workspace_id == workspace.id)

@@ -78,6 +78,7 @@ async def list_conversations(
         id=str(c.id), assistant_id=str(c.assistant_id),
         channel=c.channel.value, title=c.title,
         message_count=c.message_count, is_active=c.is_active,
+        created_at=str(c.created_at),
     ) for c in convos]
 
 

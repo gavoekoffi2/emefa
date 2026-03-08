@@ -7,8 +7,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.models.user import User, Workspace, WorkspaceMember
+from app.core.security import hash_password, verify_password
 from app.schemas.auth import (
+    ChangePasswordRequest,
     LoginRequest,
+    ProfileUpdateRequest,
     RefreshRequest,
     RegisterRequest,
     TokenResponse,
@@ -83,3 +86,46 @@ async def me(
         avatar_url=user.avatar_url,
         workspaces=workspaces,
     )
+
+
+@router.patch("/me", response_model=UserResponse)
+async def update_profile(
+    req: ProfileUpdateRequest,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    update_data = req.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(user, key, value)
+    await db.commit()
+
+    # Re-fetch workspaces for response
+    result = await db.execute(
+        select(WorkspaceMember, Workspace)
+        .join(Workspace, WorkspaceMember.workspace_id == Workspace.id)
+        .where(WorkspaceMember.user_id == user.id)
+    )
+    rows = result.all()
+    workspaces = [
+        WorkspaceInfo(id=str(ws.id), name=ws.name, slug=ws.slug, role=m.role.value)
+        for m, ws in rows
+    ]
+    return UserResponse(
+        id=str(user.id), email=user.email, full_name=user.full_name,
+        is_active=user.is_active, avatar_url=user.avatar_url, workspaces=workspaces,
+    )
+
+
+@router.post("/me/change-password")
+async def change_password(
+    req: ChangePasswordRequest,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    if not user.hashed_password:
+        raise HTTPException(status_code=400, detail="OAuth-only account cannot set password this way")
+    if not verify_password(req.current_password, user.hashed_password):
+        raise HTTPException(status_code=400, detail="Current password is incorrect")
+    user.hashed_password = hash_password(req.new_password)
+    await db.commit()
+    return {"message": "Password updated successfully"}

@@ -43,17 +43,15 @@ class OllamaProvider(LLMProvider):
 
     async def embed(self, texts: list[str], model: Optional[str] = None) -> list[list[float]]:
         model = model or self.embed_model
-        embeddings = []
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            for text in texts:
-                resp = await client.post(
-                    f"{self.base_url}/api/embed",
-                    json={"model": model, "input": text},
-                )
-                resp.raise_for_status()
-                data = resp.json()
-                embeddings.append(data["embeddings"][0])
-        return embeddings
+        # Ollama /api/embed supports batch input
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            resp = await client.post(
+                f"{self.base_url}/api/embed",
+                json={"model": model, "input": texts},
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            return data["embeddings"]
 
 
 class OpenRouterProvider(LLMProvider):

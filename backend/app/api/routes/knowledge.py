@@ -12,7 +12,7 @@ from app.models.assistant import Assistant
 from app.models.knowledge import KBSourceType, KBStatus, KnowledgeBase
 from app.models.user import Workspace
 from app.schemas.knowledge import KBCreateText, KBCreateURL, KBResponse
-from app.services.rag_service import crawl_url, delete_collection, extract_text_from_file, ingest_text
+from app.services.rag_service import crawl_url, delete_points_by_source, extract_text_from_file, ingest_text
 
 router = APIRouter(prefix="/assistants/{assistant_id}/knowledge", tags=["knowledge"])
 
@@ -197,10 +197,10 @@ async def delete_knowledge_base(
     if not kb:
         raise HTTPException(status_code=404, detail="Knowledge base not found")
 
-    # Clean up vector DB
+    # Clean up vector DB - only delete points for this KB, not the entire collection
     if kb.collection_name:
         try:
-            await delete_collection(kb.collection_name)
+            await delete_points_by_source(kb.collection_name, str(kb.id))
         except Exception:
             pass
 

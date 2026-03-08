@@ -216,3 +216,33 @@ export const adminApi = {
   auditLogs: (token: string, workspaceId: string, limit = 50) =>
     api(`/admin/audit?limit=${limit}`, { token, workspaceId }),
 };
+
+// ── User Profile ────────────────────────────────────────────────────
+export const profileApi = {
+  update: (token: string, data: { full_name?: string; avatar_url?: string }) =>
+    api("/auth/me", { method: "PATCH", token, body: JSON.stringify(data) }),
+
+  changePassword: (token: string, data: { current_password: string; new_password: string }) =>
+    api("/auth/me/change-password", { method: "POST", token, body: JSON.stringify(data) }),
+};
+
+// ── Workspace ───────────────────────────────────────────────────────
+export const workspaceApi = {
+  get: (token: string, workspaceId: string) =>
+    api("/workspace", { token, workspaceId }),
+
+  update: (token: string, workspaceId: string, data: { name?: string }) =>
+    api("/workspace", { method: "PATCH", token, workspaceId, body: JSON.stringify(data) }),
+
+  listMembers: (token: string, workspaceId: string) =>
+    api("/workspace/members", { token, workspaceId }),
+
+  inviteMember: (token: string, workspaceId: string, data: { email: string; role?: string }) =>
+    api("/workspace/members", { method: "POST", token, workspaceId, body: JSON.stringify(data) }),
+
+  updateMemberRole: (token: string, workspaceId: string, memberId: string, data: { role: string }) =>
+    api(`/workspace/members/${memberId}`, { method: "PATCH", token, workspaceId, body: JSON.stringify(data) }),
+
+  removeMember: (token: string, workspaceId: string, memberId: string) =>
+    api(`/workspace/members/${memberId}`, { method: "DELETE", token, workspaceId }),
+};

@@ -11,9 +11,34 @@ from app.core.deps import get_current_user, get_current_workspace
 from app.models.assistant import Assistant, AssistantStatus
 from app.models.user import User, Workspace
 from app.schemas.assistant import AssistantCreate, AssistantResponse, AssistantUpdate
+from app.services.audit_service import log_action
 from app.services.prompt_generator import build_fallback_prompt, generate_system_prompt
 
 router = APIRouter(prefix="/assistants", tags=["assistants"])
+
+
+def _to_response(a: Assistant) -> AssistantResponse:
+    """Convert an Assistant model to an AssistantResponse."""
+    return AssistantResponse(
+        id=str(a.id),
+        name=a.name,
+        description=a.description,
+        objective=a.objective,
+        tone=a.tone,
+        language=a.language,
+        custom_rules=a.custom_rules,
+        system_prompt=a.system_prompt,
+        status=a.status.value if isinstance(a.status, AssistantStatus) else a.status,
+        web_chat_enabled=a.web_chat_enabled,
+        voice_enabled=a.voice_enabled,
+        telegram_enabled=a.telegram_enabled,
+        whatsapp_enabled=a.whatsapp_enabled,
+        whatsapp_qr_enabled=a.whatsapp_qr_enabled,
+        llm_provider=a.llm_provider,
+        llm_model=a.llm_model,
+        enabled_actions=a.enabled_actions,
+        total_tokens_used=a.total_tokens_used,
+    )
 
 
 @router.get("", response_model=list[AssistantResponse])
@@ -25,9 +50,7 @@ async def list_assistants(
         select(Assistant).where(Assistant.workspace_id == workspace.id).order_by(Assistant.created_at.desc())
     )
     assistants = result.scalars().all()
-    return [AssistantResponse(id=str(a.id), **{
-        k: getattr(a, k) for k in AssistantResponse.model_fields if k != "id" and hasattr(a, k)
-    }) for a in assistants]
+    return [_to_response(a) for a in assistants]
 
 
 @router.post("", response_model=AssistantResponse, status_code=201)
@@ -62,28 +85,16 @@ async def create_assistant(
         status=AssistantStatus.ACTIVE,
     )
     db.add(assistant)
+    await db.flush()
+
+    await log_action(
+        db, workspace.id, "create", "assistant",
+        resource_id=str(assistant.id), user_id=user.id,
+        details={"name": assistant.name},
+    )
     await db.commit()
 
-    return AssistantResponse(
-        id=str(assistant.id),
-        name=assistant.name,
-        description=assistant.description,
-        objective=assistant.objective,
-        tone=assistant.tone,
-        language=assistant.language,
-        custom_rules=assistant.custom_rules,
-        system_prompt=assistant.system_prompt,
-        status=assistant.status.value,
-        web_chat_enabled=assistant.web_chat_enabled,
-        voice_enabled=assistant.voice_enabled,
-        telegram_enabled=assistant.telegram_enabled,
-        whatsapp_enabled=assistant.whatsapp_enabled,
-        whatsapp_qr_enabled=assistant.whatsapp_qr_enabled,
-        llm_provider=assistant.llm_provider,
-        llm_model=assistant.llm_model,
-        enabled_actions=assistant.enabled_actions,
-        total_tokens_used=assistant.total_tokens_used,
-    )
+    return _to_response(assistant)
 
 
 @router.get("/{assistant_id}", response_model=AssistantResponse)
@@ -102,26 +113,7 @@ async def get_assistant(
     if not assistant:
         raise HTTPException(status_code=404, detail="Assistant not found")
 
-    return AssistantResponse(
-        id=str(assistant.id),
-        name=assistant.name,
-        description=assistant.description,
-        objective=assistant.objective,
-        tone=assistant.tone,
-        language=assistant.language,
-        custom_rules=assistant.custom_rules,
-        system_prompt=assistant.system_prompt,
-        status=assistant.status.value,
-        web_chat_enabled=assistant.web_chat_enabled,
-        voice_enabled=assistant.voice_enabled,
-        telegram_enabled=assistant.telegram_enabled,
-        whatsapp_enabled=assistant.whatsapp_enabled,
-        whatsapp_qr_enabled=assistant.whatsapp_qr_enabled,
-        llm_provider=assistant.llm_provider,
-        llm_model=assistant.llm_model,
-        enabled_actions=assistant.enabled_actions,
-        total_tokens_used=assistant.total_tokens_used,
-    )
+    return _to_response(assistant)
 
 
 @router.patch("/{assistant_id}", response_model=AssistantResponse)
@@ -129,6 +121,7 @@ async def update_assistant(
     assistant_id: str,
     req: AssistantUpdate,
     workspace: Workspace = Depends(get_current_workspace),
+    user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
@@ -164,34 +157,21 @@ async def update_assistant(
         if hasattr(assistant, key):
             setattr(assistant, key, value)
 
+    await log_action(
+        db, workspace.id, "update", "assistant",
+        resource_id=str(assistant.id), user_id=user.id,
+        details={"fields": list(update_data.keys())},
+    )
     await db.commit()
 
-    return AssistantResponse(
-        id=str(assistant.id),
-        name=assistant.name,
-        description=assistant.description,
-        objective=assistant.objective,
-        tone=assistant.tone,
-        language=assistant.language,
-        custom_rules=assistant.custom_rules,
-        system_prompt=assistant.system_prompt,
-        status=assistant.status.value if isinstance(assistant.status, AssistantStatus) else assistant.status,
-        web_chat_enabled=assistant.web_chat_enabled,
-        voice_enabled=assistant.voice_enabled,
-        telegram_enabled=assistant.telegram_enabled,
-        whatsapp_enabled=assistant.whatsapp_enabled,
-        whatsapp_qr_enabled=assistant.whatsapp_qr_enabled,
-        llm_provider=assistant.llm_provider,
-        llm_model=assistant.llm_model,
-        enabled_actions=assistant.enabled_actions,
-        total_tokens_used=assistant.total_tokens_used,
-    )
+    return _to_response(assistant)
 
 
 @router.delete("/{assistant_id}", status_code=204)
 async def delete_assistant(
     assistant_id: str,
     workspace: Workspace = Depends(get_current_workspace),
+    user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
@@ -204,5 +184,11 @@ async def delete_assistant(
     if not assistant:
         raise HTTPException(status_code=404, detail="Assistant not found")
 
+    assistant_name = assistant.name
     await db.delete(assistant)
+    await log_action(
+        db, workspace.id, "delete", "assistant",
+        resource_id=assistant_id, user_id=user.id,
+        details={"name": assistant_name},
+    )
     await db.commit()

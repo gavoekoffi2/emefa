@@ -24,6 +24,7 @@ class ConversationResponse(BaseModel):
     title: Optional[str] = None
     message_count: int
     is_active: bool
+    created_at: str
 
     model_config = {"from_attributes": True}
 

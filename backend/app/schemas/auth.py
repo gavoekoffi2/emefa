@@ -51,6 +51,16 @@ class UserResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class ProfileUpdateRequest(BaseModel):
+    full_name: Optional[str] = Field(None, min_length=1, max_length=255)
+    avatar_url: Optional[str] = None
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str = Field(..., min_length=1)
+    new_password: str = Field(..., min_length=8, max_length=128)
+
+
 class WorkspaceResponse(BaseModel):
     id: str
     name: str

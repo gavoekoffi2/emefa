@@ -38,11 +38,16 @@ async def chat_with_assistant(
         if not convo:
             raise ValueError("Conversation not found")
     else:
+        # Auto-generate title from first message (truncated)
+        title = user_message[:80].strip()
+        if len(user_message) > 80:
+            title += "..."
         convo = Conversation(
             assistant_id=assistant.id,
             user_id=user_id,
             channel=channel,
             external_chat_id=external_chat_id,
+            title=title,
         )
         db.add(convo)
         await db.flush()
