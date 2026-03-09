@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import {
   AlertTriangle,
   Bot,
+  Building2,
   Check,
   Database,
   Edit3,
@@ -151,6 +152,7 @@ export default function AssistantDetailPage() {
     { href: `/dashboard/assistants/${id}/chat`, icon: <MessageSquare className="w-4 h-4" />, label: "Chat" },
     { href: `/dashboard/assistants/${id}/knowledge`, icon: <Database className="w-4 h-4" />, label: "Base de connaissances" },
     { href: `/dashboard/assistants/${id}/voice`, icon: <Mic className="w-4 h-4" />, label: "Appel vocal" },
+    { href: `/dashboard/assistants/${id}/architect`, icon: <Building2 className="w-4 h-4" />, label: "Architecte" },
   ];
 
   const channels = [

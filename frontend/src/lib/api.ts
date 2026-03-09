@@ -226,6 +226,100 @@ export const profileApi = {
     api("/auth/me/change-password", { method: "POST", token, body: JSON.stringify(data) }),
 };
 
+// ── Templates ───────────────────────────────────────────────────────
+export const templateApi = {
+  list: (token: string, workspaceId: string, category?: string) =>
+    api(`/templates${category ? `?category=${category}` : ""}`, { token, workspaceId }),
+
+  get: (token: string, workspaceId: string, id: string) =>
+    api(`/templates/${id}`, { token, workspaceId }),
+
+  exportJson: (token: string, workspaceId: string, id: string) =>
+    api(`/templates/${id}/export`, { token, workspaceId }),
+
+  createAssistant: (token: string, workspaceId: string, templateId: string, data: Record<string, unknown>) =>
+    api(`/templates/${templateId}/create-assistant`, { method: "POST", token, workspaceId, body: JSON.stringify(data) }),
+};
+
+// ── Bridge ──────────────────────────────────────────────────────────
+export const bridgeApi = {
+  registerDevice: (token: string, workspaceId: string, data: Record<string, unknown>) =>
+    api("/bridge/devices", { method: "POST", token, workspaceId, body: JSON.stringify(data) }),
+
+  listDevices: (token: string, workspaceId: string, assistantId?: string) =>
+    api(`/bridge/devices${assistantId ? `?assistant_id=${assistantId}` : ""}`, { token, workspaceId }),
+
+  getDevice: (token: string, workspaceId: string, deviceId: string) =>
+    api(`/bridge/devices/${deviceId}`, { token, workspaceId }),
+
+  deviceStatus: (token: string, workspaceId: string, deviceId: string) =>
+    api(`/bridge/devices/${deviceId}/status`, { token, workspaceId }),
+
+  updatePermissions: (token: string, workspaceId: string, deviceId: string, permissions: Record<string, boolean>) =>
+    api(`/bridge/devices/${deviceId}/permissions`, { method: "PATCH", token, workspaceId, body: JSON.stringify({ permissions }) }),
+
+  revokeDevice: (token: string, workspaceId: string, deviceId: string) =>
+    api(`/bridge/devices/${deviceId}`, { method: "DELETE", token, workspaceId }),
+
+  listCommands: (token: string, workspaceId: string) =>
+    api("/bridge/commands", { token, workspaceId }),
+
+  createAction: (token: string, workspaceId: string, data: Record<string, unknown>) =>
+    api("/bridge/actions", { method: "POST", token, workspaceId, body: JSON.stringify(data) }),
+
+  approveAction: (token: string, workspaceId: string, actionId: string, approved: boolean) =>
+    api(`/bridge/actions/${actionId}/approve`, { method: "POST", token, workspaceId, body: JSON.stringify({ approved }) }),
+
+  listActions: (token: string, workspaceId: string, params?: Record<string, string>) => {
+    const query = params ? "?" + new URLSearchParams(params).toString() : "";
+    return api(`/bridge/actions${query}`, { token, workspaceId });
+  },
+};
+
+// ── Architect Projects ──────────────────────────────────────────────
+export const architectApi = {
+  createProject: (token: string, workspaceId: string, data: Record<string, unknown>) =>
+    api("/architect/projects", { method: "POST", token, workspaceId, body: JSON.stringify(data) }),
+
+  listProjects: (token: string, workspaceId: string, assistantId?: string) =>
+    api(`/architect/projects${assistantId ? `?assistant_id=${assistantId}` : ""}`, { token, workspaceId }),
+
+  getProject: (token: string, workspaceId: string, projectId: string) =>
+    api(`/architect/projects/${projectId}`, { token, workspaceId }),
+
+  updateProject: (token: string, workspaceId: string, projectId: string, data: Record<string, unknown>) =>
+    api(`/architect/projects/${projectId}`, { method: "PATCH", token, workspaceId, body: JSON.stringify(data) }),
+
+  addReference: async (token: string, workspaceId: string, projectId: string, name: string, refType: string, file: File) => {
+    const formData = new FormData();
+    formData.append("name", name);
+    formData.append("ref_type", refType);
+    formData.append("file", file);
+    const res = await fetch(`${API_URL}/api/v1/architect/projects/${projectId}/references`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "X-Workspace-ID": workspaceId,
+      },
+      body: formData,
+    });
+    if (!res.ok) {
+      const error = await res.json().catch(() => ({ detail: "Upload échoué" }));
+      throw new Error(error.detail || "Upload échoué");
+    }
+    return res.json();
+  },
+
+  generatePlan: (token: string, workspaceId: string, projectId: string) =>
+    api(`/architect/projects/${projectId}/generate-plan`, { method: "POST", token, workspaceId }),
+
+  listVersions: (token: string, workspaceId: string, projectId: string) =>
+    api(`/architect/projects/${projectId}/versions`, { token, workspaceId }),
+
+  createVersion: (token: string, workspaceId: string, projectId: string, data?: Record<string, unknown>) =>
+    api(`/architect/projects/${projectId}/versions`, { method: "POST", token, workspaceId, body: data ? JSON.stringify(data) : undefined }),
+};
+
 // ── Workspace ───────────────────────────────────────────────────────
 export const workspaceApi = {
   get: (token: string, workspaceId: string) =>

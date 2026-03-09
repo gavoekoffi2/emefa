@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, Bot, MessageSquare, Mic, Plus, RefreshCw, Send } from "lucide-react";
+import { AlertTriangle, Bot, Building2, MessageSquare, Mic, Plus, RefreshCw, Send, Sparkles } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
-import { assistantApi } from "@/lib/api";
+import { assistantApi, templateApi } from "@/lib/api";
 
 interface Assistant {
   id: string;
@@ -29,6 +29,9 @@ export default function DashboardPage() {
   const [error, setError] = useState("");
   const [createError, setCreateError] = useState("");
   const [initialLoading, setInitialLoading] = useState(true);
+  const [templates, setTemplates] = useState<Array<{ id: string; name: string; category: string; description: string; icon: string }>>([]);
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [templateCreating, setTemplateCreating] = useState(false);
 
   const loadAssistants = useCallback(async () => {
     if (!token) return;
@@ -43,9 +46,39 @@ export default function DashboardPage() {
     }
   }, [token, workspaceId]);
 
+  const loadTemplates = useCallback(async () => {
+    if (!token) return;
+    try {
+      const data = await templateApi.list(token, workspaceId || "");
+      setTemplates(data as Array<{ id: string; name: string; category: string; description: string; icon: string }>);
+    } catch {
+      // Templates may not be available
+    }
+  }, [token, workspaceId]);
+
   useEffect(() => {
     loadAssistants();
-  }, [loadAssistants]);
+    loadTemplates();
+  }, [loadAssistants, loadTemplates]);
+
+  const handleCreateFromTemplate = async (templateId: string) => {
+    if (!token) return;
+    setTemplateCreating(true);
+    setCreateError("");
+    try {
+      await templateApi.createAssistant(token, workspaceId || "", templateId, {
+        template_id: templateId,
+        name: "Mon Assistant Architecte",
+        language: "fr",
+      });
+      setShowTemplates(false);
+      loadAssistants();
+    } catch (e) {
+      setCreateError(e instanceof Error ? e.message : "Impossible de créer depuis le template");
+    } finally {
+      setTemplateCreating(false);
+    }
+  };
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -87,6 +120,15 @@ export default function DashboardPage() {
           >
             <RefreshCw className="w-4 h-4" />
           </button>
+          {templates.length > 0 && (
+            <button
+              onClick={() => setShowTemplates(true)}
+              className="flex items-center gap-2 px-5 py-3 border border-primary/30 text-primary rounded-xl font-semibold hover:bg-primary/5 transition-colors"
+            >
+              <Sparkles className="w-5 h-5" />
+              <span className="hidden sm:inline">Depuis un template</span>
+            </button>
+          )}
           <button
             onClick={() => setShowCreate(true)}
             className="flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-xl font-semibold hover:opacity-90 transition-opacity"
@@ -274,6 +316,54 @@ export default function DashboardPage() {
               </div>
             </Link>
           ))}
+        </div>
+      )}
+
+      {/* Template Selection Modal */}
+      {showTemplates && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={(e) => { if (e.target === e.currentTarget) setShowTemplates(false); }}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Choisir un template"
+        >
+          <div className="bg-card rounded-2xl border border-border p-8 w-full max-w-lg">
+            <h2 className="text-2xl font-bold mb-2">Créer depuis un template</h2>
+            <p className="text-sm text-muted-foreground mb-6">
+              Choisissez un template préconfigué pour démarrer rapidement.
+            </p>
+            <div className="space-y-3">
+              {templates.map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => handleCreateFromTemplate(t.id)}
+                  disabled={templateCreating}
+                  className="w-full p-4 rounded-xl border border-border hover:border-primary/50 transition-all text-left flex items-start gap-4 disabled:opacity-50"
+                >
+                  <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary flex-shrink-0">
+                    {t.category === "architect" ? <Building2 className="w-6 h-6" /> : <Bot className="w-6 h-6" />}
+                  </div>
+                  <div>
+                    <p className="font-semibold">{t.name}</p>
+                    <p className="text-sm text-muted-foreground mt-0.5">{t.description}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+            {createError && (
+              <div className="mt-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                {createError}
+              </div>
+            )}
+            <button
+              onClick={() => setShowTemplates(false)}
+              className="w-full mt-4 py-3 rounded-lg border border-border hover:bg-secondary transition-colors"
+            >
+              Annuler
+            </button>
+          </div>
         </div>
       )}
     </div>
