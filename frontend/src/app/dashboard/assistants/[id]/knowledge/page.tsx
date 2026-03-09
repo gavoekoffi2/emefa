@@ -81,6 +81,11 @@ export default function KnowledgePage() {
         }
         await kbApi.uploadFile(token, workspaceId || "", assistantId, name, file);
       } else if (mode === "url") {
+        if (!url.startsWith("http://") && !url.startsWith("https://")) {
+          setError("L'URL doit commencer par http:// ou https://");
+          setLoading(false);
+          return;
+        }
         await kbApi.addUrl(token, workspaceId || "", assistantId, { name, url });
       } else if (mode === "text") {
         await kbApi.addText(token, workspaceId || "", assistantId, { name, text });
@@ -242,6 +247,7 @@ export default function KnowledgePage() {
                 id="kb-text"
                 value={text}
                 onChange={(e) => setText(e.target.value)}
+                maxLength={50000}
                 className="w-full px-4 py-2.5 rounded-lg border border-input bg-background focus:ring-2 focus:ring-primary outline-none min-h-[150px]"
                 placeholder="Collez votre texte ici..."
                 required
@@ -322,7 +328,12 @@ export default function KnowledgePage() {
                 )}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="font-medium truncate">{kb.name}</p>
+                <p className="font-medium truncate">
+                  {kb.name}
+                  {kb.source_type === "file" && <span className="ml-2 text-xs text-muted-foreground font-normal">[{kb.source_type}]</span>}
+                  {kb.source_type === "url" && <span className="ml-2 text-xs text-muted-foreground font-normal">[URL]</span>}
+                  {kb.source_type === "text" && <span className="ml-2 text-xs text-muted-foreground font-normal">[Texte]</span>}
+                </p>
                 <p className="text-xs text-muted-foreground">
                   {kb.source_type} | {kb.chunk_count} chunks
                   {kb.error_message && (

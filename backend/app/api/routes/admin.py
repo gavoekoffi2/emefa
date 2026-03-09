@@ -1,5 +1,6 @@
 """Admin routes - monitoring, audit, usage stats."""
 
+import logging
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
@@ -13,6 +14,8 @@ from app.models.assistant import Assistant
 from app.models.audit import AuditLog
 from app.models.conversation import Conversation, Message
 from app.models.user import Workspace, WorkspaceMember
+
+logger = logging.getLogger("emefa.admin")
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -41,6 +44,7 @@ async def get_workspace_stats(
     _admin: WorkspaceMember = require_admin(),
     db: AsyncSession = Depends(get_db),
 ):
+    logger.info(f"Admin stats query: workspace={workspace.id}")
     # Gather stats
     assistants_count = (await db.execute(
         select(func.count(Assistant.id)).where(Assistant.workspace_id == workspace.id)
@@ -94,8 +98,9 @@ async def get_audit_logs(
     _admin: WorkspaceMember = require_admin(),
     db: AsyncSession = Depends(get_db),
     limit: int = Query(50, le=200),
-    offset: int = Query(0),
+    offset: int = Query(0, le=10000),
 ):
+    logger.info(f"Admin audit query: workspace={workspace.id} limit={limit} offset={offset}")
     result = await db.execute(
         select(AuditLog)
         .where(AuditLog.workspace_id == workspace.id)

@@ -3,9 +3,12 @@
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from sqlalchemy import text
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import Response as StarletteResponse
 
 from app.api.routes import (
     actions, admin, architect, assistants, auth, bridge, chat,
@@ -54,6 +57,11 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"Could not seed templates: {e}")
 
+    # Validate configuration
+    issues = settings.validate_for_production()
+    for issue in issues:
+        logger.warning(f"CONFIGURATION WARNING: {issue}")
+
     yield
     logger.info("EMEFA Platform shutting down...")
 
@@ -78,6 +86,21 @@ app.add_middleware(
     allow_headers=["Content-Type", "Authorization", "X-Workspace-ID"],
 )
 
+# Security Headers
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["Permissions-Policy"] = "camera=(), microphone=(self), geolocation=()"
+        if not settings.DEBUG:
+            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        return response
+
+app.add_middleware(SecurityHeadersMiddleware)
+
 # Routes
 app.include_router(auth.router, prefix="/api/v1")
 app.include_router(assistants.router, prefix="/api/v1")
@@ -95,6 +118,22 @@ app.include_router(bridge.router, prefix="/api/v1")
 app.include_router(architect.router, prefix="/api/v1")
 
 
+@app.exception_handler(ValueError)
+async def value_error_handler(request: Request, exc: ValueError):
+    if "UUID" in str(exc) or "badly formed" in str(exc):
+        return JSONResponse(status_code=400, content={"detail": "Invalid ID format"})
+    raise exc
+
+
 @app.get("/health")
 async def health():
-    return {"status": "healthy", "app": settings.APP_NAME, "version": settings.APP_VERSION}
+    health_status = {"status": "healthy", "app": settings.APP_NAME, "version": settings.APP_VERSION}
+    # Check database connectivity
+    try:
+        async with engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+        health_status["database"] = "connected"
+    except Exception as e:
+        health_status["status"] = "degraded"
+        health_status["database"] = f"error: {str(e)[:100]}"
+    return health_status

@@ -1,11 +1,22 @@
 """Bridge routes - device management, actions, WebSocket for desktop bridge."""
 
 import json
+import logging
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = logging.getLogger(__name__)
+
+
+def _parse_uuid(value: str, name: str = "ID") -> uuid.UUID:
+    """Parse a string to UUID, raising HTTP 400 on invalid format."""
+    try:
+        return uuid.UUID(value)
+    except (ValueError, AttributeError):
+        raise HTTPException(status_code=400, detail=f"Invalid {name} format")
 
 from app.core.database import get_db, async_session
 from app.core.deps import get_current_user, get_current_workspace
@@ -72,7 +83,7 @@ async def register_device(
         db,
         workspace_id=workspace.id,
         user_id=user.id,
-        assistant_id=uuid.UUID(req.assistant_id),
+        assistant_id=_parse_uuid(req.assistant_id, "assistant_id"),
         device_name=req.device_name,
         device_os=req.device_os,
         blender_version=req.blender_version,
@@ -102,7 +113,7 @@ async def list_devices(
     db: AsyncSession = Depends(get_db),
 ):
     """List bridge devices for the workspace."""
-    aid = uuid.UUID(assistant_id) if assistant_id else None
+    aid = _parse_uuid(assistant_id, "assistant_id") if assistant_id else None
     devices = await bridge_service.list_devices(db, workspace.id, assistant_id=aid)
     return [_device_response(d) for d in devices]
 
@@ -116,7 +127,7 @@ async def get_device(
     """Get a specific device."""
     result = await db.execute(
         select(BridgeDevice).where(
-            BridgeDevice.id == uuid.UUID(device_id),
+            BridgeDevice.id == _parse_uuid(device_id, "device_id"),
             BridgeDevice.workspace_id == workspace.id,
         )
     )
@@ -137,7 +148,7 @@ async def update_permissions(
     """Update device permissions."""
     result = await db.execute(
         select(BridgeDevice).where(
-            BridgeDevice.id == uuid.UUID(device_id),
+            BridgeDevice.id == _parse_uuid(device_id, "device_id"),
             BridgeDevice.workspace_id == workspace.id,
         )
     )
@@ -165,7 +176,7 @@ async def revoke_device(
     """Revoke a device - permanently disconnect."""
     result = await db.execute(
         select(BridgeDevice).where(
-            BridgeDevice.id == uuid.UUID(device_id),
+            BridgeDevice.id == _parse_uuid(device_id, "device_id"),
             BridgeDevice.workspace_id == workspace.id,
         )
     )
@@ -210,7 +221,7 @@ async def create_action(
     # Verify device belongs to workspace
     result = await db.execute(
         select(BridgeDevice).where(
-            BridgeDevice.id == uuid.UUID(req.device_id),
+            BridgeDevice.id == _parse_uuid(req.device_id, "device_id"),
             BridgeDevice.workspace_id == workspace.id,
         )
     )
@@ -270,7 +281,7 @@ async def approve_action(
     db: AsyncSession = Depends(get_db),
 ):
     """Approve or reject a pending bridge action."""
-    action = await bridge_service.approve_action(db, uuid.UUID(action_id), req.approved)
+    action = await bridge_service.approve_action(db, _parse_uuid(action_id, "action_id"), req.approved)
     if not action:
         raise HTTPException(status_code=404, detail="Action not found or not pending")
 
@@ -308,8 +319,8 @@ async def list_actions(
     db: AsyncSession = Depends(get_db),
 ):
     """List bridge actions."""
-    did = uuid.UUID(device_id) if device_id else None
-    aid = uuid.UUID(assistant_id) if assistant_id else None
+    did = _parse_uuid(device_id, "device_id") if device_id else None
+    aid = _parse_uuid(assistant_id, "assistant_id") if assistant_id else None
     actions = await bridge_service.list_actions(db, device_id=did, assistant_id=aid, status=status)
     return [_action_response(a) for a in actions]
 
@@ -407,9 +418,9 @@ async def bridge_websocket(websocket: WebSocket, device_id: str):
                         await db.commit()
 
     except WebSocketDisconnect:
-        pass
-    except Exception:
-        pass
+        logger.info(f"Bridge device {device_id} disconnected")
+    except Exception as e:
+        logger.error(f"Bridge WebSocket error for device {device_id}: {e}")
     finally:
         bridge_service.unregister_ws_connection(device_id)
         async with async_session() as db:

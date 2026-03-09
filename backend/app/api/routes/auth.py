@@ -18,7 +18,7 @@ from app.schemas.auth import (
     UserResponse,
     WorkspaceInfo,
 )
-from app.services.auth_service import login_user, refresh_access_token, register_user
+from app.services.auth_service import login_user, refresh_access_token, register_user, revoke_all_refresh_tokens
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -127,5 +127,7 @@ async def change_password(
     if not verify_password(req.current_password, user.hashed_password):
         raise HTTPException(status_code=400, detail="Current password is incorrect")
     user.hashed_password = hash_password(req.new_password)
+    # Revoke all existing refresh tokens for security
+    revoked_count = await revoke_all_refresh_tokens(db, user.id)
     await db.commit()
-    return {"message": "Password updated successfully"}
+    return {"message": "Password updated successfully", "tokens_revoked": revoked_count}

@@ -213,8 +213,8 @@ export const adminApi = {
   stats: (token: string, workspaceId: string) =>
     api("/admin/stats", { token, workspaceId }),
 
-  auditLogs: (token: string, workspaceId: string, limit = 50) =>
-    api(`/admin/audit?limit=${limit}`, { token, workspaceId }),
+  auditLogs: (token: string, workspaceId: string, limit = 50, offset = 0) =>
+    api(`/admin/audit?limit=${limit}&offset=${offset}`, { token, workspaceId }),
 };
 
 // ── User Profile ────────────────────────────────────────────────────

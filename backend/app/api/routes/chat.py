@@ -25,9 +25,14 @@ async def send_message(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    try:
+        aid = uuid.UUID(assistant_id)
+    except (ValueError, AttributeError):
+        raise HTTPException(status_code=400, detail="Invalid assistant ID format")
+
     result = await db.execute(
         select(Assistant).where(
-            Assistant.id == uuid.UUID(assistant_id),
+            Assistant.id == aid,
             Assistant.workspace_id == workspace.id,
         )
     )
@@ -55,21 +60,31 @@ async def send_message(
 async def list_conversations(
     assistant_id: str,
     workspace: Workspace = Depends(get_current_workspace),
+    user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    try:
+        aid = uuid.UUID(assistant_id)
+    except (ValueError, AttributeError):
+        raise HTTPException(status_code=400, detail="Invalid assistant ID format")
+
     # Verify assistant belongs to workspace before listing conversations
     assistant_result = await db.execute(
         select(Assistant).where(
-            Assistant.id == uuid.UUID(assistant_id),
+            Assistant.id == aid,
             Assistant.workspace_id == workspace.id,
         )
     )
     if not assistant_result.scalar_one_or_none():
         raise HTTPException(status_code=404, detail="Assistant not found")
 
+    # Filter by user_id for web channel to enforce ownership
     result = await db.execute(
         select(Conversation)
-        .where(Conversation.assistant_id == uuid.UUID(assistant_id))
+        .where(
+            Conversation.assistant_id == aid,
+            Conversation.user_id == user.id,
+        )
         .order_by(Conversation.updated_at.desc())
         .limit(50)
     )
@@ -89,10 +104,16 @@ async def get_messages(
     workspace: Workspace = Depends(get_current_workspace),
     db: AsyncSession = Depends(get_db),
 ):
+    try:
+        aid = uuid.UUID(assistant_id)
+        cid = uuid.UUID(conversation_id)
+    except (ValueError, AttributeError):
+        raise HTTPException(status_code=400, detail="Invalid ID format")
+
     # Verify assistant belongs to workspace before listing messages
     assistant_result = await db.execute(
         select(Assistant).where(
-            Assistant.id == uuid.UUID(assistant_id),
+            Assistant.id == aid,
             Assistant.workspace_id == workspace.id,
         )
     )
@@ -101,7 +122,7 @@ async def get_messages(
 
     result = await db.execute(
         select(Message)
-        .where(Message.conversation_id == uuid.UUID(conversation_id))
+        .where(Message.conversation_id == cid)
         .order_by(Message.created_at.asc())
         .limit(100)
     )

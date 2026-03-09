@@ -169,8 +169,13 @@ export default function DashboardPage() {
                   className="w-full px-4 py-2.5 rounded-lg border border-input bg-background focus:ring-2 focus:ring-primary outline-none"
                   placeholder="Mon Assistant Commercial"
                   required
+                  minLength={2}
+                  maxLength={50}
                   autoFocus
                 />
+                {form.name.length > 0 && form.name.length < 2 && (
+                  <p className="text-xs text-yellow-500 mt-1">2 caractères minimum</p>
+                )}
               </div>
               <div>
                 <label htmlFor="create-objective" className="block text-sm font-medium mb-1.5">Objectif</label>
@@ -181,7 +186,11 @@ export default function DashboardPage() {
                   className="w-full px-4 py-2.5 rounded-lg border border-input bg-background focus:ring-2 focus:ring-primary outline-none min-h-[100px]"
                   placeholder="Décrivez ce que votre assistant doit faire..."
                   required
+                  minLength={10}
                 />
+                {form.objective.length > 0 && form.objective.length < 10 && (
+                  <p className="text-xs text-yellow-500 mt-1">10 caractères minimum</p>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -228,7 +237,7 @@ export default function DashboardPage() {
                 </button>
                 <button
                   type="submit"
-                  disabled={creating}
+                  disabled={creating || form.name.length < 2 || form.objective.length < 10}
                   className="flex-1 py-3 bg-primary text-primary-foreground rounded-lg font-semibold hover:opacity-90 disabled:opacity-50"
                 >
                   {creating ? "Création..." : "Créer"}

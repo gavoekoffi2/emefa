@@ -579,7 +579,7 @@ export default function ArchitectPage() {
                         </div>
                         {step.status !== "completed" && connectedDevice && (
                           <button
-                            onClick={() => handleExecuteStep(step as { step: number; title: string; actions: string[] })}
+                            onClick={() => handleExecuteStep(step as unknown as { step: number; title: string; actions: string[] })}
                             className="px-3 py-1.5 bg-primary/10 text-primary rounded-lg text-xs font-medium hover:bg-primary/20 flex items-center gap-1"
                           >
                             <ChevronRight className="w-3 h-3" />

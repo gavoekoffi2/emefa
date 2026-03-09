@@ -2,15 +2,15 @@
 
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class AssistantCreate(BaseModel):
-    name: str
-    objective: str
-    tone: str = "professional"
-    language: str = "fr"
-    custom_rules: Optional[str] = None
+    name: str = Field(..., min_length=1, max_length=100)
+    objective: str = Field(..., min_length=1, max_length=2000)
+    tone: str = Field("professional", max_length=50)
+    language: str = Field("fr", max_length=10)
+    custom_rules: Optional[str] = Field(None, max_length=5000)
     web_chat_enabled: bool = True
     voice_enabled: bool = False
     telegram_enabled: bool = False
@@ -18,13 +18,13 @@ class AssistantCreate(BaseModel):
 
 
 class AssistantUpdate(BaseModel):
-    name: Optional[str] = None
-    objective: Optional[str] = None
-    tone: Optional[str] = None
-    language: Optional[str] = None
-    custom_rules: Optional[str] = None
-    system_prompt: Optional[str] = None
-    status: Optional[str] = None
+    name: Optional[str] = Field(None, min_length=1, max_length=100)
+    objective: Optional[str] = Field(None, min_length=1, max_length=2000)
+    tone: Optional[str] = Field(None, max_length=50)
+    language: Optional[str] = Field(None, max_length=10)
+    custom_rules: Optional[str] = Field(None, max_length=5000)
+    system_prompt: Optional[str] = Field(None, max_length=10_000)
+    status: Optional[str] = Field(None, max_length=20)
     web_chat_enabled: Optional[bool] = None
     voice_enabled: Optional[bool] = None
     telegram_enabled: Optional[bool] = None

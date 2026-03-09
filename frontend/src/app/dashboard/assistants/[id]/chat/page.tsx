@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
-import { Bot, MessageSquare, Plus, Send, User, History } from "lucide-react";
+import { Bot, MessageSquare, Plus, RefreshCw, Send, User, History } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { chatApi } from "@/lib/api";
 
@@ -30,6 +30,7 @@ export default function ChatPage() {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [showHistory, setShowHistory] = useState(false);
+  const [failedMessage, setFailedMessage] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -77,11 +78,10 @@ export default function ChatPage() {
     inputRef.current?.focus();
   }, []);
 
-  const handleSend = useCallback(async () => {
-    if (!input.trim() || !token || loading) return;
+  const sendMessage = useCallback(async (userMsg: string) => {
+    if (!token || loading) return;
 
-    const userMsg = input.trim();
-    setInput("");
+    setFailedMessage(null);
     setMessages((prev) => [...prev, { role: "user", content: userMsg }]);
     setLoading(true);
 
@@ -106,6 +106,7 @@ export default function ChatPage() {
         },
       ]);
     } catch {
+      setFailedMessage(userMsg);
       setMessages((prev) => [
         ...prev,
         { role: "assistant", content: "Erreur de communication avec l'assistant." },
@@ -113,7 +114,21 @@ export default function ChatPage() {
     } finally {
       setLoading(false);
     }
-  }, [input, token, workspaceId, assistantId, conversationId, loading, loadConversations]);
+  }, [token, workspaceId, assistantId, conversationId, loading, loadConversations]);
+
+  const handleSend = useCallback(async () => {
+    if (!input.trim() || !token || loading) return;
+    const userMsg = input.trim();
+    setInput("");
+    sendMessage(userMsg);
+  }, [input, token, loading, sendMessage]);
+
+  const handleRetry = useCallback(() => {
+    if (!failedMessage) return;
+    // Remove last two messages (failed user msg + error assistant msg)
+    setMessages((prev) => prev.slice(0, -2));
+    sendMessage(failedMessage);
+  }, [failedMessage, sendMessage]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -196,7 +211,7 @@ export default function ChatPage() {
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-auto p-6 space-y-6">
+        <div className="flex-1 overflow-auto p-6 space-y-6" aria-label="Messages de la conversation">
           {messages.length === 0 && (
             <div className="text-center py-20">
               <Bot className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
@@ -255,6 +270,17 @@ export default function ChatPage() {
               </div>
             </div>
           )}
+          {failedMessage && !loading && (
+            <div className="flex justify-center">
+              <button
+                onClick={handleRetry}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Réessayer
+              </button>
+            </div>
+          )}
           <div ref={messagesEndRef} />
         </div>
 
@@ -268,9 +294,10 @@ export default function ChatPage() {
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Tapez votre message..."
+              maxLength={2000}
               className="flex-1 px-5 py-3 rounded-xl border border-input bg-background focus:ring-2 focus:ring-primary outline-none"
               disabled={loading}
-              aria-label="Message"
+              aria-label="Saisir un message"
             />
             <button
               onClick={handleSend}

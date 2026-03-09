@@ -20,6 +20,13 @@ from app.services.actions_service import (
 router = APIRouter(prefix="/actions", tags=["actions"])
 
 
+def _parse_uuid(value: str, name: str = "ID") -> uuid.UUID:
+    try:
+        return uuid.UUID(value)
+    except (ValueError, AttributeError):
+        raise HTTPException(status_code=400, detail=f"Invalid {name} format")
+
+
 class ActionExecuteRequest(BaseModel):
     assistant_id: str
     action_name: str
@@ -51,7 +58,7 @@ async def run_action(
     """Execute an action with permission check and audit logging."""
     result = await db.execute(
         select(Assistant).where(
-            Assistant.id == uuid.UUID(req.assistant_id),
+            Assistant.id == _parse_uuid(req.assistant_id),
             Assistant.workspace_id == workspace.id,
         )
     )

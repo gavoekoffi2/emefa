@@ -1,5 +1,6 @@
 """Telegram webhook routes."""
 
+import logging
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -12,6 +13,8 @@ from app.models.conversation import ChannelType
 from app.services.chat_service import chat_with_assistant
 from app.services.telegram_service import send_telegram_message
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/webhooks/telegram", tags=["telegram"])
 
 
@@ -22,22 +25,40 @@ async def telegram_webhook(
     db: AsyncSession = Depends(get_db),
 ):
     """Handle incoming Telegram messages."""
-    body = await request.json()
+    # Validate assistant_id format
+    try:
+        parsed_id = uuid.UUID(assistant_id)
+    except ValueError:
+        return {"ok": True}
+
+    try:
+        body = await request.json()
+    except Exception:
+        return {"ok": True}
 
     message = body.get("message")
     if not message:
         return {"ok": True}
 
-    chat_id = str(message["chat"]["id"])
+    # Safely extract chat data
+    chat_data = message.get("chat")
+    if not chat_data or "id" not in chat_data:
+        return {"ok": True}
+
+    chat_id = str(chat_data["id"])
     text = message.get("text", "")
 
     if not text or text.startswith("/start"):
         return {"ok": True}
 
+    # Truncate excessively long messages
+    if len(text) > 4000:
+        text = text[:4000]
+
     # Find assistant
     result = await db.execute(
         select(Assistant).where(
-            Assistant.id == uuid.UUID(assistant_id),
+            Assistant.id == parsed_id,
             Assistant.telegram_enabled == True,
         )
     )
@@ -60,8 +81,6 @@ async def telegram_webhook(
         if bot_token:
             await send_telegram_message(bot_token, chat_id, response["message"])
     except Exception as e:
-        # Log error but don't fail webhook
-        import logging
-        logging.getLogger(__name__).error(f"Telegram webhook error: {e}")
+        logger.error(f"Telegram webhook error for assistant {assistant_id}: {e}")
 
     return {"ok": True}

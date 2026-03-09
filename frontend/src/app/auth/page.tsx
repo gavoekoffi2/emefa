@@ -124,6 +124,7 @@ export default function AuthPage() {
                 required
                 minLength={8}
                 autoComplete={isLogin ? "current-password" : "new-password"}
+                aria-describedby={!isLogin ? "password-requirements" : undefined}
               />
               <button
                 type="button"
@@ -135,13 +136,17 @@ export default function AuthPage() {
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
-            {!isLogin && password.length > 0 && password.length < 8 && (
-              <p className="text-xs text-yellow-500 mt-1.5">8 caractères minimum</p>
+            {!isLogin && (
+              <div id="password-requirements" className="mt-1.5">
+                <p className={`text-xs ${password.length >= 8 ? "text-green-500" : "text-muted-foreground"}`}>
+                  {password.length >= 8 ? "\u2713" : "\u2022"} 8 caractères minimum
+                </p>
+              </div>
             )}
           </div>
 
           {error && (
-            <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm flex items-center gap-2">
+            <div role="alert" className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 flex-shrink-0" />
               {error}
             </div>

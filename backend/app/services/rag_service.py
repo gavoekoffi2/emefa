@@ -156,8 +156,17 @@ async def delete_points_by_source(collection_name: str, source_id: str):
         await client.close()
 
 
+def _validate_file_type(content: bytes, filename: str) -> None:
+    """Validate file content matches expected type using magic bytes."""
+    lower = filename.lower()
+    if lower.endswith(".pdf"):
+        if not content[:5].startswith(b"%PDF-"):
+            raise ValueError("File does not appear to be a valid PDF (invalid magic bytes)")
+
+
 def extract_text_from_file(content: bytes, filename: str) -> str:
     """Extract text from uploaded files (PDF, DOC, TXT, CSV, MD)."""
+    _validate_file_type(content, filename)
     lower = filename.lower()
     if lower.endswith(".txt") or lower.endswith(".md"):
         return content.decode("utf-8", errors="replace")
@@ -203,7 +212,7 @@ def _validate_url(url: str) -> None:
 
     # Block private/internal hostnames
     hostname = parsed.hostname.lower()
-    blocked_hosts = {"localhost", "127.0.0.1", "0.0.0.0", "::1", "metadata.google.internal"}
+    blocked_hosts = {"localhost", "127.0.0.1", "0.0.0.0", "::1", "metadata.google.internal", "169.254.169.254"}
     if hostname in blocked_hosts:
         raise ValueError("URL points to a blocked host")
 

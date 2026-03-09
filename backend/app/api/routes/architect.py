@@ -1,5 +1,7 @@
 """Architect project routes - manage architect projects, references, versioning."""
 
+import os
+import re
 import uuid
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
@@ -18,6 +20,14 @@ from app.services import architect_service
 from app.services.audit_service import log_action
 
 router = APIRouter(prefix="/architect/projects", tags=["architect"])
+
+
+def _parse_uuid(value: str, name: str = "ID") -> uuid.UUID:
+    """Parse a string to UUID, raising HTTP 400 on invalid format."""
+    try:
+        return uuid.UUID(value)
+    except (ValueError, AttributeError):
+        raise HTTPException(status_code=400, detail=f"Invalid {name} format")
 
 
 def _project_response(p) -> ArchitectProjectResponse:
@@ -61,7 +71,7 @@ async def create_project(
     """Create a new architect project."""
     project = await architect_service.create_project(
         db,
-        assistant_id=uuid.UUID(req.assistant_id),
+        assistant_id=_parse_uuid(req.assistant_id, "assistant_id"),
         workspace_id=workspace.id,
         user_id=user.id,
         name=req.name,
@@ -86,7 +96,7 @@ async def list_projects(
     db: AsyncSession = Depends(get_db),
 ):
     """List architect projects."""
-    aid = uuid.UUID(assistant_id) if assistant_id else None
+    aid = _parse_uuid(assistant_id, "assistant_id") if assistant_id else None
     projects = await architect_service.list_projects(db, workspace.id, assistant_id=aid)
     return [_project_response(p) for p in projects]
 
@@ -157,8 +167,12 @@ async def add_reference(
     if len(content) > 50 * 1024 * 1024:
         raise HTTPException(status_code=400, detail="Fichier trop volumineux (max 50 MB)")
 
+    # Sanitize filename to prevent path traversal
+    safe_filename = re.sub(r'[^\w\-.]', '_', os.path.basename(file.filename or "file"))
+    safe_filename = f"{uuid.uuid4().hex[:8]}_{safe_filename}"
+
     # Store file reference (in production: upload to S3/MinIO)
-    s3_key = f"architect/{workspace.id}/{project_id}/refs/{file.filename}"
+    s3_key = f"architect/{workspace.id}/{project_id}/refs/{safe_filename}"
     reference = {
         "name": name,
         "type": ref_type,

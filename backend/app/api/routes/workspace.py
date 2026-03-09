@@ -155,9 +155,14 @@ async def update_member_role(
     if not role:
         raise HTTPException(status_code=400, detail="Role must be 'member' or 'admin'")
 
+    try:
+        mid = uuid.UUID(member_id)
+    except (ValueError, AttributeError):
+        raise HTTPException(status_code=400, detail="Invalid member ID format")
+
     result = await db.execute(
         select(WorkspaceMember).where(
-            WorkspaceMember.id == uuid.UUID(member_id),
+            WorkspaceMember.id == mid,
             WorkspaceMember.workspace_id == workspace.id,
         )
     )
@@ -192,9 +197,14 @@ async def remove_member(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    try:
+        mid = uuid.UUID(member_id)
+    except (ValueError, AttributeError):
+        raise HTTPException(status_code=400, detail="Invalid member ID format")
+
     result = await db.execute(
         select(WorkspaceMember).where(
-            WorkspaceMember.id == uuid.UUID(member_id),
+            WorkspaceMember.id == mid,
             WorkspaceMember.workspace_id == workspace.id,
         )
     )

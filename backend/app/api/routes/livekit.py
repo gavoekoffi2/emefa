@@ -16,6 +16,14 @@ from app.services.livekit_service import generate_agent_token, generate_livekit_
 router = APIRouter(prefix="/livekit", tags=["livekit"])
 
 
+def _parse_uuid(value: str, name: str = "ID") -> uuid.UUID:
+    try:
+        return uuid.UUID(value)
+    except (ValueError, AttributeError):
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail=f"Invalid {name} format")
+
+
 class LiveKitTokenRequest(BaseModel):
     assistant_id: str
 
@@ -37,7 +45,7 @@ async def get_voice_token(
     # Verify assistant belongs to workspace
     result = await db.execute(
         select(Assistant).where(
-            Assistant.id == uuid.UUID(req.assistant_id),
+            Assistant.id == _parse_uuid(req.assistant_id),
             Assistant.workspace_id == workspace.id,
         )
     )

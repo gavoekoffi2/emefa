@@ -49,6 +49,11 @@ export default function AdminPage() {
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [error, setError] = useState("");
   const [loadingData, setLoadingData] = useState(true);
+  const [logsOffset, setLogsOffset] = useState(0);
+  const [hasMoreLogs, setHasMoreLogs] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  const LOGS_LIMIT = 50;
 
   const isAdmin = workspaceRole === "owner" || workspaceRole === "admin";
 
@@ -59,16 +64,34 @@ export default function AdminPage() {
       setLoadingData(true);
       const [s, l] = await Promise.all([
         adminApi.stats(token, workspaceId || ""),
-        adminApi.auditLogs(token, workspaceId || ""),
+        adminApi.auditLogs(token, workspaceId || "", LOGS_LIMIT, 0),
       ]);
       setStats(s as Stats);
-      setLogs(l as AuditLog[]);
+      const logsData = l as AuditLog[];
+      setLogs(logsData);
+      setLogsOffset(logsData.length);
+      setHasMoreLogs(logsData.length >= LOGS_LIMIT);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Impossible de charger les données admin");
     } finally {
       setLoadingData(false);
     }
   }, [token, workspaceId]);
+
+  const loadMoreLogs = useCallback(async () => {
+    if (!token || loadingMore) return;
+    try {
+      setLoadingMore(true);
+      const moreLogs = await adminApi.auditLogs(token, workspaceId || "", LOGS_LIMIT, logsOffset) as AuditLog[];
+      setLogs((prev) => [...prev, ...moreLogs]);
+      setLogsOffset((prev) => prev + moreLogs.length);
+      setHasMoreLogs(moreLogs.length >= LOGS_LIMIT);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Impossible de charger plus de logs");
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [token, workspaceId, logsOffset, loadingMore]);
 
   useEffect(() => {
     load();
@@ -124,7 +147,7 @@ export default function AdminPage() {
       </div>
 
       {error && (
-        <div className="mb-6 p-4 rounded-xl bg-destructive/10 text-destructive text-sm">
+        <div role="alert" className="mb-6 p-4 rounded-xl bg-destructive/10 text-destructive text-sm">
           {error}
           <button onClick={load} className="ml-2 underline">Réessayer</button>
         </div>
@@ -187,6 +210,17 @@ export default function AdminPage() {
                 </div>
               </div>
             ))}
+            {hasMoreLogs && (
+              <div className="text-center pt-4">
+                <button
+                  onClick={loadMoreLogs}
+                  disabled={loadingMore}
+                  className="px-5 py-2.5 rounded-lg border border-border hover:bg-secondary transition-colors text-sm font-medium disabled:opacity-50"
+                >
+                  {loadingMore ? "Chargement..." : "Charger plus"}
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

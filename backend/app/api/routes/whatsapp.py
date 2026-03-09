@@ -1,5 +1,6 @@
 """WhatsApp routes - Cloud API webhook + QR bridge."""
 
+import logging
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -18,6 +19,8 @@ from app.services.whatsapp_service import (
     send_whatsapp_message,
     verify_whatsapp_webhook,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/webhooks/whatsapp", tags=["whatsapp"])
 
@@ -46,7 +49,10 @@ async def whatsapp_webhook(
     db: AsyncSession = Depends(get_db),
 ):
     """Handle incoming WhatsApp Cloud API messages."""
-    body = await request.json()
+    try:
+        body = await request.json()
+    except Exception:
+        return {"status": "ok"}
 
     entries = body.get("entry", [])
     for entry in entries:
@@ -58,12 +64,17 @@ async def whatsapp_webhook(
                 if msg.get("type") != "text":
                     continue
 
-                from_number = msg["from"]
-                text = msg["text"]["body"]
+                from_number = msg.get("from")
+                text_body = msg.get("text", {})
+                text = text_body.get("body", "") if isinstance(text_body, dict) else ""
                 phone_id = value.get("metadata", {}).get("phone_number_id")
 
-                if not phone_id:
+                if not phone_id or not from_number or not text:
                     continue
+
+                # Truncate excessively long messages
+                if len(text) > 4000:
+                    text = text[:4000]
 
                 # Find assistant by whatsapp_phone_id
                 result = await db.execute(
@@ -87,8 +98,7 @@ async def whatsapp_webhook(
                     await db.commit()
                     await send_whatsapp_message(phone_id, from_number, response["message"])
                 except Exception as e:
-                    import logging
-                    logging.getLogger(__name__).error(f"WhatsApp webhook error: {e}")
+                    logger.error(f"WhatsApp webhook error: {e}")
 
     return {"status": "ok"}
 
@@ -119,9 +129,14 @@ async def get_whatsapp_qr(
     if not settings.WHATSAPP_QR_ENABLED:
         return QRResponse(qr=None, enabled=False)
 
+    try:
+        parsed_id = uuid.UUID(assistant_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid assistant ID format")
+
     result = await db.execute(
         select(Assistant).where(
-            Assistant.id == uuid.UUID(assistant_id),
+            Assistant.id == parsed_id,
             Assistant.workspace_id == workspace.id,
         )
     )

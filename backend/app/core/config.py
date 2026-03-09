@@ -1,5 +1,6 @@
 """EMEFA Platform - Core Configuration."""
 
+import warnings
 from functools import lru_cache
 from typing import Optional
 
@@ -84,6 +85,17 @@ class Settings(BaseSettings):
     TOKEN_BUDGET_PER_USER_DAILY: int = 100_000
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
+
+    def validate_for_production(self) -> list[str]:
+        """Check critical settings and return warnings."""
+        issues = []
+        if self.SECRET_KEY == "change-me-in-production-use-openssl-rand-hex-32":
+            issues.append("SECRET_KEY is using the default value - change it for production!")
+        if self.JWT_SECRET == "change-me-jwt-secret":
+            issues.append("JWT_SECRET is using the default value - change it for production!")
+        if self.ENCRYPTION_KEY == "change-me-fernet-key":
+            issues.append("ENCRYPTION_KEY is using the default value - change it for production!")
+        return issues
 
 
 @lru_cache()

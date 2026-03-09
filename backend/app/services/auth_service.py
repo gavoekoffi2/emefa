@@ -1,10 +1,12 @@
 """Authentication service."""
 
 import hashlib
+import logging
 import re
+import time
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import (
@@ -15,6 +17,13 @@ from app.core.security import (
     verify_password,
 )
 from app.models.user import RefreshToken, User, Workspace, WorkspaceMember, WorkspaceRole
+
+logger = logging.getLogger("emefa.auth")
+
+# Account lockout tracking: {email: {"count": int, "first_attempt": float, "locked_until": float}}
+_failed_attempts: dict[str, dict] = {}
+MAX_FAILED_ATTEMPTS = 5
+LOCKOUT_DURATION = 15 * 60  # 15 minutes in seconds
 
 
 def _slugify(text: str) -> str:
@@ -51,16 +60,54 @@ async def register_user(
     return user, workspace, tokens
 
 
+def _check_lockout(email: str) -> None:
+    """Check if account is locked out due to failed attempts."""
+    record = _failed_attempts.get(email)
+    if not record:
+        return
+    now = time.time()
+    # Clear expired lockouts
+    if record.get("locked_until") and now > record["locked_until"]:
+        del _failed_attempts[email]
+        return
+    if record.get("locked_until") and now <= record["locked_until"]:
+        remaining = int(record["locked_until"] - now)
+        raise ValueError(f"Account temporarily locked. Try again in {remaining // 60 + 1} minutes.")
+
+
+def _record_failed_attempt(email: str) -> None:
+    """Record a failed login attempt."""
+    now = time.time()
+    record = _failed_attempts.get(email)
+    if not record or (now - record.get("first_attempt", 0)) > LOCKOUT_DURATION:
+        _failed_attempts[email] = {"count": 1, "first_attempt": now}
+        return
+    record["count"] += 1
+    if record["count"] >= MAX_FAILED_ATTEMPTS:
+        record["locked_until"] = now + LOCKOUT_DURATION
+        logger.warning(f"Account locked due to {MAX_FAILED_ATTEMPTS} failed attempts: {email}")
+
+
+def _clear_failed_attempts(email: str) -> None:
+    """Clear failed attempts on successful login."""
+    _failed_attempts.pop(email, None)
+
+
 async def login_user(db: AsyncSession, email: str, password: str) -> tuple[User, dict]:
+    _check_lockout(email)
+
     result = await db.execute(select(User).where(User.email == email))
     user = result.scalar_one_or_none()
     if not user or not user.hashed_password:
+        _record_failed_attempt(email)
         raise ValueError("Invalid credentials")
     if not verify_password(password, user.hashed_password):
+        _record_failed_attempt(email)
         raise ValueError("Invalid credentials")
     if not user.is_active:
         raise ValueError("Account is deactivated")
 
+    _clear_failed_attempts(email)
     tokens = await _create_tokens(db, user)
     return user, tokens
 
@@ -102,3 +149,13 @@ async def _create_tokens(db: AsyncSession, user: User) -> dict:
     db.add(RefreshToken(user_id=user.id, token_hash=token_hash))
 
     return {"access_token": access, "refresh_token": refresh, "token_type": "bearer"}
+
+
+async def revoke_all_refresh_tokens(db: AsyncSession, user_id: uuid.UUID) -> int:
+    """Revoke all refresh tokens for a user. Returns count of revoked tokens."""
+    result = await db.execute(
+        update(RefreshToken)
+        .where(RefreshToken.user_id == user_id, RefreshToken.is_revoked == False)
+        .values(is_revoked=True)
+    )
+    return result.rowcount
