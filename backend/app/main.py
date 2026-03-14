@@ -12,13 +12,13 @@ from starlette.responses import Response as StarletteResponse
 
 from app.api.routes import (
     actions, admin, architect, assistants, auth, bridge, chat,
-    knowledge, livekit, telegram, templates, whatsapp, workspace,
+    knowledge, livekit, telegram, templates, whatsapp, workspace, skills,
 )
 from app.core.config import get_settings
 from app.core.database import engine, async_session, Base
 
 # Import all models so Base.metadata knows about them
-from app.models import user, assistant, knowledge as kb_models, conversation, audit, template as tpl_models  # noqa: F401
+from app.models import user, assistant, knowledge as kb_models, conversation, audit, template as tpl_models, skill as skill_models  # noqa: F401
 
 settings = get_settings()
 
@@ -56,6 +56,15 @@ async def lifespan(app: FastAPI):
             logger.info("Built-in templates seeded.")
     except Exception as e:
         logger.warning(f"Could not seed templates: {e}")
+
+    # Seed official skills
+    try:
+        from app.services.skills_service import SkillsService
+        async with async_session() as db:
+            await SkillsService.seed_official_skills(db)
+            logger.info("Official skills seeded.")
+    except Exception as e:
+        logger.warning(f"Could not seed official skills: {e}")
 
     # Validate configuration
     issues = settings.validate_for_production()
@@ -116,6 +125,7 @@ app.include_router(workspace.router, prefix="/api/v1")
 app.include_router(templates.router, prefix="/api/v1")
 app.include_router(bridge.router, prefix="/api/v1")
 app.include_router(architect.router, prefix="/api/v1")
+app.include_router(skills.router, prefix="/api/v1")
 
 
 @app.exception_handler(ValueError)
