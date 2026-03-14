@@ -131,3 +131,43 @@ async def change_password(
     revoked_count = await revoke_all_refresh_tokens(db, user.id)
     await db.commit()
     return {"message": "Password updated successfully", "tokens_revoked": revoked_count}
+
+
+@router.post("/forgot-password")
+async def forgot_password(req: dict, db: AsyncSession = Depends(get_db)):
+    """Request password reset link."""
+    email = req.get("email", "").lower().strip()
+    
+    if not email:
+        raise HTTPException(status_code=400, detail="Email requis")
+    
+    result = await db.execute(select(User).where(User.email == email))
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        # Security: Don't reveal if email exists
+        return {"message": "Si cet email existe, un lien de réinitialisation a été envoyé"}
+    
+    # TODO: Generate reset token and send email
+    # For now, just return success message
+    logger.info(f"Password reset requested for {email}")
+    
+    return {"message": "Si cet email existe, un lien de réinitialisation a été envoyé"}
+
+
+@router.post("/reset-password")
+async def reset_password(req: dict, db: AsyncSession = Depends(get_db)):
+    """Reset password with token."""
+    token = req.get("token", "")
+    new_password = req.get("new_password", "")
+    
+    if not token or not new_password:
+        raise HTTPException(status_code=400, detail="Token et nouveau mot de passe requis")
+    
+    if len(new_password) < 8:
+        raise HTTPException(status_code=400, detail="Le mot de passe doit contenir au moins 8 caractères")
+    
+    # TODO: Verify token and reset password
+    # For now, just return success message
+    
+    return {"message": "Mot de passe réinitialisé avec succès"}

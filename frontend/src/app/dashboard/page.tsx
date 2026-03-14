@@ -1,380 +1,254 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, Bot, Building2, MessageSquare, Mic, Plus, RefreshCw, Send, Sparkles } from "lucide-react";
-import { useAuth } from "@/hooks/use-auth";
-import { assistantApi, templateApi } from "@/lib/api";
+import { useRouter } from "next/navigation";
+import {
+  Plus,
+  MessageSquare,
+  Settings,
+  LogOut,
+  TrendingUp,
+  Users,
+  Zap,
+  Trophy,
+} from "lucide-react";
 
-interface Assistant {
-  id: string;
-  name: string;
-  objective: string;
-  status: string;
-  tone: string;
-  language: string;
-  web_chat_enabled: boolean;
-  voice_enabled: boolean;
-  telegram_enabled: boolean;
-  whatsapp_enabled: boolean;
-  total_tokens_used: number;
+interface DashboardStats {
+  total_assistants: number;
+  total_conversations: number;
+  total_messages: number;
+  active_skills: number;
 }
 
 export default function DashboardPage() {
-  const { token, workspaceId } = useAuth();
-  const [assistants, setAssistants] = useState<Assistant[]>([]);
-  const [showCreate, setShowCreate] = useState(false);
-  const [creating, setCreating] = useState(false);
-  const [form, setForm] = useState({ name: "", objective: "", tone: "professional", language: "fr" });
-  const [error, setError] = useState("");
-  const [createError, setCreateError] = useState("");
-  const [initialLoading, setInitialLoading] = useState(true);
-  const [templates, setTemplates] = useState<Array<{ id: string; name: string; category: string; description: string; icon: string }>>([]);
-  const [showTemplates, setShowTemplates] = useState(false);
-  const [templateCreating, setTemplateCreating] = useState(false);
-
-  const loadAssistants = useCallback(async () => {
-    if (!token) return;
-    try {
-      setError("");
-      const data = await assistantApi.list(token, workspaceId || "");
-      setAssistants(data as Assistant[]);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Impossible de charger les assistants");
-    } finally {
-      setInitialLoading(false);
-    }
-  }, [token, workspaceId]);
-
-  const loadTemplates = useCallback(async () => {
-    if (!token) return;
-    try {
-      const data = await templateApi.list(token, workspaceId || "");
-      setTemplates(data as Array<{ id: string; name: string; category: string; description: string; icon: string }>);
-    } catch {
-      // Templates may not be available
-    }
-  }, [token, workspaceId]);
+  const router = useRouter();
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<{ email: string; full_name: string } | null>(null);
 
   useEffect(() => {
-    loadAssistants();
-    loadTemplates();
-  }, [loadAssistants, loadTemplates]);
+    loadDashboard();
+  }, []);
 
-  const handleCreateFromTemplate = async (templateId: string) => {
-    if (!token) return;
-    setTemplateCreating(true);
-    setCreateError("");
+  const loadDashboard = async () => {
     try {
-      await templateApi.createAssistant(token, workspaceId || "", templateId, {
-        template_id: templateId,
-        name: "Mon Assistant Architecte",
-        language: "fr",
-      });
-      setShowTemplates(false);
-      loadAssistants();
-    } catch (e) {
-      setCreateError(e instanceof Error ? e.message : "Impossible de créer depuis le template");
+      // Fetch user info
+      const userResponse = await fetch("/api/v1/auth/me");
+      if (userResponse.ok) {
+        const userData = await userResponse.json();
+        setUser(userData);
+      }
+
+      // Fetch stats
+      const statsResponse = await fetch("/api/v1/dashboard/stats");
+      if (statsResponse.ok) {
+        const statsData = await statsResponse.json();
+        setStats(statsData);
+      }
+    } catch (err) {
+      console.error("Failed to load dashboard:", err);
     } finally {
-      setTemplateCreating(false);
+      setLoading(false);
     }
   };
 
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!token) return;
-    setCreating(true);
-    setCreateError("");
-    try {
-      await assistantApi.create(token, workspaceId || "", form);
-      setShowCreate(false);
-      setForm({ name: "", objective: "", tone: "professional", language: "fr" });
-      loadAssistants();
-    } catch (e) {
-      setCreateError(e instanceof Error ? e.message : "Impossible de créer l'assistant");
-    } finally {
-      setCreating(false);
-    }
-  };
-
-  const statusLabel: Record<string, string> = {
-    active: "Actif",
-    draft: "Brouillon",
-    inactive: "Inactif",
+  const handleLogout = () => {
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("refresh_token");
+    router.push("/auth/login");
   };
 
   return (
-    <div className="p-8">
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold">Mes Assistants</h1>
-          <p className="text-muted-foreground mt-1">
-            Créez et gérez vos assistants IA personnalisés
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={loadAssistants}
-            className="p-2.5 rounded-lg hover:bg-secondary transition-colors"
-            aria-label="Rafraîchir"
-          >
-            <RefreshCw className="w-4 h-4" />
-          </button>
-          {templates.length > 0 && (
-            <button
-              onClick={() => setShowTemplates(true)}
-              className="flex items-center gap-2 px-5 py-3 border border-primary/30 text-primary rounded-xl font-semibold hover:bg-primary/5 transition-colors"
+    <div className="min-h-screen bg-gradient-to-b from-gray-900 to-gray-950">
+      {/* Header */}
+      <header className="sticky top-0 z-40 bg-gray-900/80 backdrop-blur border-b border-gray-800">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-white">Dashboard</h1>
+            {user && (
+              <p className="text-sm text-gray-400">
+                Bienvenue, {user.full_name}
+              </p>
+            )}
+          </div>
+
+          <div className="flex items-center gap-4">
+            <Link
+              href="/dashboard/assistants/new"
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium"
             >
-              <Sparkles className="w-5 h-5" />
-              <span className="hidden sm:inline">Depuis un template</span>
-            </button>
-          )}
-          <button
-            onClick={() => setShowCreate(true)}
-            className="flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-xl font-semibold hover:opacity-90 transition-opacity"
-          >
-            <Plus className="w-5 h-5" />
-            <span className="hidden sm:inline">Nouvel assistant</span>
-          </button>
-        </div>
-      </div>
+              <Plus className="w-4 h-4" />
+              Nouvel Assistant
+            </Link>
 
-      {error && (
-        <div className="mb-6 p-4 rounded-xl bg-destructive/10 text-destructive text-sm flex items-center gap-2">
-          <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-          {error}
-          <button onClick={loadAssistants} className="ml-auto underline text-xs">Réessayer</button>
-        </div>
-      )}
-
-      {/* Create Modal */}
-      {showCreate && (
-        <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-          onClick={(e) => { if (e.target === e.currentTarget) setShowCreate(false); }}
-          role="dialog"
-          aria-modal="true"
-          aria-label="Créer un assistant"
-        >
-          <div className="bg-card rounded-2xl border border-border p-8 w-full max-w-lg">
-            <h2 className="text-2xl font-bold mb-6">Créer un assistant</h2>
-            <form onSubmit={handleCreate} className="space-y-4">
-              <div>
-                <label htmlFor="create-name" className="block text-sm font-medium mb-1.5">Nom</label>
-                <input
-                  id="create-name"
-                  type="text"
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className="w-full px-4 py-2.5 rounded-lg border border-input bg-background focus:ring-2 focus:ring-primary outline-none"
-                  placeholder="Mon Assistant Commercial"
-                  required
-                  minLength={2}
-                  maxLength={50}
-                  autoFocus
-                />
-                {form.name.length > 0 && form.name.length < 2 && (
-                  <p className="text-xs text-yellow-500 mt-1">2 caractères minimum</p>
-                )}
-              </div>
-              <div>
-                <label htmlFor="create-objective" className="block text-sm font-medium mb-1.5">Objectif</label>
-                <textarea
-                  id="create-objective"
-                  value={form.objective}
-                  onChange={(e) => setForm({ ...form, objective: e.target.value })}
-                  className="w-full px-4 py-2.5 rounded-lg border border-input bg-background focus:ring-2 focus:ring-primary outline-none min-h-[100px]"
-                  placeholder="Décrivez ce que votre assistant doit faire..."
-                  required
-                  minLength={10}
-                />
-                {form.objective.length > 0 && form.objective.length < 10 && (
-                  <p className="text-xs text-yellow-500 mt-1">10 caractères minimum</p>
-                )}
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label htmlFor="create-tone" className="block text-sm font-medium mb-1.5">Ton</label>
-                  <select
-                    id="create-tone"
-                    value={form.tone}
-                    onChange={(e) => setForm({ ...form, tone: e.target.value })}
-                    className="w-full px-4 py-2.5 rounded-lg border border-input bg-background"
-                  >
-                    <option value="professional">Professionnel</option>
-                    <option value="friendly">Amical</option>
-                    <option value="formal">Formel</option>
-                    <option value="casual">Décontracté</option>
-                  </select>
-                </div>
-                <div>
-                  <label htmlFor="create-lang" className="block text-sm font-medium mb-1.5">Langue</label>
-                  <select
-                    id="create-lang"
-                    value={form.language}
-                    onChange={(e) => setForm({ ...form, language: e.target.value })}
-                    className="w-full px-4 py-2.5 rounded-lg border border-input bg-background"
-                  >
-                    <option value="fr">Français</option>
-                    <option value="en">English</option>
-                    <option value="es">Español</option>
-                  </select>
-                </div>
-              </div>
-              {createError && (
-                <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-                  {createError}
-                </div>
-              )}
-              <div className="flex gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => { setShowCreate(false); setCreateError(""); }}
-                  className="flex-1 py-3 rounded-lg border border-border hover:bg-secondary transition-colors"
-                >
-                  Annuler
-                </button>
-                <button
-                  type="submit"
-                  disabled={creating || form.name.length < 2 || form.objective.length < 10}
-                  className="flex-1 py-3 bg-primary text-primary-foreground rounded-lg font-semibold hover:opacity-90 disabled:opacity-50"
-                >
-                  {creating ? "Création..." : "Créer"}
-                </button>
-              </div>
-            </form>
+            <div className="flex items-center gap-3 pl-4 border-l border-gray-700">
+              <Link
+                href="/dashboard/settings"
+                className="p-2 hover:bg-gray-800 rounded-lg transition-colors text-gray-400 hover:text-white"
+              >
+                <Settings className="w-5 h-5" />
+              </Link>
+              <button
+                onClick={handleLogout}
+                className="p-2 hover:bg-gray-800 rounded-lg transition-colors text-gray-400 hover:text-white"
+                title="Déconnexion"
+              >
+                <LogOut className="w-5 h-5" />
+              </button>
+            </div>
           </div>
         </div>
-      )}
+      </header>
 
-      {/* Loading skeleton */}
-      {initialLoading ? (
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="p-6 rounded-2xl border border-border bg-card animate-pulse">
-              <div className="flex justify-between mb-4">
-                <div className="w-12 h-12 rounded-xl bg-muted" />
-                <div className="w-16 h-6 rounded-full bg-muted" />
-              </div>
-              <div className="h-5 w-40 bg-muted rounded mb-2" />
-              <div className="h-4 w-full bg-muted rounded mb-1" />
-              <div className="h-4 w-2/3 bg-muted rounded mb-4" />
-              <div className="h-3 w-24 bg-muted rounded" />
-            </div>
-          ))}
-        </div>
-      ) : assistants.length === 0 ? (
-        <div className="text-center py-20">
-          <Bot className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
-          <h2 className="text-xl font-semibold mb-2">Aucun assistant</h2>
-          <p className="text-muted-foreground mb-6">
-            Créez votre premier assistant IA pour commencer
-          </p>
-          <button
-            onClick={() => setShowCreate(true)}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-xl font-semibold"
-          >
-            <Plus className="w-5 h-5" />
-            Créer un assistant
-          </button>
-        </div>
-      ) : (
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {assistants.map((a) => (
-            <Link
-              key={a.id}
-              href={`/dashboard/assistants/${a.id}`}
-              className="p-6 rounded-2xl border border-border bg-card hover:border-primary/50 transition-all group"
-            >
-              <div className="flex items-start justify-between mb-4">
-                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
-                  <Bot className="w-7 h-7" />
-                </div>
-                <span
-                  className={`px-3 py-1 rounded-full text-xs font-medium ${
-                    a.status === "active"
-                      ? "bg-green-500/10 text-green-500"
-                      : "bg-yellow-500/10 text-yellow-500"
-                  }`}
-                >
-                  {statusLabel[a.status] || a.status}
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-6 py-12 space-y-12">
+        {/* Quick Stats */}
+        {loading ? (
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="bg-gray-800 rounded-lg h-32 animate-pulse" />
+            ))}
+          </div>
+        ) : stats ? (
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            {/* Assistants */}
+            <div className="bg-gradient-to-br from-blue-900/20 to-blue-800/20 border border-blue-700/30 rounded-lg p-6">
+              <div className="flex items-center justify-between mb-4">
+                <MessageSquare className="w-8 h-8 text-blue-500" />
+                <span className="text-xs bg-blue-500/10 text-blue-300 px-2 py-1 rounded-full">
+                  +0%
                 </span>
               </div>
-              <h3 className="text-lg font-semibold mb-1 group-hover:text-primary transition-colors">
-                {a.name}
-              </h3>
-              <p className="text-sm text-muted-foreground line-clamp-2 mb-4">{a.objective}</p>
-              <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                {a.web_chat_enabled && (
-                  <span className="flex items-center gap-1">
-                    <MessageSquare className="w-3 h-3" /> Chat
-                  </span>
-                )}
-                {a.voice_enabled && (
-                  <span className="flex items-center gap-1">
-                    <Mic className="w-3 h-3" /> Voix
-                  </span>
-                )}
-                {a.telegram_enabled && (
-                  <span className="flex items-center gap-1">
-                    <Send className="w-3 h-3" /> Telegram
-                  </span>
-                )}
-                <span className="ml-auto">{a.total_tokens_used.toLocaleString("fr-FR")} tokens</span>
-              </div>
-            </Link>
-          ))}
-        </div>
-      )}
-
-      {/* Template Selection Modal */}
-      {showTemplates && (
-        <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-          onClick={(e) => { if (e.target === e.currentTarget) setShowTemplates(false); }}
-          role="dialog"
-          aria-modal="true"
-          aria-label="Choisir un template"
-        >
-          <div className="bg-card rounded-2xl border border-border p-8 w-full max-w-lg">
-            <h2 className="text-2xl font-bold mb-2">Créer depuis un template</h2>
-            <p className="text-sm text-muted-foreground mb-6">
-              Choisissez un template préconfigué pour démarrer rapidement.
-            </p>
-            <div className="space-y-3">
-              {templates.map((t) => (
-                <button
-                  key={t.id}
-                  onClick={() => handleCreateFromTemplate(t.id)}
-                  disabled={templateCreating}
-                  className="w-full p-4 rounded-xl border border-border hover:border-primary/50 transition-all text-left flex items-start gap-4 disabled:opacity-50"
-                >
-                  <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary flex-shrink-0">
-                    {t.category === "architect" ? <Building2 className="w-6 h-6" /> : <Bot className="w-6 h-6" />}
-                  </div>
-                  <div>
-                    <p className="font-semibold">{t.name}</p>
-                    <p className="text-sm text-muted-foreground mt-0.5">{t.description}</p>
-                  </div>
-                </button>
-              ))}
+              <p className="text-gray-400 text-sm">Assistants</p>
+              <p className="text-3xl font-bold text-white">
+                {stats.total_assistants}
+              </p>
             </div>
-            {createError && (
-              <div className="mt-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-                {createError}
+
+            {/* Conversations */}
+            <div className="bg-gradient-to-br from-green-900/20 to-emerald-900/20 border border-green-700/30 rounded-lg p-6">
+              <div className="flex items-center justify-between mb-4">
+                <TrendingUp className="w-8 h-8 text-green-500" />
+                <span className="text-xs bg-green-500/10 text-green-300 px-2 py-1 rounded-full">
+                  +12%
+                </span>
               </div>
-            )}
-            <button
-              onClick={() => setShowTemplates(false)}
-              className="w-full mt-4 py-3 rounded-lg border border-border hover:bg-secondary transition-colors"
-            >
-              Annuler
-            </button>
+              <p className="text-gray-400 text-sm">Conversations</p>
+              <p className="text-3xl font-bold text-white">
+                {stats.total_conversations}
+              </p>
+            </div>
+
+            {/* Messages */}
+            <div className="bg-gradient-to-br from-purple-900/20 to-violet-900/20 border border-purple-700/30 rounded-lg p-6">
+              <div className="flex items-center justify-between mb-4">
+                <Zap className="w-8 h-8 text-purple-500" />
+                <span className="text-xs bg-purple-500/10 text-purple-300 px-2 py-1 rounded-full">
+                  +8%
+                </span>
+              </div>
+              <p className="text-gray-400 text-sm">Messages</p>
+              <p className="text-3xl font-bold text-white">
+                {stats.total_messages}
+              </p>
+            </div>
+
+            {/* Skills */}
+            <div className="bg-gradient-to-br from-orange-900/20 to-red-900/20 border border-orange-700/30 rounded-lg p-6">
+              <div className="flex items-center justify-between mb-4">
+                <Trophy className="w-8 h-8 text-orange-500" />
+                <span className="text-xs bg-orange-500/10 text-orange-300 px-2 py-1 rounded-full">
+                  NEW
+                </span>
+              </div>
+              <p className="text-gray-400 text-sm">Skills Actifs</p>
+              <p className="text-3xl font-bold text-white">
+                {stats.active_skills}
+              </p>
+            </div>
+          </div>
+        ) : null}
+
+        {/* Quick Actions */}
+        <div className="grid md:grid-cols-3 gap-6">
+          {/* Create Assistant */}
+          <Link
+            href="/dashboard/assistants/new"
+            className="bg-gradient-to-br from-blue-600/10 to-blue-500/10 border border-blue-600/30 hover:border-blue-500 rounded-lg p-8 transition-all hover:shadow-lg hover:shadow-blue-500/10"
+          >
+            <Plus className="w-8 h-8 text-blue-500 mb-4" />
+            <h3 className="text-lg font-bold text-white mb-2">
+              Créer un Assistant
+            </h3>
+            <p className="text-gray-400 text-sm">
+              Lancez un nouveau projet en 5 minutes
+            </p>
+          </Link>
+
+          {/* View Assistants */}
+          <Link
+            href="/dashboard/assistants"
+            className="bg-gradient-to-br from-green-600/10 to-green-500/10 border border-green-600/30 hover:border-green-500 rounded-lg p-8 transition-all hover:shadow-lg hover:shadow-green-500/10"
+          >
+            <Users className="w-8 h-8 text-green-500 mb-4" />
+            <h3 className="text-lg font-bold text-white mb-2">
+              Mes Assistants
+            </h3>
+            <p className="text-gray-400 text-sm">
+              Gérez et améliorez vos assistants
+            </p>
+          </Link>
+
+          {/* Marketplace */}
+          <Link
+            href="/dashboard/marketplace"
+            className="bg-gradient-to-br from-purple-600/10 to-purple-500/10 border border-purple-600/30 hover:border-purple-500 rounded-lg p-8 transition-all hover:shadow-lg hover:shadow-purple-500/10"
+          >
+            <Zap className="w-8 h-8 text-purple-500 mb-4" />
+            <h3 className="text-lg font-bold text-white mb-2">
+              Marketplace
+            </h3>
+            <p className="text-gray-400 text-sm">
+              Découvrez et installez des skills
+            </p>
+          </Link>
+        </div>
+
+        {/* Recent Activity */}
+        <div className="bg-gray-800 border border-gray-700 rounded-lg p-8">
+          <h2 className="text-2xl font-bold text-white mb-6">
+            Activité Récente
+          </h2>
+          <div className="text-center py-12 text-gray-400">
+            <p>Aucune activité récente</p>
+            <p className="text-sm mt-2">
+              Créez votre premier assistant pour commencer
+            </p>
           </div>
         </div>
-      )}
+
+        {/* Getting Started Guide */}
+        <div className="bg-gradient-to-r from-blue-600/20 to-cyan-600/20 border border-blue-600/30 rounded-lg p-8">
+          <h2 className="text-2xl font-bold text-white mb-4">
+            Premiers Pas
+          </h2>
+          <div className="grid md:grid-cols-3 gap-4 text-sm text-gray-300">
+            <div>
+              <div className="font-bold text-white mb-2">1️⃣ Créer</div>
+              <p>Créez votre premier assistant avec un template</p>
+            </div>
+            <div>
+              <div className="font-bold text-white mb-2">2️⃣ Personnaliser</div>
+              <p>Ajoutez des skills et configurez les intégrations</p>
+            </div>
+            <div>
+              <div className="font-bold text-white mb-2">3️⃣ Déployer</div>
+              <p>Lancez votre assistant sur tous les canaux</p>
+            </div>
+          </div>
+        </div>
+      </main>
     </div>
   );
 }
