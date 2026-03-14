@@ -13,6 +13,7 @@ from starlette.responses import Response as StarletteResponse
 from app.api.routes import (
     actions, admin, architect, assistants, auth, bridge, chat,
     knowledge, livekit, telegram, templates, whatsapp, workspace, skills,
+    integrations, admin_dashboard,
 )
 from app.core.config import get_settings
 from app.core.database import engine, async_session, Base
@@ -126,6 +127,8 @@ app.include_router(templates.router, prefix="/api/v1")
 app.include_router(bridge.router, prefix="/api/v1")
 app.include_router(architect.router, prefix="/api/v1")
 app.include_router(skills.router, prefix="/api/v1")
+app.include_router(integrations.router, prefix="/api/v1")
+app.include_router(admin_dashboard.router, prefix="/api/v1")
 
 
 @app.exception_handler(ValueError)

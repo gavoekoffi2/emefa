@@ -56,7 +56,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   const navItems = [
-    { href: "/dashboard", icon: <LayoutDashboard className="w-4 h-4" />, label: "Mes Assistants" },
+    { href: "/dashboard", icon: <LayoutDashboard className="w-4 h-4" />, label: "Dashboard" },
+    { href: "/dashboard/assistants", icon: <Bot className="w-4 h-4" />, label: "Mes Assistants" },
+    { href: "/dashboard/marketplace", icon: <LayoutDashboard className="w-4 h-4" />, label: "Marketplace" },
+    { href: "/dashboard/integrations", icon: <LayoutDashboard className="w-4 h-4" />, label: "Intégrations" },
     { href: "/dashboard/admin", icon: <Shield className="w-4 h-4" />, label: "Administration" },
   ];
 
