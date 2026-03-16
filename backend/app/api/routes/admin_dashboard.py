@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 
 from app.core.database import get_db
-from app.core.auth import get_current_user
+from app.core.deps import get_current_user
 from app.models.user import User, Workspace
 from app.models.assistant import Assistant
 from app.models.conversation import Conversation
