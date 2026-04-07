@@ -25,6 +25,7 @@ public class TaskTriggerReceiver extends BroadcastReceiver {
 
     @Override
     public void onReceive(Context context, Intent intent) {
+        if (!io.agents.pokeclaw.BuildConfig.DEBUG) return;
         if (intent == null || !ACTION.equals(intent.getAction())) return;
         String task = intent.getStringExtra("task");
         if (task == null || task.isEmpty()) {

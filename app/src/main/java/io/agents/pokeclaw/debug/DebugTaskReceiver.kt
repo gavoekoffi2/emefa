@@ -27,6 +27,7 @@ import io.agents.pokeclaw.utils.XLog
  */
 class DebugTaskReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
+        if (!io.agents.pokeclaw.BuildConfig.DEBUG) return
         val task = intent.getStringExtra("task") ?: "open my camera"
         XLog.i("DebugTaskReceiver", "Received debug task: $task")
 
