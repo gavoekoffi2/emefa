@@ -68,46 +68,65 @@
 
     </androidx.cardview.widget.CardView>
 
-    <!-- 任务执行中状态 (pill shape with token info) -->
+    <!-- 任务执行中状态 (pill shape with token info + stop hint) -->
     <androidx.cardview.widget.CardView
         android:id="@+id/cardRunning"
         android:layout_width="wrap_content"
-        android:layout_height="match_parent"
-        app:cardCornerRadius="28dp"
+        android:layout_height="wrap_content"
+        app:cardCornerRadius="16dp"
         app:cardElevation="4dp"
         app:cardBackgroundColor="@color/colorBrandPrimary"
         android:visibility="gone">
 
         <LinearLayout
             android:layout_width="wrap_content"
-            android:layout_height="match_parent"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center_horizontal"
             android:paddingStart="14dp"
             android:paddingEnd="14dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="6dp"
             android:minWidth="56dp">
 
-            <!-- Progress spinner (small) -->
-            <ProgressBar
-                android:id="@+id/progressRunning"
-                android:layout_width="16dp"
-                android:layout_height="16dp"
-                android:indeterminate="true"
-                android:indeterminateTint="@color/colorBrandOnPrimary"
-                style="@style/Widget.AppCompat.ProgressBar" />
-
-            <!-- Step | Tokens | Cost -->
-            <TextView
-                android:id="@+id/tvTokenStatus"
+            <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="6dp"
-                android:text="Step 1"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <!-- Progress spinner (small) -->
+                <ProgressBar
+                    android:id="@+id/progressRunning"
+                    android:layout_width="14dp"
+                    android:layout_height="14dp"
+                    android:indeterminate="true"
+                    android:indeterminateTint="@color/colorBrandOnPrimary"
+                    style="@style/Widget.AppCompat.ProgressBar" />
+
+                <!-- Step | Tokens | Cost -->
+                <TextView
+                    android:id="@+id/tvTokenStatus"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:text="Step 1"
+                    android:textColor="@color/colorBrandOnPrimary"
+                    android:textSize="11dp"
+                    android:textStyle="bold"
+                    android:maxLines="1"
+                    android:singleLine="true" />
+
+            </LinearLayout>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="Tap to stop"
                 android:textColor="@color/colorBrandOnPrimary"
-                android:textSize="11dp"
-                android:textStyle="bold"
-                android:maxLines="1"
-                android:singleLine="true" />
+                android:alpha="0.6"
+                android:textSize="8dp" />
 
         </LinearLayout>
 
