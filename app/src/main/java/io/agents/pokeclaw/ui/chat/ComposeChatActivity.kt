@@ -504,10 +504,25 @@ class ComposeChatActivity : ComponentActivity() {
 
     private fun sendTask(text: String) {
         if (!ClawAccessibilityService.isRunning()) {
-            // Lazy permission — only ask when Task mode is first used
-            addSystem("Task mode needs Accessibility permission to control your phone.")
-            startActivity(Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS))
-            Toast.makeText(this, "Enable PokeClaw in Accessibility settings", Toast.LENGTH_LONG).show()
+            if (!ClawAccessibilityService.isEnabledInSettings(this)) {
+                // Not enabled at all — send user to settings
+                addSystem("Task mode needs Accessibility permission to control your phone.")
+                startActivity(Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                Toast.makeText(this, "Enable PokeClaw in Accessibility settings", Toast.LENGTH_LONG).show()
+                return
+            }
+            // Enabled but still binding — wait briefly on background thread
+            addSystem("Accessibility service starting, please wait...")
+            executor.submit {
+                val connected = ClawAccessibilityService.awaitRunning(3000)
+                runOnUiThread {
+                    if (connected) {
+                        sendTask(text)
+                    } else {
+                        addSystem("Accessibility service didn't connect. Try toggling it off and on in Settings > Accessibility.")
+                    }
+                }
+            }
             return
         }
 
