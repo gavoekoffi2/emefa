@@ -568,6 +568,7 @@ class ComposeChatActivity : ComponentActivity() {
 
         addUser(text)
         _isProcessing.value = true
+        XLog.i(TAG, "sendTask: isProcessing=TRUE")
         _messages.add(ChatMessage(ChatMessage.Role.ASSISTANT, "..."))
 
         val taskText = text
@@ -616,8 +617,9 @@ class ComposeChatActivity : ComponentActivity() {
                     cleanupAfterTask()
                 }
                 is TaskEvent.ToolAction -> {
-                    // Don't show "Finish Task..." — that's just completion
                     if (!event.toolName.contains("Finish", ignoreCase = true)) {
+                        // First real tool action = this is a task, remove typing "..."
+                        removeTypingIndicator()
                         addSystem("${event.toolName}...")
                     }
                 }
@@ -656,6 +658,7 @@ class ComposeChatActivity : ComponentActivity() {
 
     /** Clean up state after any task finishes. */
     private fun cleanupAfterTask() {
+        XLog.i(TAG, "cleanupAfterTask: isProcessing=FALSE")
         _isProcessing.value = false
         appViewModel.clearTaskCallback()
         Handler(Looper.getMainLooper()).postDelayed({

@@ -255,7 +255,9 @@ class TaskOrchestrator(
 
             override fun onToolCall(round: Int, toolId: String, toolName: String, parameters: String) {
                 XLog.d(TAG, "onToolCall: $toolId($toolName), $parameters")
-                if (!floatingShown) {
+                // Don't show floating circle for finish tool (it's just completion, not a real action)
+                val isFinish = toolName == "finish" || toolId == "finish"
+                if (!floatingShown && !isFinish) {
                     floatingShown = true
                     FloatingCircleManager.showTaskNotify(task, channel)
                     ForegroundService.updateTaskStatus(ClawApplication.instance, "Running task...")
