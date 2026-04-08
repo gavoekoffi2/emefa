@@ -54,4 +54,27 @@ Each test has a unique ID (e.g., K7, B3, J4)
 
 - All errors must be user-visible (Toast, system message, or dialog) — never silent failures
 - Permission checks before features that need them — guide user to the correct settings page
-- Use XLog for all key operations — if you can't see it in logcat, it doesn't exist for debugging
+
+## Debug Logging (MANDATORY)
+
+Every code path must be traceable through logcat alone. If a bug happens and there's no log, that's a code defect — not a mystery.
+
+### What to log
+
+- **Every entry point**: method called, with key parameters. `XLog.i(TAG, "sendTask: text='$text', isLocal=$isLocal")`
+- **Every decision branch**: which path was taken and why. `XLog.d(TAG, "route: monitor keyword detected, skipping agent loop")`
+- **Every state change**: before and after. `XLog.i(TAG, "setState: $oldState → $newState")`
+- **Every external call**: API request, tool execution, accessibility action. `XLog.d(TAG, "onToolCall: $toolName($parameters)")`
+- **Every error with context**: not just the exception, but what was happening. `XLog.e(TAG, "Failed to send message to $contact via $app", e)`
+- **Every permission/service status check**: `XLog.d(TAG, "isConnected=$connected, isRunning=$running")`
+
+### Log levels
+
+- `XLog.e` — errors that affect user experience (task failed, model load failed)
+- `XLog.w` — recoverable issues (GPU fallback to CPU, retry succeeded)
+- `XLog.i` — key lifecycle events (task started/completed, service connected, model loaded)
+- `XLog.d` — detailed flow tracing (tool calls, state transitions, routing decisions)
+
+### The rule
+
+When reading logcat for any user flow, you should be able to reconstruct exactly what happened, what decisions were made, and where it went wrong — without reading the source code. One session of `adb logcat --pid=$(pidof io.agents.pokeclaw)` should tell the full story.
