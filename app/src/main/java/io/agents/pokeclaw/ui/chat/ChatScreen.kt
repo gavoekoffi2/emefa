@@ -24,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
 import io.agents.pokeclaw.R
+import io.agents.pokeclaw.agent.skill.Skill
 import io.agents.pokeclaw.agent.skill.SkillCategory
 import io.agents.pokeclaw.agent.skill.SkillRegistry
 import androidx.compose.ui.graphics.Color
@@ -118,6 +119,11 @@ fun ChatScreen(
     var showMonitorSheet by remember { mutableStateOf(false) }
     var showSendSheet by remember { mutableStateOf(false) }
     var activatingSkill by remember { mutableStateOf<String?>(null) }
+
+    // Force task mode for local LLM (no free-form chat capability)
+    LaunchedEffect(isLocalModel) {
+        if (isLocalModel) isTaskMode = true
+    }
 
     // When activating finishes (2s animation), clear state
     LaunchedEffect(activatingSkill) {
@@ -602,98 +608,248 @@ private fun ChatInputBar(
         }
     }
 
+    // Skill shortcut panel state (Cloud LLM chat mode only)
+    var skillPanelExpanded by remember { mutableStateOf(false) }
+    val shortcutSkills = remember { SkillRegistry.getAll() }
+
     Column(modifier = Modifier.background(colors.surface)) {
         HorizontalDivider(color = colors.divider, thickness = 0.5.dp)
 
-        // Mode toggle tabs
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            ModeTab(
-                label = "Chat",
-                icon = Icons.Outlined.ChatBubbleOutline,
-                selected = !isTaskMode,
-                onClick = { onTaskModeChange(false) },
+        // Skill shortcut panel — Cloud LLM chat mode only
+        if (!isLocalModel && !isTaskMode && shortcutSkills.isNotEmpty()) {
+            SkillShortcutBar(
+                skills = shortcutSkills,
+                expanded = skillPanelExpanded,
+                onToggle = { skillPanelExpanded = !skillPanelExpanded },
+                onSkillTap = { skill ->
+                    skillPanelExpanded = false
+                    val example = skill.triggerPatterns.firstOrNull()
+                        ?.replace(Regex("\\{\\w+\\}"), "...")
+                        ?: skill.name
+                    if (skill.parameters.isEmpty()) {
+                        onSendTask(example)
+                    } else {
+                        text = example
+                        onTaskModeChange(false)
+                    }
+                },
                 colors = colors,
-                modifier = Modifier.weight(1f),
-            )
-            ModeTab(
-                label = "Task",
-                icon = Icons.Outlined.TouchApp,
-                selected = isTaskMode,
-                onClick = { onTaskModeChange(true) },
-                colors = colors,
-                modifier = Modifier.weight(1f),
             )
         }
 
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 8.dp, end = 8.dp, bottom = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            OutlinedTextField(
-                value = if (taskInputDisabled) "" else text,
-                onValueChange = { if (!taskInputDisabled) text = it },
-                enabled = !taskInputDisabled,
-                placeholder = {
-                    Text(
-                        if (taskInputDisabled) "Gemma is not smart enough for free-form tasks. Switch to a cloud LLM in Settings to unlock this."
-                        else if (isTaskMode) "Tell me what to do..."
-                        else "Ask anything...",
-                        color = colors.textTertiary,
-                        fontSize = if (taskInputDisabled) 11.sp else 14.sp,
-                    )
-                },
+        // Mode toggle tabs — only show for Cloud LLM
+        if (!isLocalModel) {
+            Row(
                 modifier = Modifier
-                    .weight(1f)
-                    .heightIn(min = 40.dp, max = 100.dp),
-                shape = RoundedCornerShape(20.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = colors.accent.copy(alpha = 0.4f),
-                    unfocusedBorderColor = colors.inputBorder,
-                    disabledBorderColor = colors.inputBorder.copy(alpha = 0.3f),
-                    disabledTextColor = colors.textTertiary,
-                    cursorColor = colors.accent,
-                    focusedTextColor = colors.textPrimary,
-                    unfocusedTextColor = colors.textPrimary,
-                ),
-                textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp),
-                maxLines = 4,
-            )
-
-            Spacer(Modifier.width(4.dp))
-
-            FloatingActionButton(
-                onClick = {
-                    if (text.isNotBlank() && !taskInputDisabled) {
-                        if (isTaskMode) {
-                            onSendTask(text.trim())
-                            text = ""
-                            focusManager.clearFocus()
-                        } else if (!isProcessing) {
-                            onSendChat(text.trim())
-                            text = ""
-                            focusManager.clearFocus()
-                        }
-                    }
-                },
-                modifier = Modifier.size(36.dp),
-                containerColor = if (text.isBlank() || taskInputDisabled) colors.accent.copy(alpha = 0.2f) else colors.accent,
-                shape = CircleShape,
-                elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 0.dp),
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Icon(
-                    if (isTaskMode) Icons.Outlined.TouchApp else Icons.Default.ArrowUpward,
-                    contentDescription = "Send",
-                    tint = if (taskInputDisabled) Color.White.copy(alpha = 0.3f) else Color.White,
-                    modifier = Modifier.size(18.dp),
+                ModeTab(
+                    label = "Chat",
+                    icon = Icons.Outlined.ChatBubbleOutline,
+                    selected = !isTaskMode,
+                    onClick = { onTaskModeChange(false) },
+                    colors = colors,
+                    modifier = Modifier.weight(1f),
+                )
+                ModeTab(
+                    label = "Task",
+                    icon = Icons.Outlined.TouchApp,
+                    selected = isTaskMode,
+                    onClick = { onTaskModeChange(true) },
+                    colors = colors,
+                    modifier = Modifier.weight(1f),
                 )
             }
+        }
+
+        if (taskInputDisabled) {
+            // Local LLM task mode: show status label instead of input
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center,
+            ) {
+                Icon(
+                    Icons.Outlined.TouchApp,
+                    contentDescription = null,
+                    tint = colors.textTertiary,
+                    modifier = Modifier.size(14.dp),
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    "Tap a skill above to start",
+                    fontSize = 12.sp,
+                    color = colors.textTertiary,
+                )
+            }
+        } else {
+            // Normal input bar (Cloud LLM any mode, or Local LLM chat mode)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 8.dp, end = 8.dp, bottom = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    placeholder = {
+                        Text(
+                            if (isTaskMode) "Tell me what to do..."
+                            else "Ask anything...",
+                            color = colors.textTertiary,
+                            fontSize = 14.sp,
+                        )
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .heightIn(min = 40.dp, max = 100.dp),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = colors.accent.copy(alpha = 0.4f),
+                        unfocusedBorderColor = colors.inputBorder,
+                        cursorColor = colors.accent,
+                        focusedTextColor = colors.textPrimary,
+                        unfocusedTextColor = colors.textPrimary,
+                    ),
+                    textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp),
+                    maxLines = 4,
+                )
+
+                Spacer(Modifier.width(4.dp))
+
+                FloatingActionButton(
+                    onClick = {
+                        if (text.isNotBlank()) {
+                            if (isTaskMode) {
+                                onSendTask(text.trim())
+                                text = ""
+                                focusManager.clearFocus()
+                            } else if (!isProcessing) {
+                                onSendChat(text.trim())
+                                text = ""
+                                focusManager.clearFocus()
+                            }
+                        }
+                    },
+                    modifier = Modifier.size(36.dp),
+                    containerColor = if (text.isBlank()) colors.accent.copy(alpha = 0.2f) else colors.accent,
+                    shape = CircleShape,
+                    elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 0.dp),
+                ) {
+                    Icon(
+                        if (isTaskMode) Icons.Outlined.TouchApp else Icons.Default.ArrowUpward,
+                        contentDescription = "Send",
+                        tint = Color.White,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+            }
+        }
+    }
+}
+
+// ======================== SKILL SHORTCUT BAR ========================
+
+@Composable
+private fun SkillShortcutBar(
+    skills: List<Skill>,
+    expanded: Boolean,
+    onToggle: () -> Unit,
+    onSkillTap: (Skill) -> Unit,
+    colors: PokeclawColors,
+) {
+    val categoryIcons = mapOf(
+        SkillCategory.INPUT to Icons.Outlined.Keyboard,
+        SkillCategory.DISMISS to Icons.Outlined.Close,
+        SkillCategory.NAVIGATION to Icons.Outlined.Navigation,
+        SkillCategory.MESSAGING to Icons.Outlined.Chat,
+        SkillCategory.MEDIA to Icons.Outlined.CameraAlt,
+        SkillCategory.GENERAL to Icons.Outlined.AutoAwesome,
+    )
+
+    Column {
+        // Toggle row
+        Surface(
+            onClick = onToggle,
+            color = Color.Transparent,
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    Icons.Outlined.AutoAwesome,
+                    contentDescription = null,
+                    tint = colors.textTertiary,
+                    modifier = Modifier.size(14.dp),
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    "Skills",
+                    fontSize = 12.sp,
+                    color = colors.textTertiary,
+                    modifier = Modifier.weight(1f),
+                )
+                Icon(
+                    if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                    contentDescription = if (expanded) "Collapse" else "Expand",
+                    tint = colors.textTertiary,
+                    modifier = Modifier.size(16.dp),
+                )
+            }
+        }
+
+        // Expanded skill chips
+        if (expanded) {
+            // Two rows of chips using FlowRow-style layout
+            val rows = skills.chunked((skills.size + 1) / 2)
+            Column(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                for (row in rows) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        for (skill in row) {
+                            val icon = categoryIcons[skill.category] ?: Icons.Outlined.AutoAwesome
+                            Surface(
+                                onClick = { onSkillTap(skill) },
+                                shape = RoundedCornerShape(20.dp),
+                                color = colors.accent.copy(alpha = 0.1f),
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Icon(
+                                        icon,
+                                        contentDescription = null,
+                                        tint = colors.accent,
+                                        modifier = Modifier.size(14.dp),
+                                    )
+                                    Spacer(Modifier.width(4.dp))
+                                    Text(
+                                        skill.name,
+                                        fontSize = 11.sp,
+                                        color = colors.accent,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            Spacer(Modifier.height(4.dp))
         }
     }
 }
