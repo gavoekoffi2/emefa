@@ -1295,6 +1295,11 @@ private fun TaskSkillsPanel(
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
                 color = colors.textPrimary,
+            )
+            Text(
+                "Experimental — work in progress",
+                fontSize = 11.sp,
+                color = colors.textTertiary.copy(alpha = 0.6f),
                 modifier = Modifier.padding(bottom = 4.dp),
             )
         }

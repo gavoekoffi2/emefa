@@ -164,16 +164,24 @@ class TaskOrchestrator(
                             taskProgressCallback?.invoke("Step $step/$total: $desc")
                             ForegroundService.updateTaskStatus(ClawApplication.instance, desc)
                         }
-                        // Notify result via both ChannelManager (for remote) and taskProgressCallback (for LOCAL UI)
-                        val resultMsg = if (skillResult.success) "Task completed: ${skillResult.message}"
-                                        else "Task failed: ${skillResult.message}"
-                        ChannelManager.sendMessage(channel, skillResult.message, messageID)
-                        taskProgressCallback?.invoke(resultMsg)
-                        releaseTask()
-                        if (skillResult.success) FloatingCircleManager.setSuccessState()
-                        else FloatingCircleManager.setErrorState()
-                        ForegroundService.resetToIdle(ClawApplication.instance)
-                        onTaskFinished()
+                        if (skillResult.success) {
+                            val resultMsg = "Task completed: ${skillResult.message}"
+                            ChannelManager.sendMessage(channel, skillResult.message, messageID)
+                            taskProgressCallback?.invoke(resultMsg)
+                            releaseTask()
+                            FloatingCircleManager.setSuccessState()
+                            ForegroundService.resetToIdle(ClawApplication.instance)
+                            onTaskFinished()
+                        } else {
+                            // Skill failed — fall through to agent loop with fallback goal
+                            val fallbackGoal = skill.fallbackGoal
+                                .let { g -> route.params.entries.fold(g) { acc, (k, v) -> acc.replace("{$k}", v) } }
+                            XLog.i(TAG, "Skill ${skill.id} failed, falling back to agent loop: $fallbackGoal")
+                            taskProgressCallback?.invoke("Retrying with AI agent...")
+                            releaseTask()
+                            // Re-route as agent loop task (runs on this thread via startNewTask)
+                            startNewTask(channel, fallbackGoal, messageID)
+                        }
                     }, "skill-executor").start()
                     return
                 }
