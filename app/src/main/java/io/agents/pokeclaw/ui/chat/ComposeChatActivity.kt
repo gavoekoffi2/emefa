@@ -567,116 +567,91 @@ class ComposeChatActivity : ComponentActivity() {
 
         addUser(text)
         _isProcessing.value = true
-        // Show typing indicator — will be replaced by actual response
         _messages.add(ChatMessage(ChatMessage.Role.ASSISTANT, "..."))
 
-        // Register progress callback so TaskOrchestrator events appear in chat.
-        val taskStartTime = System.currentTimeMillis()
-        appViewModel.taskOrchestrator.taskProgressCallback = { msg ->
-            val elapsed = (System.currentTimeMillis() - taskStartTime) / 1000.0
-            XLog.i(TAG, "sendTask progress [${elapsed}s]: $msg")
-            runOnUiThread {
-                try {
-                    // Hide internal progress ("Reading screen...", "Starting task...")
-                    // Only show: tool actions, errors, and LLM responses
-                    val isInternalProgress = msg.startsWith("Reading screen") || msg.startsWith("Starting task")
-                    val isToolAction = msg.endsWith("...") && !isInternalProgress
-                    val isError = msg.startsWith("Task failed") || msg.startsWith("Blocked")
-
-                    if (isInternalProgress) {
-                        // Don't show — internal noise
-                    } else if (isToolAction || isError || msg.startsWith("Retrying") || msg.startsWith("Step ")) {
-                        // Tool progress or errors → grey system text
-                        addSystem(msg)
-                    } else {
-                        // LLM's actual response — replace typing "..." with bot bubble
-                        val typingIdx = _messages.indexOfLast { it.role == ChatMessage.Role.ASSISTANT && it.content == "..." }
-                        if (typingIdx >= 0) {
-                            _messages[typingIdx] = ChatMessage(ChatMessage.Role.ASSISTANT, msg)
-                        } else {
-                            _messages.add(ChatMessage(ChatMessage.Role.ASSISTANT, msg))
-                        }
-                    }
-                } catch (e: Exception) {
-                    XLog.w(TAG, "sendTask: addSystem error", e)
-                }
-                // When task finishes, reload chat engine.
-                // Only trigger on explicit completion signals — don't guess.
-                val isDone = msg.startsWith("Task completed") || msg.startsWith("Task failed") ||
-                    msg.startsWith("Blocked") || msg.startsWith("Task cancelled")
-                if (isDone) {
-                    XLog.i(TAG, "sendTask: task done via progress callback, scheduling chat engine reload")
-                    _isProcessing.value = false
-                    appViewModel.taskOrchestrator.taskProgressCallback = null
-
-                    // If auto-reply was just enabled, show confirmation and go to home
-                    // so notifications can fire (WhatsApp won't notify while in foreground)
-                    val arm = io.agents.pokeclaw.service.AutoReplyManager.getInstance()
-                    if (msg.startsWith("Task completed") && arm.isEnabled) {
-                        val contacts = arm.monitoredContacts.joinToString(", ") { it.replaceFirstChar { c -> c.uppercase() } }
-                        addSystem("✓ Auto-reply is now active for $contacts.\nMonitoring in background — you can stop anytime from the bar above.")
-                        Handler(Looper.getMainLooper()).postDelayed({
-                            XLog.i(TAG, "sendTask: auto-reply active, going to home for notifications")
-                            try {
-                                ClawAccessibilityService.getInstance()?.performGlobalAction(
-                                    android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME
-                                )
-                            } catch (e: Exception) {
-                                XLog.w(TAG, "sendTask: pressHome failed", e)
-                            }
-                        }, 3000)
-                    }
-
-                    Handler(Looper.getMainLooper()).postDelayed({
-                        XLog.i(TAG, "sendTask: reloading chat engine after task engine released")
-                        try {
-                            loadModelIfReady()
-                        } catch (e: Exception) {
-                            XLog.e(TAG, "sendTask: loadModelIfReady error", e)
-                            addSystem("Error reloading model: ${e.message}")
-                        }
-                    }, 500)
-                }
-            }
-        }
-
-        // Close only the chat Conversation — the Engine stays alive in EngineHolder so
-        // LocalLlmClient (used by the task agent) can reuse it immediately without the
-        // 2-3 s reinit cost. LiteRT-LM's constraint is one Conversation at a time, not
-        // one Engine at a time, so releasing the Conversation is sufficient.
         val taskText = text
         val taskId = "task_${System.currentTimeMillis()}"
-        executor.submit {
-            // Cancel any running task first
-            try {
-                appViewModel.taskOrchestrator.cancelCurrentTask()
-                Thread.sleep(500)
-            } catch (_: Exception) {}
 
-            XLog.i(TAG, "sendTask: closing chat conversation before task id=$taskId (engine stays in EngineHolder)")
-            try { conversation?.close() } catch (e: Exception) { XLog.w(TAG, "sendTask: conversation close error", e) }
+        // Register progress callback — routes TaskOrchestrator events to chat UI
+        appViewModel.taskOrchestrator.taskProgressCallback = { msg ->
+            runOnUiThread { handleTaskProgress(msg) }
+        }
+
+        // Release chat conversation so task agent can use the engine
+        executor.submit {
+            try { appViewModel.taskOrchestrator.cancelCurrentTask(); Thread.sleep(500) } catch (_: Exception) {}
+            try { conversation?.close() } catch (_: Exception) {}
             conversation = null
             isModelReady = false
-            XLog.i(TAG, "sendTask: chat conversation closed, launching task")
 
-            // Now safe to start task — engine is released
             runOnUiThread {
                 try {
                     appViewModel.startNewTask(ChannelEnum.LOCAL, taskText, taskId)
-                    XLog.i(TAG, "sendTask: task started id=$taskId")
                 } catch (e: Exception) {
-                    XLog.e(TAG, "sendTask: failed to start task", e)
-                    addSystem("Error starting task: ${e.message}")
-                    _isProcessing.value = false
-                    appViewModel.taskOrchestrator.taskProgressCallback = null
-                    try {
-                        loadModelIfReady()
-                    } catch (re: Exception) {
-                        XLog.e(TAG, "sendTask: loadModelIfReady after start failure", re)
-                    }
+                    XLog.e(TAG, "sendTask failed: ${e.message}", e)
+                    addSystem("Error: ${e.message}")
+                    cleanupAfterTask()
                 }
             }
         }
+    }
+
+    /** Route a task progress message to the correct UI element. */
+    private fun handleTaskProgress(msg: String) {
+        try {
+            when {
+                // Completion signals → cleanup
+                msg.startsWith("Task completed") || msg.startsWith("Task cancelled") -> {
+                    cleanupAfterTask()
+                    checkAutoReplyConfirmation(msg)
+                }
+                msg.startsWith("Task failed") || msg.startsWith("Blocked") -> {
+                    addSystem(msg)
+                    cleanupAfterTask()
+                }
+                // Internal progress → hide
+                msg.startsWith("Reading screen") || msg.startsWith("Starting task") -> { }
+                // Tool actions → grey system text
+                msg.endsWith("...") || msg.startsWith("Step ") || msg.startsWith("Retrying") -> {
+                    addSystem(msg)
+                }
+                // LLM response → bot bubble (replace typing indicator)
+                else -> {
+                    val idx = _messages.indexOfLast { it.role == ChatMessage.Role.ASSISTANT && it.content == "..." }
+                    if (idx >= 0) _messages[idx] = ChatMessage(ChatMessage.Role.ASSISTANT, msg)
+                    else _messages.add(ChatMessage(ChatMessage.Role.ASSISTANT, msg))
+                }
+            }
+        } catch (e: Exception) {
+            XLog.w(TAG, "handleTaskProgress error", e)
+        }
+    }
+
+    /** Clean up state after any task finishes. */
+    private fun cleanupAfterTask() {
+        _isProcessing.value = false
+        appViewModel.taskOrchestrator.taskProgressCallback = null
+        Handler(Looper.getMainLooper()).postDelayed({
+            try { loadModelIfReady() } catch (e: Exception) {
+                XLog.e(TAG, "cleanupAfterTask: loadModel error", e)
+            }
+        }, 500)
+    }
+
+    /** If auto-reply was enabled, show confirmation and press Home. */
+    private fun checkAutoReplyConfirmation(msg: String) {
+        if (!msg.startsWith("Task completed")) return
+        val arm = io.agents.pokeclaw.service.AutoReplyManager.getInstance()
+        if (!arm.isEnabled) return
+        val contacts = arm.monitoredContacts.joinToString(", ") { it.replaceFirstChar { c -> c.uppercase() } }
+        addSystem("✓ Auto-reply active for $contacts.\nMonitoring in background — stop from bar above.")
+        Handler(Looper.getMainLooper()).postDelayed({
+            try {
+                ClawAccessibilityService.getInstance()?.performGlobalAction(
+                    android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME
+                )
+            } catch (_: Exception) {}
+        }, 3000)
     }
 
     private fun switchModel(modelId: String, displayName: String) {
