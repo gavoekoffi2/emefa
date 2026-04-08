@@ -70,6 +70,16 @@ object SkillRegistry {
         register(BuiltInSkills.swipeGesture())
         register(BuiltInSkills.goBack())
         register(BuiltInSkills.installApp())
+        register(BuiltInSkills.waitForContent())
+        register(BuiltInSkills.composeEmail())
+        register(BuiltInSkills.setAlarm())
+        register(BuiltInSkills.createCalendarEvent())
+        register(BuiltInSkills.makeCall())
+        register(BuiltInSkills.sendSms())
+        register(BuiltInSkills.takePhoto())
+        register(BuiltInSkills.clearTextField())
+        register(BuiltInSkills.readNotifications())
+        register(BuiltInSkills.toggleSetting())
         XLog.i(TAG, "Loaded ${skills.size} built-in skills")
     }
 

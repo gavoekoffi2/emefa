@@ -261,4 +261,239 @@ object BuiltInSkills {
         ),
         fallbackGoal = "In Play Store, search for '{app_name}' and tap Install."
     )
+
+    // ======================== New Skills (from competitive analysis) ========================
+
+    fun waitForContent() = Skill(
+        id = "wait_for_content",
+        name = "Wait for Content",
+        description = "Wait for new content to appear on screen (loading, AI response, page update). Polls up to 15 seconds.",
+        category = SkillCategory.GENERAL,
+        estimatedStepsSaved = 5,
+        parameters = emptyList(),
+        triggerPatterns = listOf("wait for content", "wait for loading", "wait for response"),
+        steps = listOf(
+            SkillStep("get_screen_info", description = "Capture initial screen state"),
+            SkillStep("wait", mapOf("duration_ms" to "3000"), description = "Wait 3s"),
+            SkillStep("get_screen_info", description = "Check for new content"),
+            SkillStep("wait", mapOf("duration_ms" to "3000"), description = "Wait 3s more"),
+            SkillStep("get_screen_info", description = "Check again"),
+            SkillStep("wait", mapOf("duration_ms" to "3000"), description = "Wait 3s more"),
+            SkillStep("get_screen_info", description = "Final check"),
+        ),
+        fallbackGoal = "Wait for new content to appear on the screen. Check every 3 seconds."
+    )
+
+    fun composeEmail() = Skill(
+        id = "compose_email",
+        name = "Compose Email",
+        description = "Open email app and compose a new email with recipient, subject, and body.",
+        category = SkillCategory.MESSAGING,
+        estimatedStepsSaved = 8,
+        parameters = listOf(
+            SkillParameter("to", "string", true, "Recipient email address"),
+            SkillParameter("subject", "string", false, "Email subject"),
+            SkillParameter("body", "string", false, "Email body text")
+        ),
+        triggerPatterns = listOf(
+            "send email to {to}",
+            "email {to}",
+            "compose email to {to}"
+        ),
+        steps = listOf(
+            SkillStep("open_app", mapOf("app_name" to "Gmail"), description = "Open Gmail"),
+            SkillStep("wait", mapOf("duration_ms" to "3000"), description = "Wait for app"),
+            SkillStep("find_and_tap", mapOf("text" to "Compose"), description = "Tap Compose"),
+            SkillStep("wait", mapOf("duration_ms" to "2000"), description = "Wait for compose"),
+            SkillStep("input_text", mapOf("text" to "{to}"), description = "Enter recipient"),
+            SkillStep("system_key", mapOf("key" to "tab"), description = "Move to subject"),
+            SkillStep("input_text", mapOf("text" to "{subject}"), description = "Enter subject"),
+            SkillStep("system_key", mapOf("key" to "tab"), description = "Move to body"),
+            SkillStep("input_text", mapOf("text" to "{body}"), description = "Enter body"),
+        ),
+        fallbackGoal = "In Gmail, compose a new email to '{to}' with subject '{subject}' and body '{body}'."
+    )
+
+    fun setAlarm() = Skill(
+        id = "set_alarm",
+        name = "Set Alarm",
+        description = "Open the Clock app and create a new alarm at a specified time.",
+        category = SkillCategory.GENERAL,
+        estimatedStepsSaved = 6,
+        parameters = listOf(
+            SkillParameter("time", "string", true, "Alarm time, e.g. '7:30 AM'")
+        ),
+        triggerPatterns = listOf(
+            "set alarm for {time}",
+            "set an alarm at {time}",
+            "alarm {time}",
+            "wake me up at {time}"
+        ),
+        steps = listOf(
+            SkillStep("open_app", mapOf("app_name" to "Clock"), description = "Open Clock"),
+            SkillStep("wait", mapOf("duration_ms" to "2000"), description = "Wait for app"),
+            SkillStep("find_and_tap", mapOf("text" to "Alarm"), description = "Go to Alarm tab"),
+            SkillStep("find_and_tap", mapOf("text" to "+"), description = "Add new alarm", optional = true),
+            SkillStep("get_screen_info", description = "Read time picker"),
+        ),
+        fallbackGoal = "Open Clock app and set a new alarm for {time}."
+    )
+
+    fun createCalendarEvent() = Skill(
+        id = "create_calendar_event",
+        name = "Create Calendar Event",
+        description = "Open Calendar and create a new event with title, date, and time.",
+        category = SkillCategory.GENERAL,
+        estimatedStepsSaved = 8,
+        parameters = listOf(
+            SkillParameter("title", "string", true, "Event title"),
+            SkillParameter("date", "string", false, "Event date"),
+            SkillParameter("time", "string", false, "Event time")
+        ),
+        triggerPatterns = listOf(
+            "create event {title}",
+            "add calendar event {title}",
+            "schedule {title}"
+        ),
+        steps = listOf(
+            SkillStep("open_app", mapOf("app_name" to "Calendar"), description = "Open Calendar"),
+            SkillStep("wait", mapOf("duration_ms" to "3000"), description = "Wait for app"),
+            SkillStep("find_and_tap", mapOf("text" to "+"), description = "Tap add button", optional = true),
+            SkillStep("find_and_tap", mapOf("text" to "New event"), description = "New event", optional = true),
+            SkillStep("input_text", mapOf("text" to "{title}"), description = "Enter title"),
+        ),
+        fallbackGoal = "Open Calendar and create a new event titled '{title}'."
+    )
+
+    fun makeCall() = Skill(
+        id = "make_call",
+        name = "Make Phone Call",
+        description = "Open the Phone app and call a contact or number.",
+        category = SkillCategory.MESSAGING,
+        estimatedStepsSaved = 4,
+        parameters = listOf(
+            SkillParameter("contact", "string", true, "Contact name or phone number to call")
+        ),
+        triggerPatterns = listOf(
+            "call {contact}",
+            "phone {contact}",
+            "dial {contact}",
+            "打電話畀 {contact}"
+        ),
+        steps = listOf(
+            SkillStep("open_app", mapOf("app_name" to "Phone"), description = "Open Phone"),
+            SkillStep("wait", mapOf("duration_ms" to "2000"), description = "Wait for app"),
+            SkillStep("find_and_tap", mapOf("text" to "Search"), description = "Tap search", optional = true),
+            SkillStep("input_text", mapOf("text" to "{contact}"), description = "Type contact"),
+            SkillStep("find_and_tap", mapOf("text" to "{contact}"), description = "Tap contact from results"),
+        ),
+        fallbackGoal = "Open Phone app and call '{contact}'."
+    )
+
+    fun sendSms() = Skill(
+        id = "send_sms",
+        name = "Send SMS",
+        description = "Open Messages app and send a text message to a contact.",
+        category = SkillCategory.MESSAGING,
+        estimatedStepsSaved = 6,
+        parameters = listOf(
+            SkillParameter("contact", "string", true, "Contact name or number"),
+            SkillParameter("message", "string", true, "Message text to send")
+        ),
+        triggerPatterns = listOf(
+            "send sms to {contact}",
+            "text {contact}",
+            "send message to {contact} saying .+",
+            "message {contact}"
+        ),
+        steps = listOf(
+            SkillStep("open_app", mapOf("app_name" to "Messages"), description = "Open Messages"),
+            SkillStep("wait", mapOf("duration_ms" to "2000"), description = "Wait for app"),
+            SkillStep("find_and_tap", mapOf("text" to "Start chat"), description = "New message", optional = true),
+            SkillStep("input_text", mapOf("text" to "{contact}"), description = "Type recipient"),
+            SkillStep("system_key", mapOf("key" to "enter"), description = "Select contact"),
+            SkillStep("wait", mapOf("duration_ms" to "1000"), description = "Wait for chat"),
+            SkillStep("input_text", mapOf("text" to "{message}"), description = "Type message"),
+            SkillStep("find_and_tap", mapOf("text" to "Send"), description = "Tap send", optional = true),
+            SkillStep("system_key", mapOf("key" to "enter"), description = "Submit message"),
+        ),
+        fallbackGoal = "Open Messages and send '{message}' to '{contact}'."
+    )
+
+    fun takePhoto() = Skill(
+        id = "take_photo",
+        name = "Take Photo",
+        description = "Open the Camera app and take a photo.",
+        category = SkillCategory.MEDIA,
+        estimatedStepsSaved = 3,
+        parameters = emptyList(),
+        triggerPatterns = listOf("take a photo", "take photo", "take a picture", "影相"),
+        steps = listOf(
+            SkillStep("open_app", mapOf("app_name" to "Camera"), description = "Open Camera"),
+            SkillStep("wait", mapOf("duration_ms" to "3000"), description = "Wait for camera"),
+            SkillStep("find_and_tap", mapOf("text" to "Shutter"), description = "Tap shutter", optional = true),
+            SkillStep("tap", mapOf("x" to "504", "y" to "2000"), description = "Tap center-bottom shutter fallback"),
+        ),
+        fallbackGoal = "Open the Camera app and tap the shutter button to take a photo."
+    )
+
+    fun clearTextField() = Skill(
+        id = "clear_text_field",
+        name = "Clear Text Field",
+        description = "Select all text in the current field and delete it.",
+        category = SkillCategory.INPUT,
+        estimatedStepsSaved = 3,
+        parameters = emptyList(),
+        triggerPatterns = listOf("clear text", "clear field", "delete text", "clear input"),
+        steps = listOf(
+            SkillStep("system_key", mapOf("key" to "ctrl+a"), description = "Select all text"),
+            SkillStep("system_key", mapOf("key" to "delete"), description = "Delete selected"),
+        ),
+        fallbackGoal = "Select all text in the focused field and delete it."
+    )
+
+    fun readNotifications() = Skill(
+        id = "read_notifications",
+        name = "Read Notifications",
+        description = "Pull down the notification shade and read all notifications.",
+        category = SkillCategory.GENERAL,
+        estimatedStepsSaved = 3,
+        parameters = emptyList(),
+        triggerPatterns = listOf("read notifications", "check notifications", "show notifications", "睇通知"),
+        steps = listOf(
+            SkillStep("system_key", mapOf("key" to "notifications"), description = "Pull notification shade"),
+            SkillStep("wait", mapOf("duration_ms" to "1000"), description = "Wait for shade"),
+            SkillStep("get_screen_info", description = "Read all notifications"),
+        ),
+        fallbackGoal = "Open the notification shade and read all visible notifications."
+    )
+
+    fun toggleSetting() = Skill(
+        id = "toggle_setting",
+        name = "Toggle System Setting",
+        description = "Toggle a system setting like WiFi, Bluetooth, or Airplane mode on or off.",
+        category = SkillCategory.NAVIGATION,
+        estimatedStepsSaved = 5,
+        parameters = listOf(
+            SkillParameter("setting", "string", true, "Setting to toggle: wifi, bluetooth, airplane")
+        ),
+        triggerPatterns = listOf(
+            "turn on {setting}",
+            "turn off {setting}",
+            "toggle {setting}",
+            "enable {setting}",
+            "disable {setting}",
+            "開 {setting}",
+            "關 {setting}"
+        ),
+        steps = listOf(
+            SkillStep("open_app", mapOf("app_name" to "Settings"), description = "Open Settings"),
+            SkillStep("wait", mapOf("duration_ms" to "2000"), description = "Wait for settings"),
+            SkillStep("find_and_tap", mapOf("text" to "Network"), description = "Network section", optional = true),
+            SkillStep("find_and_tap", mapOf("text" to "Connections"), description = "Connections section", optional = true),
+            SkillStep("find_and_tap", mapOf("text" to "{setting}"), description = "Find setting"),
+            SkillStep("get_screen_info", description = "Read current state"),
+        ),
+        fallbackGoal = "Open Settings and toggle {setting} on or off."
+    )
 }
