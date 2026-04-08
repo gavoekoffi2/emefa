@@ -160,8 +160,8 @@ class ComposeChatActivity : ComponentActivity() {
                 },
                 onStopAllTasks = {
                     // Cancel running agent task
-                    if (appViewModel.taskOrchestrator.isTaskRunning()) {
-                        appViewModel.taskOrchestrator.cancelCurrentTask()
+                    if (appViewModel.isTaskRunning()) {
+                        appViewModel.stopTask()
                         _isProcessing.value = false
                     }
                     // Stop all monitoring
@@ -573,21 +573,18 @@ class ComposeChatActivity : ComponentActivity() {
         val taskText = text
         val taskId = "task_${System.currentTimeMillis()}"
 
-        // Register typed event callback — routes TaskOrchestrator events to chat UI
-        appViewModel.taskOrchestrator.taskEventCallback = { event ->
-            runOnUiThread { handleTaskEvent(event) }
-        }
-
         // Release chat conversation so task agent can use the engine
         executor.submit {
-            try { appViewModel.taskOrchestrator.cancelCurrentTask(); Thread.sleep(200) } catch (_: Exception) {}
+            try { appViewModel.stopTask(); Thread.sleep(200) } catch (_: Exception) {}
             try { conversation?.close() } catch (_: Exception) {}
             conversation = null
             isModelReady = false
 
             runOnUiThread {
                 try {
-                    appViewModel.startNewTask(ChannelEnum.LOCAL, taskText, taskId)
+                    appViewModel.startTask(taskText, taskId) { event ->
+                        runOnUiThread { handleTaskEvent(event) }
+                    }
                 } catch (e: Exception) {
                     XLog.e(TAG, "sendTask failed: ${e.message}", e)
                     addSystem("Error: ${e.message}")
@@ -660,7 +657,7 @@ class ComposeChatActivity : ComponentActivity() {
     /** Clean up state after any task finishes. */
     private fun cleanupAfterTask() {
         _isProcessing.value = false
-        appViewModel.taskOrchestrator.taskEventCallback = null
+        appViewModel.clearTaskCallback()
         Handler(Looper.getMainLooper()).postDelayed({
             try { loadModelIfReady() } catch (e: Exception) {
                 XLog.e(TAG, "cleanupAfterTask: loadModel error", e)

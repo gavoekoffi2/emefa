@@ -6,6 +6,7 @@ package io.agents.pokeclaw
 import android.os.PowerManager
 import androidx.lifecycle.ViewModel
 import io.agents.pokeclaw.ClawApplication.Companion.appViewModelInstance
+import io.agents.pokeclaw.TaskEvent
 import io.agents.pokeclaw.agent.AgentConfig
 import io.agents.pokeclaw.agent.LlmProvider
 import io.agents.pokeclaw.channel.Channel
@@ -37,6 +38,23 @@ class AppViewModel : ViewModel() {
 
     val inProgressTaskMessageId: String get() = taskOrchestrator.inProgressTaskMessageId
     val inProgressTaskChannel: Channel? get() = taskOrchestrator.inProgressTaskChannel
+
+    // ==================== Task API (clean interface for Activity) ====================
+
+    fun startTask(task: String, taskId: String, onEvent: (TaskEvent) -> Unit) {
+        taskOrchestrator.taskEventCallback = onEvent
+        taskOrchestrator.startNewTask(Channel.LOCAL, task, taskId)
+    }
+
+    fun stopTask() {
+        taskOrchestrator.cancelCurrentTask()
+    }
+
+    fun isTaskRunning(): Boolean = taskOrchestrator.isTaskRunning()
+
+    fun clearTaskCallback() {
+        taskOrchestrator.taskEventCallback = null
+    }
 
     fun init() {
         initCommon()
@@ -133,7 +151,7 @@ class AppViewModel : ViewModel() {
             }
             FloatingCircleManager.onStopTask = {
                 XLog.i(TAG, "Stop task requested from floating pill")
-                cancelCurrentTask()
+                stopTask()
                 bringAppToForeground()
             }
         } catch (e: Exception) {
@@ -153,12 +171,7 @@ class AppViewModel : ViewModel() {
         context.startActivity(intent)
     }
 
-    fun isTaskRunning(): Boolean = taskOrchestrator.isTaskRunning()
-
-    fun cancelCurrentTask() = taskOrchestrator.cancelCurrentTask()
-
-    fun startNewTask(channel: Channel, task: String, messageID: String) =
-        taskOrchestrator.startNewTask(channel, task, messageID)
+    // Old pass-through methods removed — use startTask/stopTask/isTaskRunning/clearTaskCallback instead
 
     private fun trySendScreenshot(channel: Channel, filePath: String, messageID: String) {
         try {

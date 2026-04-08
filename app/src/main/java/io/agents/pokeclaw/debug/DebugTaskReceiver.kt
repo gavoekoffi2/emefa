@@ -58,7 +58,7 @@ class DebugTaskReceiver : BroadcastReceiver() {
 
         try {
             val vm = io.agents.pokeclaw.ClawApplication.appViewModelInstance
-            vm.startNewTask(Channel.LOCAL, task, "debug_${System.currentTimeMillis()}")
+            vm.startTask(task, "debug_${System.currentTimeMillis()}") { /* no UI callback for debug */ }
             XLog.i("DebugTaskReceiver", "Task started: $task")
         } catch (e: Exception) {
             XLog.e("DebugTaskReceiver", "Failed to start task", e)
