@@ -613,35 +613,12 @@ private fun ChatInputBar(
         }
     }
 
-    // Skill shortcut panel state (Cloud LLM chat mode only)
-    var skillPanelExpanded by remember { mutableStateOf(false) }
-    val shortcutSkills = remember { SkillRegistry.getAll() }
+    // Skill shortcut panel removed — skills only show in Task mode
 
     Column(modifier = Modifier.background(colors.surface)) {
         HorizontalDivider(color = colors.divider, thickness = 0.5.dp)
 
-        // Skill shortcut panel — Cloud LLM chat mode only
-        if (!isLocalModel && !isTaskMode && shortcutSkills.isNotEmpty()) {
-            SkillShortcutBar(
-                skills = shortcutSkills,
-                expanded = skillPanelExpanded,
-                onToggle = { skillPanelExpanded = !skillPanelExpanded },
-                onSkillTap = { skill ->
-                    skillPanelExpanded = false
-                    val example = skill.triggerPatterns.firstOrNull()
-                        ?.replace(Regex("\\{\\w+\\}"), "...")
-                    ?.replace(".+", "...")
-                        ?: skill.name
-                    if (skill.parameters.isEmpty()) {
-                        onSendTask(example)
-                    } else {
-                        text = example
-                        onTaskModeChange(false)
-                    }
-                },
-                colors = colors,
-            )
-        }
+        // Skill shortcut panel removed — Chat is pure chat, skills in Task mode only
 
         // Mode toggle tabs — only show for Cloud LLM
         if (!isLocalModel) {
@@ -1212,7 +1189,7 @@ private fun TaskSkillsPanel(
     colors: PokeclawColors,
     modifier: Modifier = Modifier,
 ) {
-    val builtInSkills = remember { SkillRegistry.getAll() }
+    val builtInSkills = remember { SkillRegistry.getUserFacing() }
     val categoryIcons = mapOf(
         SkillCategory.INPUT to Icons.Outlined.Keyboard,
         SkillCategory.DISMISS to Icons.Outlined.Close,

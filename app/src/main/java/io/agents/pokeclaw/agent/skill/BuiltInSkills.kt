@@ -134,7 +134,8 @@ object BuiltInSkills {
             SkillStep("find_and_tap", mapOf("text" to "Send"), description = "Tap send", optional = true),
             SkillStep("system_key", mapOf("key" to "enter"), description = "Submit message"),
         ),
-        fallbackGoal = "In WhatsApp, find contact '{contact}' and send message: {message}"
+        fallbackGoal = "In WhatsApp, find contact '{contact}' and send message: {message}",
+        userFacing = true
     )
 
     fun navigateToTab() = Skill(
@@ -259,7 +260,8 @@ object BuiltInSkills {
             SkillStep("find_and_tap", mapOf("text" to "Install"), description = "Tap Install"),
             SkillStep("wait", mapOf("duration_ms" to "5000"), description = "Wait for install"),
         ),
-        fallbackGoal = "In Play Store, search for '{app_name}' and tap Install."
+        fallbackGoal = "In Play Store, search for '{app_name}' and tap Install.",
+        userFacing = true
     )
 
     // ======================== New Skills (from competitive analysis) ========================
@@ -311,7 +313,8 @@ object BuiltInSkills {
             SkillStep("system_key", mapOf("key" to "tab"), description = "Move to body"),
             SkillStep("input_text", mapOf("text" to "{body}"), description = "Enter body"),
         ),
-        fallbackGoal = "In Gmail, compose a new email to '{to}' with subject '{subject}' and body '{body}'."
+        fallbackGoal = "In Gmail, compose a new email to '{to}' with subject '{subject}' and body '{body}'.",
+        userFacing = true
     )
 
     fun setAlarm() = Skill(
@@ -336,7 +339,8 @@ object BuiltInSkills {
             SkillStep("find_and_tap", mapOf("text" to "+"), description = "Add new alarm", optional = true),
             SkillStep("get_screen_info", description = "Read time picker"),
         ),
-        fallbackGoal = "Open Clock app and set a new alarm for {time}."
+        fallbackGoal = "Open Clock app and set a new alarm for {time}.",
+        userFacing = true
     )
 
     fun createCalendarEvent() = Skill(
@@ -362,7 +366,8 @@ object BuiltInSkills {
             SkillStep("find_and_tap", mapOf("text" to "New event"), description = "New event", optional = true),
             SkillStep("input_text", mapOf("text" to "{title}"), description = "Enter title"),
         ),
-        fallbackGoal = "Open Calendar and create a new event titled '{title}'."
+        fallbackGoal = "Open Calendar and create a new event titled '{title}'.",
+        userFacing = true
     )
 
     fun makeCall() = Skill(
@@ -387,7 +392,8 @@ object BuiltInSkills {
             SkillStep("input_text", mapOf("text" to "{contact}"), description = "Type contact"),
             SkillStep("find_and_tap", mapOf("text" to "{contact}"), description = "Tap contact from results"),
         ),
-        fallbackGoal = "Open Phone app and call '{contact}'."
+        fallbackGoal = "Open Phone app and call '{contact}'.",
+        userFacing = true
     )
 
     fun sendSms() = Skill(
@@ -417,7 +423,8 @@ object BuiltInSkills {
             SkillStep("find_and_tap", mapOf("text" to "Send"), description = "Tap send", optional = true),
             SkillStep("system_key", mapOf("key" to "enter"), description = "Submit message"),
         ),
-        fallbackGoal = "Open Messages and send '{message}' to '{contact}'."
+        fallbackGoal = "Open Messages and send '{message}' to '{contact}'.",
+        userFacing = true
     )
 
     fun takePhoto() = Skill(
@@ -434,7 +441,8 @@ object BuiltInSkills {
             SkillStep("find_and_tap", mapOf("text" to "Shutter"), description = "Tap shutter", optional = true),
             SkillStep("tap", mapOf("x" to "504", "y" to "2000"), description = "Tap center-bottom shutter fallback"),
         ),
-        fallbackGoal = "Open the Camera app and tap the shutter button to take a photo."
+        fallbackGoal = "Open the Camera app and tap the shutter button to take a photo.",
+        userFacing = true
     )
 
     fun clearTextField() = Skill(
@@ -465,7 +473,8 @@ object BuiltInSkills {
             SkillStep("wait", mapOf("duration_ms" to "1000"), description = "Wait for shade"),
             SkillStep("get_screen_info", description = "Read all notifications"),
         ),
-        fallbackGoal = "Open the notification shade and read all visible notifications."
+        fallbackGoal = "Open the notification shade and read all visible notifications.",
+        userFacing = true
     )
 
     fun toggleSetting() = Skill(
@@ -494,6 +503,7 @@ object BuiltInSkills {
             SkillStep("find_and_tap", mapOf("text" to "{setting}"), description = "Find setting"),
             SkillStep("get_screen_info", description = "Read current state"),
         ),
-        fallbackGoal = "Open Settings and toggle {setting} on or off."
+        fallbackGoal = "Open Settings and toggle {setting} on or off.",
+        userFacing = true
     )
 }

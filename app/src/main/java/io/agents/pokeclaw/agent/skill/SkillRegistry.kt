@@ -29,6 +29,9 @@ object SkillRegistry {
     fun getByCategory(category: SkillCategory): List<Skill> =
         skills.values.filter { it.category == category }
 
+    fun getUserFacing(): List<Skill> =
+        skills.values.filter { it.userFacing }
+
     /**
      * Find a skill that matches a task by trigger patterns.
      * Returns null if no skill matches.
