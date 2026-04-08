@@ -301,6 +301,20 @@ class TaskOrchestrator(
                 releaseTask()
                 ChannelManager.flushMessages(channel)
                 FloatingCircleManager.setSuccessState()
+                // Auto-return to PokeClaw after in-app task completes
+                if (channel == Channel.LOCAL) {
+                    XLog.i(TAG, "onComplete: auto-returning to PokeClaw chatroom")
+                    try {
+                        val context = ClawApplication.instance
+                        val intent = android.content.Intent(context, io.agents.pokeclaw.ui.chat.ComposeChatActivity::class.java).apply {
+                            flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK or
+                                    android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP
+                        }
+                        context.startActivity(intent)
+                    } catch (e: Exception) {
+                        XLog.w(TAG, "onComplete: auto-return failed", e)
+                    }
+                }
                 onTaskFinished()
             }
 

@@ -73,6 +73,15 @@ Every build must pass ALL checks before shipping. Run on Pixel 8 Pro (or equival
 - [ ] **I2. Return to PokeClaw mid-task**: while task runs in WhatsApp → press recents → tap PokeClaw → see task progress + stop button
 - [ ] **I3. Notification during task**: incoming notification while task runs → task not disrupted
 
+## L. Task Auto-Return
+
+- [ ] **L1. Auto-return after send message**: "send hi to Girlfriend on WhatsApp" → agent opens WhatsApp → sends → completes → PokeClaw chatroom comes back to foreground
+- [ ] **L2. Auto-return shows answer**: after return, bot bubble shows the task result (not blank)
+- [ ] **L3. No auto-return for monitor**: "monitor Girlfriend on WhatsApp" → monitor starts → user stays in PokeClaw (not kicked to home, not auto-returned)
+- [ ] **L4. Monitor stays in app**: after monitor starts, user remains in PokeClaw chat → can keep chatting
+- [ ] **L5. Monitor receives notification without leaving app**: monitor active + stay in PokeClaw → someone sends WhatsApp message → notification caught → auto-reply triggers
+- [ ] **L6. Second task after auto-return**: auto-return from task 1 → send task 2 → works normally
+
 ## K. Permissions
 
 - [ ] **K1. Monitor blocked without permissions**: "monitor Girlfriend" with Accessibility or Notification Access disabled → Toast + navigate to Settings page (not grey chat text)
@@ -193,6 +202,12 @@ Format: `[date] [status] [test-id] description`
 [2026-04-08] [SKIP]    K5    Stale toggle detection — verified by K1
 [2026-04-08] [SKIP]    K6    Settings links — each permission row navigable (needs manual tap-through)
 [2026-04-08] [ISSUE]   K3-a  Auto-return fires on EVERY service connect, not just user-initiated enable — should only fire after permission flow
+[2026-04-08] [PASS]    L1    Send message task → agent opens WhatsApp → completes → auto-return to PokeClaw chatroom
+[2026-04-08] [PASS]    L3    Monitor starts → stays in PokeClaw (no press Home)
+[2026-04-08] [PASS]    L4    After monitor starts, user still in PokeClaw chat ("staying in PokeClaw" in logs)
+[2026-04-08] [PASS]    L6    Second task after auto-return works normally
+[2026-04-08] [SKIP]    L2    Auto-return shows answer — needs UI verification (SINGLE_TOP preserves activity instance)
+[2026-04-08] [SKIP]    L5    Monitor receives notification without leaving app — needs 2nd device (same as C2)
 ```
 
 ### Open Issues (unfixed)

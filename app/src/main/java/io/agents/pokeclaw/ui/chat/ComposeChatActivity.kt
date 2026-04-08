@@ -814,19 +814,9 @@ class ComposeChatActivity : ComponentActivity() {
         Handler(Looper.getMainLooper()).postDelayed({
             _isProcessing.value = false
             addSystem("✓ Auto-reply is now active for $contact.\nMonitoring in background — you can stop anytime from the bar above.")
-
-            // Go to home after 3s so user sees the confirmation first.
-            // WhatsApp won't fire notifications while in foreground, so we must leave.
-            Handler(Looper.getMainLooper()).postDelayed({
-                XLog.i(TAG, "handleMonitorTask: going to home for notifications")
-                try {
-                    ClawAccessibilityService.getInstance()?.performGlobalAction(
-                        android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME
-                    )
-                } catch (e: Exception) {
-                    XLog.w(TAG, "handleMonitorTask: pressHome failed", e)
-                }
-            }, 3000)
+            // Stay in PokeClaw — ClawNotificationListener catches notifications
+            // regardless of which app is in foreground. No need to press Home.
+            XLog.i(TAG, "handleMonitorTask: monitor active, staying in PokeClaw")
         }, 1500)
     }
 
