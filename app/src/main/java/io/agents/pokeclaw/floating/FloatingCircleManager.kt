@@ -113,11 +113,9 @@ object FloatingCircleManager {
                             circleWidthPx = root.layoutParams?.width ?: -1
                         }
                     }
-                    // Click events: tap to bring app to foreground, or stop if over budget
+                    // Click events: tap to stop if running, otherwise bring app to foreground
                     view?.setOnClickListener {
-                        if (currentState == State.RUNNING &&
-                            (currentTokenState == io.agents.pokeclaw.agent.TokenMonitor.State.WARNING ||
-                             currentTokenState == io.agents.pokeclaw.agent.TokenMonitor.State.CRITICAL)) {
+                        if (currentState == State.RUNNING || currentState == State.TASK_NOTIFY) {
                             onStopTask()
                         } else {
                             onFloatClick()

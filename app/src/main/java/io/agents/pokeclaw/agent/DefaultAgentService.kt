@@ -361,26 +361,31 @@ class DefaultAgentService : AgentService {
         val messages = mutableListOf<ChatMessage>()
         messages.add(SystemMessage.from(fullSystemPrompt))
 
-        // Opt-2: Pre-warm — grab screen state BEFORE first LLM call so the model can
-        // act immediately without spending a full inference round (5 s) just calling
-        // get_screen_info. Saves one round trip on every task.
-        val enrichedPrompt = try {
-            val screenTool = ToolRegistry.getInstance().getTool("get_screen_info")
-            if (screenTool != null) {
-                val screenResult = screenTool.execute(emptyMap())
-                if (screenResult.isSuccess && !screenResult.data.isNullOrBlank()) {
-                    XLog.i(TAG, "runAgentLoop: pre-warm screen attached (${screenResult.data!!.length} chars)")
-                    "$userPrompt\n\nCurrent screen:\n${screenResult.data}"
-                } else {
-                    XLog.w(TAG, "runAgentLoop: pre-warm get_screen_info failed: ${screenResult.error}")
-                    userPrompt
-                }
-            } else {
-                XLog.w(TAG, "runAgentLoop: get_screen_info tool not found, skipping pre-warm")
-                userPrompt
-            }
-        } catch (e: Exception) {
-            XLog.w(TAG, "runAgentLoop: pre-warm exception, using plain prompt", e)
+        // Opt-2: Pre-warm — only attach screen info for task-like prompts.
+        // Chat/questions should NOT see screen data (it confuses the LLM into using tools).
+        val lowerPrompt = userPrompt.lowercase()
+        val looksLikeTask = lowerPrompt.contains("open ") || lowerPrompt.contains("send ") ||
+            lowerPrompt.contains("tap ") || lowerPrompt.contains("search ") ||
+            lowerPrompt.contains("play ") || lowerPrompt.contains("take ") ||
+            lowerPrompt.contains("install ") || lowerPrompt.contains("click ") ||
+            lowerPrompt.contains("go to ") || lowerPrompt.contains("navigate ") ||
+            lowerPrompt.contains("turn on ") || lowerPrompt.contains("turn off ") ||
+            lowerPrompt.contains("monitor ") || lowerPrompt.contains("close ") ||
+            lowerPrompt.contains("swipe ") || lowerPrompt.contains("scroll ")
+
+        val enrichedPrompt = if (looksLikeTask) {
+            try {
+                val screenTool = ToolRegistry.getInstance().getTool("get_screen_info")
+                if (screenTool != null) {
+                    val screenResult = screenTool.execute(emptyMap())
+                    if (screenResult.isSuccess && !screenResult.data.isNullOrBlank()) {
+                        XLog.i(TAG, "runAgentLoop: pre-warm screen attached (${screenResult.data!!.length} chars)")
+                        "$userPrompt\n\nCurrent screen:\n${screenResult.data}"
+                    } else userPrompt
+                } else userPrompt
+            } catch (e: Exception) { userPrompt }
+        } else {
+            XLog.i(TAG, "runAgentLoop: chat-like prompt, skipping pre-warm screen")
             userPrompt
         }
         messages.add(UserMessage.from(enrichedPrompt))
@@ -472,20 +477,18 @@ class DefaultAgentService : AgentService {
                 callback.onContent(iterations, llmResponse.text)
             }
 
-            // No tool calls in this response
+            // No tool calls in this response — LLM chose to respond with text only.
+            // Respect that. If there's text, it's the answer. Done.
             if (!llmResponse.hasToolExecutionRequests()) {
-                consecutiveNoToolCalls++
                 val responseText = llmResponse.text ?: ""
-
-                // Stop after 3 consecutive text-only responses — LLM is stuck talking
-                if (consecutiveNoToolCalls >= 3 || iterations >= maxIterations - 1) {
-                    XLog.w(TAG, "runAgentLoop: $consecutiveNoToolCalls consecutive no-tool-call responses, finishing")
-                    callback.onComplete(iterations, responseText.ifEmpty { ClawApplication.instance.getString(R.string.agent_task_completed) }, totalTokens)
+                if (responseText.isNotEmpty()) {
+                    XLog.i(TAG, "runAgentLoop: text-only response, completing")
+                    callback.onComplete(iterations, responseText, totalTokens)
                     return
                 }
-                // LLM responded with text but no tool call — re-prompt to continue
-                XLog.w(TAG, "runAgentLoop: no tool call in response ($consecutiveNoToolCalls/3), re-prompting LLM to continue")
-                messages.add(UserMessage.from("Continue the task. Use a tool call to perform the next action. Do not just describe what to do — actually do it with a tool call."))
+                // Empty response with no tools — something went wrong, finish
+                XLog.w(TAG, "runAgentLoop: empty response with no tools, finishing")
+                callback.onComplete(iterations, ClawApplication.instance.getString(R.string.agent_task_completed), totalTokens)
                 continue
             }
 

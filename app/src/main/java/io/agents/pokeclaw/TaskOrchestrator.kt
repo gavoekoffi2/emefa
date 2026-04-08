@@ -226,8 +226,8 @@ class TaskOrchestrator(
             }
         }
 
-        FloatingCircleManager.showTaskNotify(task, channel)
-        ForegroundService.updateTaskStatus(ClawApplication.instance, "Warming up AI...")
+        // Don't show floating circle yet — wait until LLM actually uses tools.
+        // For chat questions, no tools are used so floating circle stays idle.
 
         // Per-round message aggregation buffer: accumulate thinking + toolResult into one message to reduce sends
         val roundBuffer = StringBuilder()
@@ -241,13 +241,15 @@ class TaskOrchestrator(
 
         agentService.executeTask(task, object : AgentCallback {
             override fun onLoopStart(round: Int) {
-                // Before starting a new round, flush the accumulated messages from the previous round
                 flushRoundBuffer()
-                FloatingCircleManager.setRunningState(round, channel)
                 XLog.d(TAG, "onLoopStart: round=$round")
-                val msg = "Reading screen... (step $round)"
-                taskProgressCallback?.invoke(msg)
-                ForegroundService.updateTaskStatus(ClawApplication.instance, msg)
+                // Only show progress UI after the first tool call confirms this is a real task.
+                // For chat questions (text-only response), round 1 completes without tools.
+                if (round > 1) {
+                    FloatingCircleManager.setRunningState(round, channel)
+                    taskProgressCallback?.invoke("Reading screen... (step $round)")
+                    ForegroundService.updateTaskStatus(ClawApplication.instance, "Step $round")
+                }
             }
 
             override fun onTokenUpdate(status: io.agents.pokeclaw.agent.TokenMonitor.Status) {
@@ -267,7 +269,11 @@ class TaskOrchestrator(
 
             override fun onToolCall(round: Int, toolId: String, toolName: String, parameters: String) {
                 XLog.d(TAG, "onToolCall: $toolId($toolName), $parameters")
-                // Show human-readable tool name to user (e.g. "Tapping screen...")
+                // First tool call = this is a real task, show floating circle
+                if (round == 1) {
+                    FloatingCircleManager.showTaskNotify(task, channel)
+                    ForegroundService.updateTaskStatus(ClawApplication.instance, "Running task...")
+                }
                 if (toolName.isNotEmpty()) {
                     val msg = "$toolName..."
                     taskProgressCallback?.invoke(msg)
@@ -301,7 +307,8 @@ class TaskOrchestrator(
 
             override fun onComplete(round: Int, finalAnswer: String, totalTokens: Int) {
                 XLog.i(TAG, "onComplete: rounds=$round, totalTokens=$totalTokens, answer=$finalAnswer")
-                taskProgressCallback?.invoke("Task completed.")
+                // Show the actual answer, not just "Task completed."
+                taskProgressCallback?.invoke(finalAnswer.ifEmpty { "Task completed." })
                 ForegroundService.resetToIdle(ClawApplication.instance)
                 flushRoundBuffer()
                 releaseTask()

@@ -158,8 +158,16 @@ class ComposeChatActivity : ComponentActivity() {
                     Toast.makeText(this, "Stopped monitoring $contact", Toast.LENGTH_SHORT).show()
                 },
                 onStopAllTasks = {
-                    autoReplyManager.stopAll()
-                    Toast.makeText(this, "All monitoring stopped", Toast.LENGTH_SHORT).show()
+                    // Cancel running agent task
+                    if (appViewModel.taskOrchestrator.isTaskRunning()) {
+                        appViewModel.taskOrchestrator.cancelCurrentTask()
+                        _isProcessing.value = false
+                    }
+                    // Stop all monitoring
+                    if (autoReplyManager.isEnabled) {
+                        autoReplyManager.stopAll()
+                    }
+                    Toast.makeText(this, "All tasks stopped", Toast.LENGTH_SHORT).show()
                 },
                 onModelSwitch = { modelId, displayName -> switchModel(modelId, displayName) },
                 colors = composeColors,
@@ -557,9 +565,10 @@ class ComposeChatActivity : ComponentActivity() {
             return
         }
 
-        addUser("🚀 $text")
+        addUser(text)
         _isProcessing.value = true
-        addSystem("Starting task...")
+        // Show typing indicator — will be replaced by actual response
+        _messages.add(ChatMessage(ChatMessage.Role.ASSISTANT, "..."))
 
         // Register progress callback so TaskOrchestrator events appear in chat.
         val taskStartTime = System.currentTimeMillis()
@@ -568,15 +577,34 @@ class ComposeChatActivity : ComponentActivity() {
             XLog.i(TAG, "sendTask progress [${elapsed}s]: $msg")
             runOnUiThread {
                 try {
-                    addSystem(msg)
+                    // Hide internal progress ("Reading screen...", "Starting task...")
+                    // Only show: tool actions, errors, and LLM responses
+                    val isInternalProgress = msg.startsWith("Reading screen") || msg.startsWith("Starting task")
+                    val isToolAction = msg.endsWith("...") && !isInternalProgress
+                    val isError = msg.startsWith("Task failed") || msg.startsWith("Blocked")
+
+                    if (isInternalProgress) {
+                        // Don't show — internal noise
+                    } else if (isToolAction || isError || msg.startsWith("Retrying") || msg.startsWith("Step ")) {
+                        // Tool progress or errors → grey system text
+                        addSystem(msg)
+                    } else {
+                        // LLM's actual response — replace typing "..." with bot bubble
+                        val typingIdx = _messages.indexOfLast { it.role == ChatMessage.Role.ASSISTANT && it.content == "..." }
+                        if (typingIdx >= 0) {
+                            _messages[typingIdx] = ChatMessage(ChatMessage.Role.ASSISTANT, msg)
+                        } else {
+                            _messages.add(ChatMessage(ChatMessage.Role.ASSISTANT, msg))
+                        }
+                    }
                 } catch (e: Exception) {
                     XLog.w(TAG, "sendTask: addSystem error", e)
                 }
-                // When task finishes (complete / error / dialog-blocked), reload chat engine.
-                // Wait 500ms after the callback fires so DefaultAgentService's finally block
-                // (which calls llmClient.close()) has time to complete before we allocate a
-                // new chat engine. This prevents two LiteRT-LM engines coexisting = OOM.
-                if (msg.startsWith("Task completed") || msg.startsWith("Task failed") || msg.startsWith("Blocked")) {
+                // When task finishes, reload chat engine.
+                val isDone = msg.startsWith("Task completed") || msg.startsWith("Task failed") || msg.startsWith("Blocked") ||
+                    // Also detect LLM chat responses (not status messages) as task completion
+                    (!msg.startsWith("Starting task") && !msg.startsWith("Reading screen") && !msg.startsWith("Step ") && !msg.endsWith("...") && !msg.startsWith("Retrying"))
+                if (isDone) {
                     XLog.i(TAG, "sendTask: task done via progress callback, scheduling chat engine reload")
                     _isProcessing.value = false
                     appViewModel.taskOrchestrator.taskProgressCallback = null
@@ -744,12 +772,12 @@ class ComposeChatActivity : ComponentActivity() {
     private fun handleMonitorTask(text: String) {
         val contact = extractContactName(text)
         if (contact.isEmpty()) {
-            addUser("🚀 $text")
+            addUser(text)
             addSystem("Could not figure out who to monitor. Try: \"Monitor Mom on WhatsApp\"")
             return
         }
 
-        addUser("🚀 $text")
+        addUser(text)
         _isProcessing.value = true
         addSystem("Setting up auto-reply for $contact...")
 

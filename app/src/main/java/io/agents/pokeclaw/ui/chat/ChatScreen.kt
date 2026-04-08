@@ -217,6 +217,7 @@ fun ChatScreen(
                         (it.role == ChatMessage.Role.USER && it.content.startsWith("🚀"))
                     }
                     TaskSkillsPanel(
+                        isLocalModel = isLocalModel,
                         taskMessages = taskMessages,
                         onMonitorClick = { showMonitorSheet = true },
                         onSendClick = { showSendSheet = true },
@@ -243,7 +244,9 @@ fun ChatScreen(
                             onSelectPrompt = { text, isTask ->
                                 prefillText = text
                                 prefillIsTask = isTask
-                                if (isTask) isTaskMode = true
+                                // Only switch to Task tab for Local LLM
+                                // Cloud LLM can run tasks directly from Chat
+                                if (isTask && isLocalModel) isTaskMode = true
                             },
                             colors = colors,
                             modifier = Modifier.fillMaxSize(),
@@ -688,14 +691,15 @@ private fun ChatInputBar(
 ) {
     var text by remember { mutableStateOf("") }
     val focusManager = LocalFocusManager.current
-    // Text input is always enabled — user can type in both Chat and Task mode
-    val taskInputDisabled = false
+    // Task tab: Cloud LLM can type custom task instructions; Local LLM uses workflow cards only
+    val taskInputDisabled = isTaskMode && isLocalModel
 
     // Consume prefill from prompt chips
     LaunchedEffect(prefillText) {
         if (prefillText.isNotEmpty()) {
             text = prefillText
-            onTaskModeChange(prefillIsTask)
+            // Only switch to Task tab for Local LLM; Cloud stays in Chat
+            if (isLocalModel) onTaskModeChange(prefillIsTask)
             onPrefillConsumed()
         }
     }
@@ -707,31 +711,29 @@ private fun ChatInputBar(
 
         // Skill shortcut panel removed — Chat is pure chat, skills in Task mode only
 
-        // Mode toggle tabs — only for local LLM (Cloud LLM auto-detects intent)
-        if (isLocalModel) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                ModeTab(
-                    label = "Chat",
-                    icon = Icons.Outlined.ChatBubbleOutline,
-                    selected = !isTaskMode,
-                    onClick = { onTaskModeChange(false) },
-                    colors = colors,
-                    modifier = Modifier.weight(1f),
-                )
-                ModeTab(
-                    label = "Task",
-                    icon = Icons.Outlined.TouchApp,
-                    selected = isTaskMode,
-                    onClick = { onTaskModeChange(true) },
-                    colors = colors,
-                    modifier = Modifier.weight(1f),
-                )
-            }
+        // Mode toggle tabs — always visible (Cloud has both chat+task, Local needs tab to switch)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            ModeTab(
+                label = "Chat",
+                icon = Icons.Outlined.ChatBubbleOutline,
+                selected = !isTaskMode,
+                onClick = { onTaskModeChange(false) },
+                colors = colors,
+                modifier = Modifier.weight(1f),
+            )
+            ModeTab(
+                label = "Task",
+                icon = Icons.Outlined.TouchApp,
+                selected = isTaskMode,
+                onClick = { onTaskModeChange(true) },
+                colors = colors,
+                modifier = Modifier.weight(1f),
+            )
         }
 
         if (taskInputDisabled && text.isEmpty()) {
@@ -769,8 +771,7 @@ private fun ChatInputBar(
                     onValueChange = { text = it },
                     placeholder = {
                         Text(
-                            if (!isLocalModel) "Ask anything or tell me what to do..."
-                            else if (isTaskMode) "Tell me what to do..."
+                            if (isTaskMode) "Tell me what to do..."
                             else "Ask anything...",
                             color = colors.textTertiary,
                             fontSize = 14.sp,
@@ -796,16 +797,14 @@ private fun ChatInputBar(
                 FloatingActionButton(
                     onClick = {
                         if (text.isNotBlank()) {
-                            if (!isLocalModel) {
-                                // Cloud LLM: always use sendTask — LLM auto-detects chat vs task
-                                onSendTask(text.trim())
-                                text = ""
-                                focusManager.clearFocus()
-                            } else if (isTaskMode) {
+                            if (!isLocalModel || isTaskMode) {
+                                // Cloud LLM any tab / Local LLM Task tab: sendTask
+                                // Cloud LLM relies on system prompt to distinguish chat vs task
                                 onSendTask(text.trim())
                                 text = ""
                                 focusManager.clearFocus()
                             } else if (!isProcessing) {
+                                // Local LLM Chat tab: pure chat
                                 onSendChat(text.trim())
                                 text = ""
                                 focusManager.clearFocus()
@@ -818,7 +817,7 @@ private fun ChatInputBar(
                     elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 0.dp),
                 ) {
                     Icon(
-                        if (isTaskMode || !isLocalModel) Icons.Outlined.TouchApp else Icons.Default.ArrowUpward,
+                        if (isTaskMode) Icons.Outlined.TouchApp else Icons.Default.ArrowUpward,
                         contentDescription = "Send",
                         tint = Color.White,
                         modifier = Modifier.size(18.dp),
@@ -1045,28 +1044,28 @@ private fun EmptyStateWithPrompts(
     // Local: show chat examples (chat only, tasks go to Workflows tab)
     val prompts = if (!isLocalModel) {
         listOf(
+            Prompt("What time is it in Tokyo?", false),
             Prompt("Open WhatsApp and say hi to Mom", true),
             Prompt("Open YouTube and play cat videos", true),
-            Prompt("What time is it in Tokyo?", false),
         )
     } else {
         listOf(
             Prompt("What can you do?", false),
-            Prompt("Help me write an email", false),
+            Prompt("Help me draft an email", false),
             Prompt("Tell me a joke", false),
         )
     }
 
     val headerText = if (!isLocalModel) {
-        "Type anything below — I'll do it on your phone."
+        "Cloud LLM enabled"
     } else {
-        "Chat with on-device AI — private and offline."
+        "Local LLM enabled"
     }
 
     val subtitleText = if (!isLocalModel) {
-        "Chat, ask questions, or give phone tasks directly."
+        "You can chat or give phone tasks directly here. For background tasks like auto-reply, go to the Task tab."
     } else {
-        "For phone tasks like auto-reply, go to Workflows ⚡"
+        "Chat here. To control your phone, switch to the Task tab and pick a workflow."
     }
 
     Column(
@@ -1092,7 +1091,7 @@ private fun EmptyStateWithPrompts(
         Text(
             headerText,
             fontSize = 14.sp,
-            color = if (!isLocalModel) colors.accent else colors.textTertiary,
+            color = colors.accent,
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(horizontal = 32.dp),
         )
@@ -1305,6 +1304,7 @@ private fun SidebarContent(
 
 @Composable
 private fun TaskSkillsPanel(
+    isLocalModel: Boolean,
     taskMessages: List<ChatMessage>,
     onMonitorClick: () -> Unit,
     onSendClick: () -> Unit,
@@ -1330,36 +1330,20 @@ private fun TaskSkillsPanel(
     ) {
         item {
             Text(
-                "Tasks",
+                "Workflows",
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
                 color = colors.textPrimary,
             )
-            Row(
-                modifier = Modifier.padding(top = 6.dp, bottom = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Surface(
-                    shape = RoundedCornerShape(4.dp),
-                    color = Color(0xFFFBBF24),
-                ) {
-                    Text(
-                        "BETA",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.Black,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                    )
-                }
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    "We just started improving this. Expect rough edges.",
-                    fontSize = 12.sp,
-                    color = colors.textTertiary,
-                )
-            }
+            Text(
+                "Background tasks powered by AI — things a single prompt can't do.",
+                fontSize = 12.sp,
+                color = colors.textTertiary,
+                modifier = Modifier.padding(top = 4.dp, bottom = 4.dp),
+            )
         }
 
+        // Monitor Messages — always shown (background workflow, both modes need it)
         item {
             SkillCard(
                 icon = Icons.Outlined.Visibility,
@@ -1372,6 +1356,7 @@ private fun TaskSkillsPanel(
             )
         }
 
+        // Send Message — available on both (workflow card shortcut)
         item {
             SkillCard(
                 icon = Icons.Outlined.Send,
@@ -1753,7 +1738,7 @@ private fun ActiveTaskBar(
             .fillMaxWidth()
             .background(colors.surface)
     ) {
-        // Collapsed bar — always visible when tasks exist
+        // Collapsed bar
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1761,7 +1746,6 @@ private fun ActiveTaskBar(
                 .padding(horizontal = 16.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // Green dot
             Box(
                 modifier = Modifier
                     .size(8.dp)
