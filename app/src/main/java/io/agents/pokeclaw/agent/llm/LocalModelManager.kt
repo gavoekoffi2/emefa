@@ -4,6 +4,7 @@
 package io.agents.pokeclaw.agent.llm
 
 import android.content.Context
+import android.os.StatFs
 import io.agents.pokeclaw.utils.KVUtils
 import io.agents.pokeclaw.utils.XLog
 import okhttp3.OkHttpClient
@@ -112,6 +113,24 @@ object LocalModelManager {
         val modelDir = getModelDir(context)
         val targetFile = File(modelDir, model.fileName)
         val tempFile = File(modelDir, "${model.fileName}.downloading")
+
+        // Check free space before starting download
+        try {
+            val stat = StatFs(modelDir.absolutePath)
+            val availableBytes = stat.availableBytes
+            val existingTempBytes = if (tempFile.exists()) tempFile.length() else 0L
+            val bytesNeeded = model.sizeBytes - existingTempBytes
+            if (bytesNeeded > 0 && availableBytes < bytesNeeded) {
+                val needGb = String.format("%.1f", bytesNeeded / 1_000_000_000.0)
+                val haveGb = String.format("%.1f", availableBytes / 1_000_000_000.0)
+                XLog.e(TAG, "Not enough storage: need ${needGb}GB, have ${haveGb}GB available")
+                callback.onError("Not enough storage: need ${needGb} GB free, only ${haveGb} GB available")
+                return
+            }
+            XLog.d(TAG, "Storage check passed: need ${bytesNeeded / 1_000_000}MB, have ${availableBytes / 1_000_000}MB")
+        } catch (e: Exception) {
+            XLog.w(TAG, "Could not check storage, proceeding anyway", e)
+        }
 
         try {
             val client = OkHttpClient.Builder()

@@ -38,23 +38,25 @@ public class InputTextTool extends BaseTool {
 
     @Override
     public String getDescriptionEN() {
-        return "Input text into the currently focused text field. "
-                + "Tap the text field first to focus it, then call this tool. "
+        return "Input text into a text field. If node_id is provided, taps that node first to focus it, "
+                + "then types the text — use this to target a specific field (e.g. To, Subject, Body). "
+                + "If node_id is omitted, types into the currently focused field. "
                 + "By default clears existing content before inputting (clear_first=true). "
                 + "Set clear_first=false to append text without clearing.";
     }
 
     @Override
     public String getDescriptionCN() {
-        return "Type text into the currently focused text field. Tap the text field first to give it focus, then call this tool."
-                + " By default, existing content is cleared before typing (clear_first=true)."
-                + " Set clear_first=false to append text without clearing.";
+        return "Input text into a text field. If node_id is provided, taps that node first to focus it, "
+                + "then types the text. If node_id is omitted, types into the currently focused field. "
+                + "By default clears existing content (clear_first=true). Set clear_first=false to append.";
     }
 
     @Override
     public List<ToolParameter> getParameters() {
         return Arrays.asList(
                 new ToolParameter("text", "string", "The text to input", true),
+                new ToolParameter("node_id", "string", "Optional: node ID from get_screen_info (e.g. 'n5') to target a specific text field", false),
                 new ToolParameter("clear_first", "boolean", "Whether to clear existing text before input (default true)", false)
         );
     }
@@ -67,14 +69,28 @@ public class InputTextTool extends BaseTool {
         }
 
         String text = requireString(params, "text");
+        String nodeId = optionalString(params, "node_id", "");
         boolean clearFirst = optionalBoolean(params, "clear_first", true);
+
+        // If node_id provided, tap that node first to focus it
+        if (!nodeId.isEmpty()) {
+            nodeId = nodeId.replace("[", "").replace("]", "").trim();
+            int[] coords = service.getNodeCoordinates(nodeId);
+            if (coords == null) {
+                return ToolResult.error("Node " + nodeId + " not found. Call get_screen_info first to refresh node IDs.");
+            }
+            service.performTap(coords[0], coords[1]);
+            try { Thread.sleep(300); } catch (InterruptedException ignored) {
+                Thread.currentThread().interrupt();
+            }
+        }
 
         AccessibilityNodeInfo targetNode = service.getRootInActiveWindow() != null
                 ? findFocusedEditText(service.getRootInActiveWindow())
                 : null;
 
         if (targetNode == null) {
-            return ToolResult.error("No target text field found");
+            return ToolResult.error("No target text field found" + (nodeId.isEmpty() ? "" : " after tapping node " + nodeId));
         }
 
         // First try tapping to gain focus

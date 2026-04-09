@@ -41,6 +41,9 @@ object ToolRegistry {
         register(RepeatActionsTool())
         register(ClipboardTool())
         register(SendFileTool())
+        register(GetDeviceInfoTool())
+        register(GetNotificationsTool())
+        register(MakeCallTool())
         register(FinishTool())
         // Knowledge Base tools — shared vault available in all modes
         register(KbWriteTool())

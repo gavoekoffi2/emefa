@@ -110,4 +110,19 @@ public class ClawNotificationListener extends NotificationListenerService {
     public static boolean isConnected() {
         return instance != null;
     }
+
+    /**
+     * Get all active notifications. Used by GetNotificationsTool.
+     * Returns null if listener is not connected.
+     */
+    public static StatusBarNotification[] getActiveNotificationList() {
+        ClawNotificationListener listener = instance;
+        if (listener == null) return null;
+        try {
+            return listener.getActiveNotifications();
+        } catch (Exception e) {
+            XLog.w(TAG, "Failed to get active notifications", e);
+            return null;
+        }
+    }
 }

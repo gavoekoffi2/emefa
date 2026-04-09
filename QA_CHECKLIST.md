@@ -76,20 +76,81 @@ Every build must pass ALL checks before shipping. Run on Pixel 8 Pro (or equival
 - [ ] **I2. Return to PokeClaw mid-task**: while task runs in WhatsApp → press recents → tap PokeClaw → see task progress + stop button
 - [ ] **I3. Notification during task**: incoming notification while task runs → task not disrupted
 
-## M. Cloud LLM — Complex Tasks
+## M. Cloud LLM — Complex Tasks (50 cases)
 
-- [ ] **M1. Open YouTube + search**: "open YouTube and search for funny cat videos" → opens YouTube → types in search → results shown → auto-return to PokeClaw
-- [ ] **M2. Send contextual message**: "send sorry to Mom on WhatsApp" → opens WhatsApp → finds Mom → types "sorry" (or LLM-generated apology) → sends → auto-return
-- [ ] **M3. Screen reading**: "check what's on my screen" → reads current screen elements → describes what's visible in chat reply
-- [ ] **M4. System settings**: "open Settings and turn on dark mode" → opens Settings → navigates to Display → toggles dark mode → auto-return
-- [ ] **M5. Multi-step app navigation**: "open WhatsApp and find my last message from Mom" → opens WhatsApp → finds Mom's chat → reads last message → reports back
-- [ ] **M6. Install app from Play Store**: "install Telegram from Play Store" → opens Play Store → searches Telegram → taps Install (or reports already installed)
-- [ ] **M7. Web search**: "open Chrome and search for weather today" → opens Chrome → types query → reads results
-- [ ] **M8. Compose email**: "open Gmail and compose an email to test@example.com saying hello" → opens Gmail → compose → fills To/Subject/Body → (stops before send for safety)
-- [ ] **M9. Take a photo**: "open camera and take a photo" → opens camera app → taps shutter
-- [ ] **M10. Check notifications**: "read my notifications" → pulls down notification shade → reads notification content → reports back
-- [ ] **M11. Task with wrong app name**: "send hi on Watsapp" (typo) → Cloud LLM figures out it means WhatsApp → still works
-- [ ] **M12. Ambiguous task**: "play music" → Cloud LLM picks a music app → opens it → tries to play something
+Design principle: User perspective. INFO tasks → report actual data. ACTION tasks → confirm result. Must work on ANY Android device.
+
+### System Queries (direct tool, no UI)
+- [ ] **M1. Battery**: "how much battery left" → "73%, not charging, ~5h remaining" (get_device_info)
+- [ ] **M2. WiFi**: "what WiFi am I connected to" → SSID + signal (get_device_info)
+- [ ] **M3. Storage**: "how much storage do i have free" → "47GB free of 128GB" (get_device_info)
+- [ ] **M4. Bluetooth**: "is bluetooth on" → ON/OFF + connected devices (get_device_info)
+- [ ] **M5. Notifications**: "read my notifications" → actual notification list (get_notifications)
+- [ ] **M6. Screen info**: "check what's on my screen" → describe visible UI elements
+
+### App Navigation
+- [ ] **M7. Open app**: "open spotify" → Spotify launches, confirmed
+- [ ] **M8. YouTube search**: "search youtube for lofi beats" → YouTube opens, types query, results shown
+- [ ] **M9. Web search**: "open Chrome and search for weather today" → Chrome, types, results
+- [ ] **M10. URL navigation**: "open chrome and go to reddit.com/r/android" → Chrome loads URL
+- [ ] **M11. Find in app**: "open WhatsApp and find my last message from Mom" → opens, navigates, reports content
+- [ ] **M12. Deep navigation**: "open settings then go to about phone and tell me my android version" → Settings → About → reports version
+
+### Information Retrieval (agent reads and reports back)
+- [ ] **M13. Weather**: "what's the weather today" → actual temp + conditions
+- [ ] **M14. Last email**: "read my latest email" → sender + subject + preview text
+- [ ] **M15. Calendar**: "what's on my calendar tomorrow" → event list with times
+- [ ] **M16. Installed apps**: "what apps do i have" → sensible summary, not raw dump
+- [ ] **M17. Last notification**: "what did that last notification say" → most recent only
+- [ ] **M18. Find photo**: "find the photo i took yesterday" → open Gallery, describe what's there
+
+### Text Input Tasks
+- [ ] **M19. Compose email**: "compose an email to test@example.com saying hello" → fills To/Subject/Body, does NOT send
+- [ ] **M20. Search Twitter**: "go to twitter and find elon's latest post" → opens X, searches, reports post
+- [ ] **M21. Google Maps search**: "open maps and navigate to nearest gas station" → Maps, search, results
+
+### Settings Changes
+- [ ] **M22. Dark mode**: "turn on dark mode" → toggles, confirms "Dark mode ON"
+- [ ] **M23. Brightness**: "brightness to 50%" → adjusts, confirms level
+- [ ] **M24. Timer**: "set a timer for 10 minutes" → Clock app, sets 10:00, starts
+- [ ] **M25. Alarm**: "set an alarm for 7am tomorrow" → Clock, creates alarm, confirms
+- [ ] **M26. DND**: "do not disturb on" → toggles DND, confirms
+- [ ] **M27. Compound settings**: "turn off wifi and turn on bluetooth" → both done, both confirmed
+
+### Media
+- [ ] **M28. Take photo**: "take a selfie" → front camera, shutter, send_file back
+- [ ] **M29. Screenshot**: "screenshot" → take_screenshot + send_file
+- [ ] **M30. Play music**: "play music" → picks music app, attempts playback
+- [ ] **M31. Next song**: "play the next song" → skip track in music player
+
+### Cross-App Workflows
+- [ ] **M32. Install app**: "install Telegram from Play Store" → Play Store → search → Install
+- [ ] **M33. Copy-paste cross-app**: "copy tracking number from gmail and search it on amazon" → Gmail → copy → Amazon → paste
+- [ ] **M34. Photo to message**: "take a photo and send it to Mom on WhatsApp" → camera → capture → WhatsApp → send
+
+### Pure Chat (NO phone control)
+- [ ] **M35. Joke**: "tell me a joke" → text response, NO tools called
+- [ ] **M36. Math**: "whats 234 times 891" → "208,494", NO tools
+- [ ] **M37. Timezone**: "what time is it in tokyo" → time answer, NO tools
+- [ ] **M38. Cancel**: "nvm" → acknowledges, does nothing
+
+### Error Handling
+- [ ] **M39. Wrong app name**: "open flurpmaster 3000" → "App not found" + suggestion
+- [ ] **M40. Impossible platform**: "text sarah on imessage" → "iMessage not available on Android, try SMS/WhatsApp"
+- [ ] **M41. Typo tolerance**: "check my instagarm messages" → understands Instagram
+- [ ] **M42. Missing permission**: "monitor WhatsApp" with Notification Access off → guides to Settings
+
+### Natural Language Understanding
+- [ ] **M43. Complaint as action**: "my screen is too dim" → increase brightness
+- [ ] **M44. Vague request**: "scroll down" → asks clarification OR scrolls current
+- [ ] **M45. Slang**: "yo whats on my notifs" → reads notifications
+- [ ] **M46. Implicit action**: "go back" → system_key(back), reports new screen
+
+### Device-Agnostic Edge Cases
+- [ ] **M47. Call**: "call Mom" → dials Mom (works on any device with Phone app)
+- [ ] **M48. Lock**: "lock my phone" → system_key(lock), confirms
+- [ ] **M49. Clear notifications**: "clear all my notifications" → clears, confirms
+- [ ] **M50. Phone temp**: "how hot is my phone" → get_device_info(battery) temp OR graceful "not available"
 
 ## N. Tinder Automation
 
@@ -241,6 +302,27 @@ Format: `[date] [status] [test-id] description`
 [2026-04-08] [SKIP]    H8    Rename preserves messages — mechanism is frontmatter-only update, messages untouched by design
 ```
 
+### 2026-04-08 — M Section QA (Cloud LLM complex tasks, gpt-4.1)
+
+```
+[2026-04-08] [PARTIAL] M1    (pre-playbook) YouTube opened, search tapped, but no input_text — LLM skipped typing (5 rounds, 30K tokens)
+[2026-04-08] [PASS]    M1    (post-playbook) input_text("funny cat videos") called! Search results shown (13 rounds, 99K tokens)
+[2026-04-08] [PASS]    M2    send_message(Mom, sorry, WhatsApp) — correct routing, "Mom" not found (expected), graceful fail (2 rounds)
+[2026-04-08] [FIXED]   M3-a  "check what is on my screen" treated as chat — FIXED: added task keywords
+[2026-04-08] [PASS]    M3    Screen reading works: pre-warm attached, LLM described PokeClaw UI (1 round, 4.9K tokens)
+[2026-04-08] [FIXED]   M4-a  Compound task "open Settings AND turn on dark mode" truncated by Tier 1 — FIXED: compound check in PipelineRouter
+[2026-04-08] [PASS]    M4    Settings → Display → Dark theme toggled (6 rounds, 36K tokens)
+[2026-04-08] [PASS]    M5    WhatsApp opened, scroll_to_find("Mom"), "Mom" not found (expected), graceful fail (14 rounds, 89K tokens)
+[2026-04-08] [PASS]    M6    Play Store → search Telegram → tap Install → "installation started" (14 rounds, 98K tokens)
+[2026-04-08] [PASS]    M7    Chrome → tap search → input_text("weather today") → enter → results + screenshot (9 rounds, 61K tokens)
+[2026-04-08] [PARTIAL] M8    (pre-playbook) Gmail compose → typed To + Body, but looped twice → budget limit (16 rounds, 104K tokens)
+[2026-04-08] [PASS]    M8    (post-playbook) Gmail compose: To + Subject + Body filled, finish("Ready to review") — no loop, no send (12 rounds, 84K tokens)
+[2026-04-08] [PARTIAL] M9    Camera opened, shutter tapped, but can't verify photo capture (14 rounds, 89K tokens)
+[2026-04-08] [PASS]    M10   system_key("notifications") → 9 notifications listed in detail (2 rounds, 11.6K tokens!)
+[2026-04-08] [PASS]    M11   "Watsapp" typo → "WhatsApp" correctly resolved, send_message called (13 rounds, 93K tokens)
+[2026-04-08] [PARTIAL] M12   YouTube Music opened, play attempted, system dialog blocked (6 rounds, 30.5K tokens)
+```
+
 ### Open Issues (unfixed)
 
 | ID | Issue | Root Cause | Priority |
@@ -253,3 +335,8 @@ Format: `[date] [status] [test-id] description`
 | ~~F3~~ | ~~Floating button IDLE in other apps~~ | ~~FIXED: show() callback now restores state via updateStateView~~ | ~~Medium~~ |
 | ~~F6~~ | ~~"..." coexists with tool actions~~ | ~~FIXED: removeTypingIndicator() on first ToolAction~~ | ~~Medium~~ |
 | B2-a | No auto-return after task in other app | Agent completes in YouTube but doesn't navigate back to PokeClaw | Low |
+| M1-a | YouTube search: LLM skips input_text | Agent taps search area but doesn't type query, possibly taps suggestion | Medium |
+| M3-a | ~~Screen reading routed as chat~~ | ~~FIXED: added "check", "screen", "notification", "compose", "find", "read my" to task detection~~ | ~~High~~ |
+| M4-a | ~~Compound tasks truncated by Tier 1~~ | ~~FIXED: PipelineRouter skips Tier 1 for tasks with "and"/"then"/"after"~~ | ~~High~~ |
+| M8-a | Gmail compose loops | Agent repeats compose flow, hits budget limit (104K tokens) | Medium |
+| M12-a | YouTube Music system dialog | Login/premium dialog blocks music playback task | Low |

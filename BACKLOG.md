@@ -14,7 +14,7 @@ Priority: `P0` = blocks users, fix now. `P1` = next up. `P2` = when we get to it
 ## Features
 
 - [ ] **P1** Tinder automation: auto swipe + monitor matches + auto-reply using same monitor architecture as WhatsApp
-- [ ] **P1** NLP Playbooks (Layer 2): natural language step-by-step instructions for common tasks (Send WhatsApp, Compose Email, etc.) — injected into system prompt so LLM follows a reliable path
+- [x] ~~**P1** NLP Playbooks (Layer 2): 5 playbooks in system prompt (Search in App, Navigate Settings, Compose Email, Read Screen, Read Notifications)~~ — done 2026-04-08
 - [x] ~~**P1** In-chat task auto-return~~ — done 2026-04-08
 - [x] ~~**P2** Monitor stays in app~~ — done 2026-04-08, removed GLOBAL_ACTION_HOME
 - [ ] **P2** Unified task registry: monitor + agent tasks tracked in same system (top bar, floating button, etc.)
@@ -25,7 +25,9 @@ Priority: `P0` = blocks users, fix now. `P1` = next up. `P2` = when we get to it
 ## QA Gaps
 
 - [ ] **P1** C2: Auto-reply trigger E2E — needs 2nd device to send WhatsApp message to Girlfriend
+- [x] ~~**P1** M1-M12 QA: Cloud LLM complex tasks~~ — done 2026-04-08, 10/12 PASS
 - [ ] **P2** K6: Verify each Settings permission row leads to correct system settings page
+- [ ] **P2** Download free space check — done 2026-04-08 (StatFs before download)
 
 ## Ideas / Research
 
@@ -46,3 +48,9 @@ _Move completed items here with date._
 - [x] ~~2026-04-08: Monitor permission check + auto-return after grant~~
 - [x] ~~2026-04-08: Settings page: Notification Access row~~
 - [x] ~~2026-04-08: Full QA pass 49/50 cases~~
+- [x] ~~2026-04-08: Download free space check (StatFs before download)~~
+- [x] ~~2026-04-08: Task detection keywords fix (check, compose, find, screen, notification, read my)~~
+- [x] ~~2026-04-08: Compound task routing fix (skip Tier 1 for "and"/"then"/"after")~~
+- [x] ~~2026-04-08: M1-M12 QA: 10/12 PASS, 2 PARTIAL (M9 camera, M12 system dialog)~~
+- [x] ~~2026-04-08: NLP Playbooks Layer 2: 5 playbooks (Search, Settings, Email, Screen, Notifications)~~
+- [x] ~~2026-04-08: Tinder research: UI structure documented, workflow designed, needs login~~

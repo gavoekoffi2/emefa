@@ -64,7 +64,12 @@ object TaskParser {
                 intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$number")),
                 description = "Dialing $number"
             )
-        } else null
+        } else {
+            // Contact name — fall through to agent loop which can open Phone,
+            // search for the contact, and dial. "call" is in looksLikeTask
+            // so agent loop will get screen context.
+            null
+        }
     }
 
     private val SMS_PATTERN = Regex(

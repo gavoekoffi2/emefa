@@ -170,14 +170,45 @@ public class OpenAppTool extends BaseTool {
             case "line": return "jp.naver.line.android";
             default: break;
         }
-        // Try to find by searching installed app labels
+        // Try to find by searching installed app labels AND package names
         try {
             android.content.pm.PackageManager pm = ClawApplication.Companion.getInstance().getPackageManager();
+            String bestMatch = null;
+            int bestScore = 0;
+
             for (android.content.pm.ApplicationInfo app : pm.getInstalledApplications(0)) {
+                // Skip system apps without launcher intent
+                if (pm.getLaunchIntentForPackage(app.packageName) == null) continue;
+
                 CharSequence label = pm.getApplicationLabel(app);
-                if (label != null && label.toString().equalsIgnoreCase(appName)) {
+                String labelStr = label != null ? label.toString().toLowerCase() : "";
+                String pkgLower = app.packageName.toLowerCase();
+
+                // Exact label match = best
+                if (labelStr.equalsIgnoreCase(appName)) {
                     return app.packageName;
                 }
+                // Label contains search term
+                if (labelStr.contains(lower) && lower.length() >= 3) {
+                    int score = 10 + lower.length();
+                    if (score > bestScore) { bestScore = score; bestMatch = app.packageName; }
+                }
+                // Package name contains search term (e.g. "taobao" in "com.taobao.taobao")
+                // Also try without spaces (user: "genshin impact" → pkg: "genshinimpact")
+                String lowerNoSpace = lower.replace(" ", "");
+                if ((pkgLower.contains(lower) || pkgLower.contains(lowerNoSpace)) && lower.length() >= 3) {
+                    int score = 5 + lower.length();
+                    // Bonus: last segment matches exactly (com.taobao.taobao → "taobao" = last segment)
+                    String[] segments = pkgLower.split("\\.");
+                    if (segments.length > 0 && segments[segments.length - 1].equals(lower)) {
+                        score += 20;
+                    }
+                    if (score > bestScore) { bestScore = score; bestMatch = app.packageName; }
+                }
+            }
+            if (bestMatch != null) {
+                XLog.i(TAG, "resolveAppName: fuzzy matched '" + appName + "' → '" + bestMatch + "' (score=" + bestScore + ")");
+                return bestMatch;
             }
         } catch (Exception e) {
             XLog.w(TAG, "resolveAppName: failed to search installed apps", e);

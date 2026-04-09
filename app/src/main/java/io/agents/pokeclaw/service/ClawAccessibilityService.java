@@ -602,7 +602,10 @@ public class ClawAccessibilityService extends AccessibilityService {
         CountDownLatch latch = new CountDownLatch(1);
         AtomicReference<Bitmap> bitmapRef = new AtomicReference<>(null);
 
-        takeScreenshot(Display.DEFAULT_DISPLAY, getMainExecutor(),
+        // Use a background executor for the callback to avoid deadlock
+        // when takeScreenshot is called from the main thread (Tier 1 tools).
+        java.util.concurrent.Executor bgExecutor = java.util.concurrent.Executors.newSingleThreadExecutor();
+        takeScreenshot(Display.DEFAULT_DISPLAY, bgExecutor,
                 new TakeScreenshotCallback() {
                     @Override
                     public void onSuccess(ScreenshotResult result) {

@@ -371,7 +371,11 @@ class DefaultAgentService : AgentService {
             lowerPrompt.contains("go to ") || lowerPrompt.contains("navigate ") ||
             lowerPrompt.contains("turn on ") || lowerPrompt.contains("turn off ") ||
             lowerPrompt.contains("monitor ") || lowerPrompt.contains("close ") ||
-            lowerPrompt.contains("swipe ") || lowerPrompt.contains("scroll ")
+            lowerPrompt.contains("swipe ") || lowerPrompt.contains("scroll ") ||
+            lowerPrompt.contains("check ") || lowerPrompt.contains("compose ") ||
+            lowerPrompt.contains("find ") || lowerPrompt.contains("screen") ||
+            lowerPrompt.contains("notification") || lowerPrompt.contains("read my") ||
+            lowerPrompt.contains("call ") || lowerPrompt.contains("dial ")
 
         val enrichedPrompt = if (looksLikeTask) {
             try {

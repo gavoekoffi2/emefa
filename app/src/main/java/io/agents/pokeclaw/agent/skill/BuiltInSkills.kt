@@ -23,12 +23,9 @@ object BuiltInSkills {
         parameters = listOf(
             SkillParameter("query", "string", true, "The search query to type")
         ),
+        // Trigger patterns removed — "search X" is too ambiguous for deterministic matching.
+        // Agent loop handles search tasks better (understands app name vs query).
         triggerPatterns = listOf(
-            "search for {query}",
-            "search {query}",
-            "find {query}",
-            "搜索 {query}",
-            "搵 {query}"
         ),
         steps = listOf(
             SkillStep("get_screen_info", description = "Check for search bar"),
@@ -143,10 +140,9 @@ object BuiltInSkills {
         parameters = listOf(
             SkillParameter("direction", "string", true, "Direction: left, right, up, or down")
         ),
-        triggerPatterns = listOf(
-            "swipe {direction}",
-            "scroll {direction}"
-        ),
+        // Trigger patterns removed — "scroll down" without context is ambiguous,
+        // causes wasted tokens on non-scrollable pages. Agent loop handles better.
+        triggerPatterns = listOf(),
         steps = listOf(
             SkillStep("swipe", mapOf("direction" to "{direction}"), description = "Swipe {direction}"),
             SkillStep("wait", mapOf("duration_ms" to "1000"), description = "Wait for animation"),

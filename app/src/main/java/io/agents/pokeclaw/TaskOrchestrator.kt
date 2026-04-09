@@ -149,9 +149,15 @@ class TaskOrchestrator(
             }
             is PipelineRouter.Route.DirectTool -> {
                 XLog.i(TAG, "Pipeline Tier 1: DirectTool — ${route.toolName}")
-                pipelineRouter.executeTool(route.toolName, route.params)
-                taskEventCallback?.invoke(TaskEvent.Completed(route.description))
-                ChannelManager.sendMessage(channel, "✓ ${route.description}", messageID)
+                val toolResult = pipelineRouter.executeTool(route.toolName, route.params)
+                if (toolResult.contains("Failed") || toolResult.contains("error") || toolResult.contains("Cannot")) {
+                    XLog.w(TAG, "Tier 1 tool failed: $toolResult")
+                    taskEventCallback?.invoke(TaskEvent.Completed("Failed: ${route.description}"))
+                    ChannelManager.sendMessage(channel, "✗ ${route.description}: $toolResult", messageID)
+                } else {
+                    taskEventCallback?.invoke(TaskEvent.Completed(route.description))
+                    ChannelManager.sendMessage(channel, "✓ ${route.description}", messageID)
+                }
                 releaseTask()
                 FloatingCircleManager.setSuccessState()
                 onTaskFinished()
