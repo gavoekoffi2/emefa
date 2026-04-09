@@ -37,19 +37,28 @@ class DebugTaskReceiver : BroadcastReceiver() {
                 val apiKey = intent.getStringExtra("api_key")
                 val baseUrl = intent.getStringExtra("base_url")
                 val modelName = intent.getStringExtra("model_name")
+                val provider = intent.getStringExtra("provider") ?: "OPENAI"
                 if (apiKey != null) KVUtils.setLlmApiKey(apiKey)
                 if (modelName != null) KVUtils.setLlmModelName(modelName)
-                KVUtils.setLlmProvider("OPENAI")
-                // Set base URL: explicit > provider default > OpenAI default
-                val resolvedBaseUrl = baseUrl
-                    ?: io.agents.pokeclaw.agent.CloudProvider.findProviderForModel(modelName ?: "")?.defaultBaseUrl
-                    ?: "https://api.openai.com/v1"
-                KVUtils.setLlmBaseUrl(resolvedBaseUrl)
+                KVUtils.setLlmProvider(provider)
+                if (provider == "LOCAL") {
+                    // For local LLM, base_url = model file path
+                    if (baseUrl != null) {
+                        KVUtils.setLocalModelPath(baseUrl)
+                        KVUtils.setLlmBaseUrl(baseUrl)
+                    }
+                } else {
+                    // For cloud LLM
+                    val resolvedBaseUrl = baseUrl
+                        ?: io.agents.pokeclaw.agent.CloudProvider.findProviderForModel(modelName ?: "")?.defaultBaseUrl
+                        ?: "https://api.openai.com/v1"
+                    KVUtils.setLlmBaseUrl(resolvedBaseUrl)
+                }
                 val vm = io.agents.pokeclaw.ClawApplication.appViewModelInstance
                 vm.updateAgentConfig()
                 vm.initAgent()
                 vm.afterInit()
-                XLog.i("DebugTaskReceiver", "Cloud LLM configured: model=${modelName}, key=${apiKey?.take(10)}...")
+                XLog.i("DebugTaskReceiver", "LLM configured: provider=$provider, model=${modelName}")
             } catch (e: Exception) {
                 XLog.e("DebugTaskReceiver", "Failed to set config", e)
             }

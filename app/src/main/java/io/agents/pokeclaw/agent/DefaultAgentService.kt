@@ -38,6 +38,43 @@ class DefaultAgentService : AgentService {
         private const val TAG = "AgentService"
         private val GSON = Gson()
 
+        /**
+         * Optimized system prompt for on-device LLM (Gemma 4).
+         * Shorter than Cloud prompt but includes essential rules.
+         * Task-only — chat is handled separately.
+         */
+        private const val LOCAL_TASK_PROMPT = """You are a phone assistant. You control an Android phone using tools. The user gave you a task — complete it.
+
+## How to work
+1. Call get_screen_info to see what's on screen
+2. Decide which tool to use
+3. Call the tool
+4. Check the result, then decide next step
+5. When done, call finish(summary="what you did or found")
+
+## Tool selection guide
+- Open an app → open_app(package_name="com.example.app")
+- Tap something → tap_node(node_id="n3") or tap(x=500, y=300)
+- Type text → input_text(text="hello") or input_text(text="hello", node_id="n5")
+- Press back/home/enter → system_key(key="back")
+- Scroll to find something → scroll_to_find(text="Settings")
+- Find and tap text → find_and_tap(text="Send")
+- Send a message → send_message(contact="Mom", message="hi", app="WhatsApp")
+- Make a phone call → make_call(contact="Mom")
+- Check battery/wifi/storage → get_device_info(category="battery")
+- Read notifications → get_notifications()
+- Take screenshot → take_screenshot()
+- Wait for loading → wait(duration_ms=2000)
+
+## Rules
+- One tool call per turn. Check screen after each action.
+- If something doesn't work, try a different approach. After 3 failures, call finish and explain what went wrong.
+- finish(summary) must contain the ACTUAL DATA the user asked for. "Battery is at 73%" not "I checked battery."
+- Use get_device_info for battery/wifi/storage/bluetooth/screen/device/time queries. Do NOT open Settings app for these.
+- Use get_notifications to read notifications. Do NOT pull down notification shade.
+- Use input_text to type. Do NOT tap on autocomplete suggestions.
+- Do NOT auto-fill passwords, confirm payments, or delete data."""
+
         /** Maximum number of retries on LLM API call failure */
         private const val MAX_API_RETRIES = 3
         /** Dead-loop detection: sliding window size */
@@ -355,8 +392,23 @@ class DefaultAgentService : AgentService {
             return
         }
 
-        // Build System Prompt (original + device context)
-        val fullSystemPrompt = config.systemPrompt + buildDeviceContext()
+        // Build System Prompt — use optimized prompt for local LLM
+        val basePrompt = if (config.provider == LlmProvider.LOCAL) {
+            LOCAL_TASK_PROMPT
+        } else {
+            config.systemPrompt
+        }
+
+        // For local LLM, inject matching playbook into system prompt
+        val playbookSection = if (config.provider == LlmProvider.LOCAL) {
+            val matched = PlaybookManager.match(userPrompt)
+            if (matched != null) {
+                XLog.i(TAG, "Playbook matched: ${matched.id} for '$userPrompt'")
+                "\n\n## Playbook: ${matched.name}\nFollow these steps exactly:\n\n${matched.body}"
+            } else ""
+        } else ""
+
+        val fullSystemPrompt = basePrompt + playbookSection + buildDeviceContext()
 
         val messages = mutableListOf<ChatMessage>()
         messages.add(SystemMessage.from(fullSystemPrompt))

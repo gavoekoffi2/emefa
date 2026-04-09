@@ -179,7 +179,25 @@ class LocalLlmClient(private val config: AgentConfig) : LlmClient {
                 is UserMessage -> {
                     val conv = conversation ?: throw RuntimeException("LiteRT-LM conversation not initialized — engine may have failed to load the model")
                     XLog.d(TAG, "chat: sendMessage user (${msg.singleText().take(80)}...) sendCount=$sendCount")
-                    lastResponse = conv.sendMessage(msg.singleText())
+                    try {
+                        lastResponse = conv.sendMessage(msg.singleText())
+                    } catch (e: Exception) {
+                        // LiteRT-LM SDK may fail to parse tool calls with standard quotes.
+                        // Extract raw model output from error message and parse ourselves.
+                        val errorMsg = e.message ?: ""
+                        if (errorMsg.contains("Failed to parse tool calls") && errorMsg.contains("tool_call")) {
+                            XLog.w(TAG, "SDK tool call parse failed, extracting from error: ${errorMsg.take(200)}")
+                            // Extract the raw output between "from response: " and the next error description
+                            val rawOutput = errorMsg.substringAfter("from response: ").substringBefore("code block:")
+                                .ifEmpty { errorMsg.substringAfter("from response: ") }
+                            lastResponse = rawOutput.trim()
+                        } else if (errorMsg.contains("OpenCL") || errorMsg.contains("GPU")) {
+                            fallbackToCpu()
+                            lastResponse = conv.sendMessage(msg.singleText())
+                        } else {
+                            throw e
+                        }
+                    }
                     sendCount++
                 }
                 is AiMessage -> { /* already in conversation state */ }
@@ -189,7 +207,19 @@ class LocalLlmClient(private val config: AgentConfig) : LlmClient {
                     val toolResultText = "[Tool ${msg.toolName()} result]: $truncatedResult"
                     val conv = conversation ?: throw RuntimeException("LiteRT-LM conversation not initialized — engine may have failed to load the model")
                     XLog.d(TAG, "chat: sendMessage toolResult (${toolResultText.take(80)}...) sendCount=$sendCount")
-                    lastResponse = conv.sendMessage(toolResultText)
+                    try {
+                        lastResponse = conv.sendMessage(toolResultText)
+                    } catch (e: Exception) {
+                        val errorMsg = e.message ?: ""
+                        if (errorMsg.contains("Failed to parse tool calls") && errorMsg.contains("tool_call")) {
+                            XLog.w(TAG, "SDK tool call parse failed on toolResult, extracting: ${errorMsg.take(200)}")
+                            val rawOutput = errorMsg.substringAfter("from response: ").substringBefore("code block:")
+                                .ifEmpty { errorMsg.substringAfter("from response: ") }
+                            lastResponse = rawOutput.trim()
+                        } else {
+                            throw e
+                        }
+                    }
                     sendCount++
                 }
             }
