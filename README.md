@@ -18,13 +18,13 @@
   🌐 <a href="https://agents-io.github.io/PokeClaw/">Landing Page</a> — available in English · हिन्दी · 日本語 · Deutsch · 繁中
 </p>
 
-# PokeClaw — A Pocket Version Inspired By OpenClaw
+# PokeClaw (PocketClaw) — On-Device AI Phone Agent
 
-PokeClaw turns an Android phone into an AI-operated device.
+**PokeClaw**, also known as **PocketClaw**, turns an Android phone into an AI-operated device.
 
 It runs Gemma 4 on-device for private phone control, and it also supports optional cloud models when you want stronger reasoning for harder tasks.
 
-As far as I know, this is the first working app built on Gemma 4 that can autonomously control an Android phone.
+As far as I know, PokeClaw / PocketClaw is the first working app built on Gemma 4 that can autonomously control an Android phone.
 
 In Local mode, the entire loop stays inside your device. No account. No API key. No monthly bill.
 
@@ -84,14 +84,9 @@ PokeClaw already supports fully on-device automation with Gemma 4 and optional c
 
 **If you hit something interesting, [open an issue](https://github.com/agents-io/PokeClaw/issues).** Real device reports are how this gets better fast.
 
-## Screenshots
+## See the UI
 
-<p align="center">
-  <img src="screenshots/chat.png" width="200" />
-  <img src="screenshots/task.png" width="200" />
-  <img src="screenshots/settings.png" width="200" />
-  <img src="screenshots/model.png" width="200" />
-</p>
+👉 **[Try the interactive demo on our landing page](https://agents-io.github.io/PokeClaw/)** — click through every screen without installing anything.
 
 ## What it does
 
