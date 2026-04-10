@@ -4,6 +4,8 @@
 package io.agents.pokeclaw.ui.chat
 
 import io.agents.pokeclaw.TaskEvent
+import io.agents.pokeclaw.AppCapabilityCoordinator
+import io.agents.pokeclaw.ServiceBindingState
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -78,7 +80,8 @@ class ComposeChatActivity : ComponentActivity() {
     private val permHandler = Handler(Looper.getMainLooper())
     private val permPoller = object : Runnable {
         override fun run() {
-            _needsPermission.value = !ClawAccessibilityService.isRunning()
+            _needsPermission.value =
+                AppCapabilityCoordinator.accessibilityState(this@ComposeChatActivity) != ServiceBindingState.READY
             permHandler.postDelayed(this, 1000)
         }
     }
@@ -256,7 +259,8 @@ class ComposeChatActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        _needsPermission.value = !ClawAccessibilityService.isRunning()
+        _needsPermission.value =
+            AppCapabilityCoordinator.accessibilityState(this) != ServiceBindingState.READY
         loadSidebarHistory()
         permHandler.removeCallbacks(permPoller)
         permHandler.postDelayed(permPoller, 1000)
@@ -294,8 +298,8 @@ class ComposeChatActivity : ComponentActivity() {
         }
 
         // Accessibility check — only for tasks that need phone control (agent loop)
-        if (!ClawAccessibilityService.isRunning()) {
-            if (!ClawAccessibilityService.isEnabledInSettings(this)) {
+        when (AppCapabilityCoordinator.accessibilityState(this)) {
+            ServiceBindingState.DISABLED -> {
                 // Show Toast first, then navigate to PokeClaw Settings (not Android Settings directly)
                 Toast.makeText(this, "Enable Accessibility Service to run tasks", Toast.LENGTH_LONG).show()
                 addSystem("⚠️ Task mode needs Accessibility Service enabled. Opening Settings...")
@@ -303,29 +307,32 @@ class ComposeChatActivity : ComponentActivity() {
                 sendTaskRetryCount = 0
                 return
             }
+            ServiceBindingState.CONNECTING -> {
             // Enabled in settings but service not yet connected — wait briefly
-            if (sendTaskRetryCount >= 1) {
-                Toast.makeText(this, "Accessibility service not connected. Try toggling it off and on.", Toast.LENGTH_LONG).show()
-                addSystem("Accessibility service didn't connect. Try toggling it off and on in Settings.")
-                startActivity(Intent(this, SettingsActivity::class.java))
-                sendTaskRetryCount = 0
-                return
-            }
-            sendTaskRetryCount++
-            addSystem("Accessibility service connecting, please wait...")
-            executor.submit {
-                val connected = ClawAccessibilityService.awaitRunning(5000)
-                runOnUiThread {
-                    if (connected) {
-                        sendTask(text)
-                    } else {
-                        Toast.makeText(this, "Accessibility service didn't connect", Toast.LENGTH_LONG).show()
-                        addSystem("Accessibility service didn't connect. Go to Settings and toggle it off then on.")
-                        sendTaskRetryCount = 0
+                if (sendTaskRetryCount >= 1) {
+                    Toast.makeText(this, "Accessibility service not connected. Try toggling it off and on.", Toast.LENGTH_LONG).show()
+                    addSystem("Accessibility service didn't connect. Try toggling it off and on in Settings.")
+                    startActivity(Intent(this, SettingsActivity::class.java))
+                    sendTaskRetryCount = 0
+                    return
+                }
+                sendTaskRetryCount++
+                addSystem("Accessibility service connecting, please wait...")
+                executor.submit {
+                    val connected = ClawAccessibilityService.awaitRunning(5000)
+                    runOnUiThread {
+                        if (connected) {
+                            sendTask(text)
+                        } else {
+                            Toast.makeText(this, "Accessibility service didn't connect", Toast.LENGTH_LONG).show()
+                            addSystem("Accessibility service didn't connect. Go to Settings and toggle it off then on.")
+                            sendTaskRetryCount = 0
+                        }
                     }
                 }
+                return
             }
-            return
+            ServiceBindingState.READY -> Unit
         }
         sendTaskRetryCount = 0
 
@@ -509,13 +516,13 @@ class ComposeChatActivity : ComponentActivity() {
         addUser(text)
 
         // Check required permissions before starting monitor
-        val needsAccessibility = !ClawAccessibilityService.isRunning()
-        val needsNotifAccess = !io.agents.pokeclaw.service.ClawNotificationListener.isConnected()
-        if (needsAccessibility || needsNotifAccess) {
-            val missing = mutableListOf<String>()
-            if (needsAccessibility) missing.add("Accessibility")
-            if (needsNotifAccess) missing.add("Notification Access")
-            Toast.makeText(this, "Enable ${missing.joinToString(" & ")} in Settings first", Toast.LENGTH_LONG).show()
+        val missing = AppCapabilityCoordinator.missingMonitorRequirements(this)
+        if (missing.isNotEmpty()) {
+            Toast.makeText(
+                this,
+                "Enable ${missing.joinToString(" & ") { it.label }} in Settings first",
+                Toast.LENGTH_LONG
+            ).show()
             startActivity(Intent(this, io.agents.pokeclaw.ui.settings.SettingsActivity::class.java))
             return
         }
@@ -535,15 +542,6 @@ class ComposeChatActivity : ComponentActivity() {
             // regardless of which app is in foreground. No need to press Home.
             XLog.i(TAG, "handleMonitorTask: monitor active, staying in PokeClaw")
         }, 1500)
-    }
-
-    /**
-     * Check if PokeClaw's NotificationListenerService is enabled.
-     * Required for monitor/auto-reply to detect incoming messages.
-     */
-    private fun isNotificationListenerEnabled(): Boolean {
-        val flat = android.provider.Settings.Secure.getString(contentResolver, "enabled_notification_listeners") ?: ""
-        return flat.contains(packageName)
     }
 
     /**
@@ -576,9 +574,8 @@ class ComposeChatActivity : ComponentActivity() {
      * so the user sees task progress in the status bar while PokeClaw is in background.
      */
     private fun ensureNotificationPermission() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
-                != PackageManager.PERMISSION_GRANTED) {
+        if (!AppCapabilityCoordinator.isNotificationPermissionGranted(this)) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 101)
             }
         }

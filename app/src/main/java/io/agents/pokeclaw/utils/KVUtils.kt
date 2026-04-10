@@ -167,6 +167,8 @@ object KVUtils {
 
     private const val KEY_PENDING_ACCESSIBILITY_RETURN = "KEY_PENDING_ACCESSIBILITY_RETURN"
     private const val KEY_PENDING_ACCESSIBILITY_RETURN_AT = "KEY_PENDING_ACCESSIBILITY_RETURN_AT"
+    private const val KEY_PENDING_NOTIFICATION_ACCESS_RETURN = "KEY_PENDING_NOTIFICATION_ACCESS_RETURN"
+    private const val KEY_PENDING_NOTIFICATION_ACCESS_RETURN_AT = "KEY_PENDING_NOTIFICATION_ACCESS_RETURN_AT"
 
     fun markPendingAccessibilityReturn() {
         putBoolean(KEY_PENDING_ACCESSIBILITY_RETURN, true)
@@ -184,6 +186,24 @@ object KVUtils {
     fun clearPendingAccessibilityReturn() {
         putBoolean(KEY_PENDING_ACCESSIBILITY_RETURN, false)
         putLong(KEY_PENDING_ACCESSIBILITY_RETURN_AT, 0L)
+    }
+
+    fun markPendingNotificationAccessReturn() {
+        putBoolean(KEY_PENDING_NOTIFICATION_ACCESS_RETURN, true)
+        putLong(KEY_PENDING_NOTIFICATION_ACCESS_RETURN_AT, System.currentTimeMillis())
+    }
+
+    fun consumePendingNotificationAccessReturn(maxAgeMs: Long = 120_000L): Boolean {
+        val pending = getBoolean(KEY_PENDING_NOTIFICATION_ACCESS_RETURN, false)
+        val requestedAt = getLong(KEY_PENDING_NOTIFICATION_ACCESS_RETURN_AT, 0L)
+        clearPendingNotificationAccessReturn()
+        if (!pending || requestedAt <= 0L) return false
+        return System.currentTimeMillis() - requestedAt <= maxAgeMs
+    }
+
+    fun clearPendingNotificationAccessReturn() {
+        putBoolean(KEY_PENDING_NOTIFICATION_ACCESS_RETURN, false)
+        putLong(KEY_PENDING_NOTIFICATION_ACCESS_RETURN_AT, 0L)
     }
 
     private const val KEY_LLM_API_KEY = "KEY_LLM_API_KEY"

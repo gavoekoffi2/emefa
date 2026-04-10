@@ -154,8 +154,8 @@ Extract a `ChatSessionController` that owns:
 
 ### Status
 
-- In progress on `main`
-- Current landing scope: add `TaskSessionStore` and rewire `TaskOrchestrator` / `AppViewModel` / `ChannelSetup` to use it as task-session truth
+- Landed on `main`
+- Current landing scope: `TaskSessionStore` now owns live task-session truth and `TaskOrchestrator` / `AppViewModel` / `ChannelSetup` read from it instead of duplicating ad-hoc task metadata
 
 ### Goal
 
@@ -204,6 +204,11 @@ Introduce a `TaskSessionStore` or equivalent state holder that owns:
 
 ## Phase 3 — Permission / Accessibility Coordinator
 
+### Status
+
+- In progress on `main`
+- Current landing scope: add `AppCapabilityCoordinator`, split `Disabled` vs `Connecting` vs `Ready`, and gate notification-access auto-return behind an explicit pending-return flag
+
 ### Goal
 
 Make permission truth explicit and shared.
@@ -229,6 +234,13 @@ Introduce a coordinator/repository that distinguishes:
 - `K1-K6`
 - `J4`
 - `L5`, `L5-b` when external sender is available
+
+### Early smoke evidence
+
+- Fresh reinstall after `adb install -r` can clear `enabled_accessibility_services`; app Settings now shows `Disabled` instead of stale `Enabled`
+- Re-enabling Accessibility via secure settings reproduces the enabled-but-rebinding state; app Settings now shows `Connecting` instead of collapsing it into `Disabled`
+- Notification Access row now derives from system listener settings and correctly shows `Disabled` when PokeClaw is absent from `enabled_notification_listeners`
+- Notification-listener `onListenerConnected()` no longer drags SettingsActivity to foreground on every reconnect; return-to-app now only happens when the in-app permission flow explicitly armed a pending flag
 
 ## Phase 4 — Local Model Runtime Consolidation
 

@@ -3,16 +3,14 @@
 
 package io.agents.pokeclaw.ui.guide
 
-import android.content.Intent
-import android.os.Build
 import android.os.Bundle
-import android.provider.Settings
 import android.view.View
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
-import androidx.core.net.toUri
 import io.agents.pokeclaw.R
+import io.agents.pokeclaw.AppCapabilityCoordinator
+import io.agents.pokeclaw.AppRequirement
 import io.agents.pokeclaw.base.BaseActivity
 import io.agents.pokeclaw.service.ForegroundService
 import io.agents.pokeclaw.utils.KVUtils
@@ -29,7 +27,7 @@ class GuideActivity : BaseActivity() {
             R.string.guide_title_accessibility,
             R.string.guide_desc_accessibility
         ) {
-            startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+            AppCapabilityCoordinator.openSystemSettings(this, AppRequirement.ACCESSIBILITY)
             Toast.makeText(this, R.string.home_enable_accessibility, Toast.LENGTH_LONG).show()
         }
         bindSection(
@@ -46,8 +44,8 @@ class GuideActivity : BaseActivity() {
             R.string.guide_title_overlay,
             R.string.guide_desc_overlay
         ) {
-            if (!Settings.canDrawOverlays(this)) {
-                startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, "package:$packageName".toUri()))
+            if (!AppCapabilityCoordinator.snapshot(this).overlayGranted) {
+                AppCapabilityCoordinator.openSystemSettings(this, AppRequirement.OVERLAY)
             }
         }
         bindSection(
@@ -56,9 +54,7 @@ class GuideActivity : BaseActivity() {
             R.string.guide_title_battery,
             R.string.guide_desc_battery
         ) {
-            startActivity(Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
-                data = "package:$packageName".toUri()
-            })
+            AppCapabilityCoordinator.openSystemSettings(this, AppRequirement.BATTERY_OPTIMIZATION)
         }
         bindSection(
             findViewById(R.id.guideStorage),
@@ -66,11 +62,7 @@ class GuideActivity : BaseActivity() {
             R.string.guide_title_storage,
             R.string.guide_desc_storage
         ) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                startActivity(Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
-                    data = "package:$packageName".toUri()
-                })
-            }
+            AppCapabilityCoordinator.openSystemSettings(this, AppRequirement.STORAGE)
         }
 
         findViewById<View>(R.id.btnStart).setOnClickListener { finishGuide() }

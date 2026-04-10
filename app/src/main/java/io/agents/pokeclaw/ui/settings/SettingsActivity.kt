@@ -8,9 +8,6 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.os.Environment
-import android.os.PowerManager
-import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.lifecycle.Lifecycle
@@ -25,12 +22,12 @@ import io.agents.pokeclaw.widget.MenuGroup
 import io.agents.pokeclaw.widget.MenuItem
 import kotlinx.coroutines.launch
 import android.content.Intent
+import io.agents.pokeclaw.AppCapabilityCoordinator
+import io.agents.pokeclaw.AppRequirement
 import io.agents.pokeclaw.appViewModel
 import io.agents.pokeclaw.utils.KVUtils
 import io.agents.pokeclaw.server.ConfigServerManager
-import io.agents.pokeclaw.service.ClawAccessibilityService
 import io.agents.pokeclaw.service.ForegroundService
-import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 
 /**
@@ -111,15 +108,13 @@ class SettingsActivity : BaseActivity() {
     }
 
     private fun refreshPermissions() {
-        permAccessibility?.setTrailingText(if (ClawAccessibilityService.isEnabledInSettings(this)) "Enabled" else "Disabled")
-        permNotification?.setTrailingText(if (ForegroundService.isRunning()) "Enabled" else "Disabled")
-        permNotifAccess?.setTrailingText(if (io.agents.pokeclaw.service.ClawNotificationListener.isConnected()) "Connected" else "Disabled")
-        permOverlay?.setTrailingText(if (Settings.canDrawOverlays(this)) "Enabled" else "Disabled")
-        val pm = getSystemService(POWER_SERVICE) as PowerManager
-        permBattery?.setTrailingText(if (pm.isIgnoringBatteryOptimizations(packageName)) "Unrestricted" else "Restricted")
-        val storageOk = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) Environment.isExternalStorageManager()
-            else ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) == android.content.pm.PackageManager.PERMISSION_GRANTED
-        permStorage?.setTrailingText(if (storageOk) "Enabled" else "Disabled")
+        val capabilities = AppCapabilityCoordinator.snapshot(this)
+        permAccessibility?.setTrailingText(capabilities.accessibilityStatusLabel)
+        permNotification?.setTrailingText(if (capabilities.foregroundServiceRunning) "Enabled" else "Disabled")
+        permNotifAccess?.setTrailingText(capabilities.notificationAccessStatusLabel)
+        permOverlay?.setTrailingText(if (capabilities.overlayGranted) "Enabled" else "Disabled")
+        permBattery?.setTrailingText(if (capabilities.batteryOptimizationIgnored) "Unrestricted" else "Restricted")
+        permStorage?.setTrailingText(if (capabilities.storageAccessGranted) "Enabled" else "Disabled")
     }
 
     private fun initToolbar() {
@@ -168,12 +163,7 @@ class SettingsActivity : BaseActivity() {
             leadingIcon = R.drawable.ic_accessibility,
             title = getString(R.string.home_card_accessibility_title),
             onClick = {
-                if (ClawAccessibilityService.isEnabledInSettings(this)) {
-                    KVUtils.clearPendingAccessibilityReturn()
-                } else {
-                    KVUtils.markPendingAccessibilityReturn()
-                }
-                startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                AppCapabilityCoordinator.openSystemSettings(this, AppRequirement.ACCESSIBILITY)
                 Toast.makeText(this, R.string.home_enable_accessibility, Toast.LENGTH_LONG).show()
             },
             showDivider = true
@@ -201,65 +191,49 @@ class SettingsActivity : BaseActivity() {
             leadingIcon = R.drawable.ic_notification,
             title = "Notification Access",
             onClick = {
-                startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+                AppCapabilityCoordinator.openSystemSettings(this, AppRequirement.NOTIFICATION_ACCESS)
             },
             showDivider = true
-        ).apply {
-            setTrailingText(if (io.agents.pokeclaw.service.ClawNotificationListener.isConnected()) "Connected" else "Disabled")
-        }
+        )
 
         permOverlay = permissionsGroup.addMenuItem(
             leadingIcon = R.drawable.ic_window,
             title = getString(R.string.home_card_system_window_title),
             onClick = {
-                if (!Settings.canDrawOverlays(this@SettingsActivity)) {
-                    startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, "package:$packageName".toUri()))
-                } else {
+                if (AppCapabilityCoordinator.snapshot(this@SettingsActivity).overlayGranted) {
                     Toast.makeText(this@SettingsActivity, R.string.home_overlay_enabled, Toast.LENGTH_SHORT).show()
+                } else {
+                    AppCapabilityCoordinator.openSystemSettings(this@SettingsActivity, AppRequirement.OVERLAY)
                 }
             },
             showDivider = true
-        ).apply {
-            setTrailingText(if (Settings.canDrawOverlays(this@SettingsActivity)) "Enabled" else "Disabled")
-        }
+        )
 
         permBattery = permissionsGroup.addMenuItem(
             leadingIcon = R.drawable.ic_battery,
             title = getString(R.string.home_card_battery_title),
             onClick = {
-                val pm = getSystemService(POWER_SERVICE) as PowerManager
-                if (!pm.isIgnoringBatteryOptimizations(packageName)) {
-                    startActivity(Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
-                        data = "package:$packageName".toUri()
-                    })
-                } else {
+                if (AppCapabilityCoordinator.snapshot(this@SettingsActivity).batteryOptimizationIgnored) {
                     Toast.makeText(this@SettingsActivity, R.string.home_battery_ignored, Toast.LENGTH_SHORT).show()
+                } else {
+                    AppCapabilityCoordinator.openSystemSettings(this@SettingsActivity, AppRequirement.BATTERY_OPTIMIZATION)
                 }
             },
             showDivider = true
-        ).apply {
-            val pm = getSystemService(POWER_SERVICE) as PowerManager
-            setTrailingText(if (pm.isIgnoringBatteryOptimizations(packageName)) "Unrestricted" else "Restricted")
-        }
+        )
 
         permStorage = permissionsGroup.addMenuItem(
             leadingIcon = R.drawable.ic_storage,
             title = getString(R.string.home_card_storage_title),
             onClick = {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !Environment.isExternalStorageManager()) {
-                    startActivity(Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
-                        data = "package:$packageName".toUri()
-                    })
-                } else {
+                if (AppCapabilityCoordinator.snapshot(this@SettingsActivity).storageAccessGranted) {
                     Toast.makeText(this@SettingsActivity, R.string.home_storage_enabled, Toast.LENGTH_SHORT).show()
+                } else {
+                    AppCapabilityCoordinator.openSystemSettings(this@SettingsActivity, AppRequirement.STORAGE)
                 }
             },
             showDivider = false
-        ).apply {
-            val granted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) Environment.isExternalStorageManager()
-                else ContextCompat.checkSelfPermission(this@SettingsActivity, Manifest.permission.WRITE_EXTERNAL_STORAGE) == android.content.pm.PackageManager.PERMISSION_GRANTED
-            setTrailingText(if (granted) "Enabled" else "Disabled")
-        }
+        )
 
         // Channel (hidden)
         val channelGroup = findViewById<MenuGroup>(R.id.channelGroup)

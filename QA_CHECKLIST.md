@@ -238,6 +238,11 @@ This checklist is **not** yet a fully rerun 100% green master sheet. The honest 
     - Task shell enters `Task running...` + `Stop`
     - Stop request safely unwinds without leaving `ComposeChatActivity`
     - Idle shell restores after stop
+  - Phase 3 permission/accessibility smoke:
+    - App Settings truthfully shows `Disabled` after reinstall clears Accessibility from secure settings
+    - App Settings truthfully shows `Connecting` during enabled-but-rebinding Accessibility state
+    - App Settings truthfully shows `Notification Access = Disabled` when the listener is not enabled in system settings
+    - Notification-listener auto-return is now gated by a pending permission-flow flag instead of firing on every reconnect
 - **Covered, but still environment-sensitive**
   - WhatsApp send flows
   - Local contact-specific send/call flows
@@ -896,6 +901,10 @@ Format: `[date] [status] [test-id] description`
 [2026-04-10] [PASS]    Phase1-r1  Architecture refactor smoke — relaunch via `SplashActivity` with Cloud config active lands on `ComposeChatActivity` showing `● gpt-4.1 · Cloud` and the unified Cloud placeholder, confirming chat runtime rehydrate still works after `ChatSessionController` extraction
 [2026-04-10] [PASS]    Phase1-r2  Architecture refactor smoke — copied the existing Edge Gallery Gemma model into PokeClaw's sandbox, switched provider to `LOCAL`, relaunched, and confirmed `ComposeChatActivity` rehydrated into Local mode with `Chat with local AI...` plus top status `● gemma4_2b_v09_obfus_fix_all_modalities_thinking · GPU`
 [2026-04-10] [PASS]    Q3-1/Q5-1/Q5-1b/Phase1-r3  Local chat after `ChatSessionController` extraction: UI send produced a real assistant reply (`Hello! How can I help you today?`), GPU inference transparently fell back to CPU, and both the top status pill and assistant model tag updated to `CPU` instead of stale `GPU`
+[2026-04-10] [PASS]    Phase3-r1  Fresh reinstall + app Settings smoke: after `adb install -r`, Android cleared `enabled_accessibility_services`; app Settings now truthfully shows `Accessibility Service = Disabled` instead of stale `Enabled`
+[2026-04-10] [PASS]    Phase3-r2  Rebinding truth smoke: after restoring `enabled_accessibility_services` / `accessibility_enabled` via `adb shell settings put secure ...`, app Settings showed `Accessibility Service = Connecting` while the service was still rebinding, instead of collapsing enabled+unbound into `Disabled`
+[2026-04-10] [PASS]    Phase3-r3  Permission truth smoke: with no PokeClaw listener in `enabled_notification_listeners`, app Settings shows `Notification Access = Disabled`
+[2026-04-10] [FIXED]   K4-r1  Notification-listener foreground return is now gated by a pending permission-flow flag, so listener reconnects no longer blindly foreground app Settings unless the user actually came from the in-app permission flow
 ```
 
 ### Bugs Found During v9 QA

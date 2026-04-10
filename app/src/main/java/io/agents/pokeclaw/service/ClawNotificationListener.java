@@ -3,11 +3,17 @@
 
 package io.agents.pokeclaw.service;
 
+import android.content.ComponentName;
+import android.content.Context;
 import android.service.notification.NotificationListenerService;
 import android.service.notification.StatusBarNotification;
 import android.app.Notification;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.provider.Settings;
 
+import io.agents.pokeclaw.utils.KVUtils;
 import io.agents.pokeclaw.utils.XLog;
 
 import java.util.Set;
@@ -43,14 +49,7 @@ public class ClawNotificationListener extends NotificationListenerService {
         super.onListenerConnected();
         instance = this;
         XLog.i(TAG, "Notification listener connected");
-        // Auto-return to app Settings page so user can see the updated status
-        try {
-            android.content.Intent intent = new android.content.Intent(this, io.agents.pokeclaw.ui.settings.SettingsActivity.class);
-            intent.setFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK | android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP);
-            startActivity(intent);
-        } catch (Exception e) {
-            XLog.w(TAG, "Could not bring app to foreground after listener connected", e);
-        }
+        maybeReturnToAppAfterPermissionFlow();
     }
 
     @Override
@@ -111,6 +110,35 @@ public class ClawNotificationListener extends NotificationListenerService {
         return instance != null;
     }
 
+    public static boolean isEnabledInSettings(Context context) {
+        try {
+            String enabledListeners = Settings.Secure.getString(
+                    context.getContentResolver(),
+                    "enabled_notification_listeners");
+            if (enabledListeners == null || enabledListeners.isEmpty()) return false;
+            String myListener = new ComponentName(context, ClawNotificationListener.class).flattenToString();
+            return enabledListeners.contains(myListener);
+        } catch (Exception e) {
+            XLog.e(TAG, "Failed to check notification listener settings", e);
+            return false;
+        }
+    }
+
+    public static boolean awaitConnected(long timeoutMs) {
+        if (instance != null) return true;
+        long deadline = System.currentTimeMillis() + timeoutMs;
+        while (System.currentTimeMillis() < deadline) {
+            try {
+                Thread.sleep(200);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return false;
+            }
+            if (instance != null) return true;
+        }
+        return false;
+    }
+
     /**
      * Get all active notifications. Used by GetNotificationsTool.
      * Returns null if listener is not connected.
@@ -124,5 +152,33 @@ public class ClawNotificationListener extends NotificationListenerService {
             XLog.w(TAG, "Failed to get active notifications", e);
             return null;
         }
+    }
+
+    private void maybeReturnToAppAfterPermissionFlow() {
+        boolean pendingReturn;
+        try {
+            pendingReturn = KVUtils.INSTANCE.consumePendingNotificationAccessReturn(120_000L);
+        } catch (Exception e) {
+            XLog.w(TAG, "Failed to read pending notification access return flag", e);
+            return;
+        }
+        if (!pendingReturn) {
+            return;
+        }
+
+        XLog.i(TAG, "Completing pending notification access return");
+        Handler mainHandler = new Handler(Looper.getMainLooper());
+        mainHandler.postDelayed(() -> {
+            try {
+                android.content.Intent intent = new android.content.Intent(this, io.agents.pokeclaw.ui.settings.SettingsActivity.class);
+                intent.setFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+                        | android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP
+                        | android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP
+                        | android.content.Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+                startActivity(intent);
+            } catch (Exception e) {
+                XLog.w(TAG, "Could not bring app to foreground after listener connected", e);
+            }
+        }, 400);
     }
 }
