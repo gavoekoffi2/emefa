@@ -181,7 +181,6 @@ fun ChatScreen(
         }
     ) {
         Scaffold(
-            modifier = Modifier.imePadding(),
             containerColor = colors.background,
             topBar = {
                 Column {
@@ -236,7 +235,9 @@ fun ChatScreen(
             },
             bottomBar = {
                 if (!isDownloading) {
-                    Column {
+                    Column(
+                        modifier = Modifier.imePadding()
+                    ) {
                         // Quick Tasks collapsible panel (v9 style)
                         QuickTasksPanel(
                             isLocalModel = isLocalUI,
