@@ -118,19 +118,40 @@ for node in root.iter():
 adb shell input tap 746 2041
 ```
 
-### Two QA Layers
+### Three QA Layers
 
-**Layer 1: Backend QA (ADB broadcast) — run every code change**
+**Layer 1: Backend QA (ADB broadcast)**
 - Fast: ~10s per test
 - Uses `am broadcast` to send tasks directly to DebugTaskReceiver
-- Bypasses UI — tests tools, LLM routing, error handling, agent loop
-- Sections: A-M tests
+- Bypasses UI entirely — tests tools, LLM routing, error handling, agent loop
+- Code path: `DebugTaskReceiver → sendTask() → PipelineRouter → Agent`
+- Sections: M tests
+- When to run: every backend/agent/tool change
 
-**Layer 2: UI QA (uiautomator) — run every UI change**
-- Slower: ~30s per test
-- Simulates real user: tap input, type text, tap send, verify chat bubble
-- Tests: mode switching, Quick Tasks tap, prompt prefill, model dropdown, empty state
+**Layer 2: UI Structure QA (uiautomator dump)**
+- Medium: ~5s per test
+- Verifies UI elements are present, positioned correctly, styled correctly
+- No message sending — purely visual/structural verification
+- Code path: Compose render → uiautomator reads view tree
 - Sections: P tests
+- When to run: every UI/layout change
+
+**Layer 3: UI E2E QA (tap + type + send + verify response)**
+- Slow: ~30s per test
+- Simulates real user: tap input → type → dismiss keyboard → tap send → wait → verify response bubble
+- Tests the FULL pipeline: UI routing → Activity callback → LLM → response → UI update
+- Code path: `ChatInputBar → isLocalUI routing → onSendChat/onSendTask → Activity → LLM → UI`
+- Sections: Q tests
+- When to run: every change that touches send routing, mode switching, or input bar
+- **This is the ONLY layer that tests UI send routing.** Layer 1 broadcast bypasses ChatInputBar entirely.
+
+**Why 3 layers, not 2:**
+Layer 1 broadcast calls `sendTask()` directly — it never touches `ChatInputBar`, `isLocalUI`, or the Chat/Task toggle routing. If UI routing breaks (e.g., Cloud mode accidentally routes to `onSendChat`), Layer 1 won't catch it. Layer 3 covers this gap.
+
+**Run order:**
+1. Layer 2 first (fast, catches layout breaks)
+2. Layer 3 second (catches routing/interaction breaks)
+3. Layer 1 last (catches backend/agent breaks)
 
 ```bash
 # Layer 2 — simulate real user typing + sending
@@ -218,11 +239,12 @@ Key OEM differences:
 - [ ] **D1. Pure chat**: switch to Local LLM → "hello" → on-device reply in bot bubble
 - [ ] **D2. Chat tab has no task ability**: type "open YouTube" in Chat tab → LLM responds conversationally (doesn't try to control phone)
 
-## E. Local LLM — Task Tab
+## E. Local LLM — Task Mode (v9: unified chat screen)
 
-- [ ] **E1. No input bar**: Task tab has workflow cards only, no text input
-- [ ] **E2. Monitor workflow**: tap Monitor card → dialog → enter "Girlfriend" → Start → monitoring activates
-- [ ] **E3. Send message card**: tap Send Message card → dialog → fills contact/message → sends
+- [ ] **E1. Task mode via toggle**: Local tab → tap 🤖 Task → input placeholder changes to "Describe a phone task...", input area tints orange
+- [ ] **E2. Task mode via Quick Task tap**: tap "🔋 How much battery left?" in Quick Tasks → input fills + auto-switches to Task mode
+- [ ] **E3. Monitor via Quick Tasks panel**: scroll to BACKGROUND → tap Monitor card → centered dialog → enter contact → Start → monitoring activates
+- [ ] **E4. Task sends correctly**: type "how much battery left" in Task mode → tap send → task executes, response in chat bubble
 
 ## F. Task Lifecycle UI
 
@@ -233,11 +255,13 @@ Key OEM differences:
 - [ ] **F5. Second task works**: complete task 1 → start task 2 → floating button, top bar, stop button all work
 - [ ] **F6. No stuck typing indicator**: after task completes → "..." is replaced by answer or removed
 
-## G. Welcome Screen
+## G. Empty State (v9 design)
 
-- [ ] **G1. Cloud welcome**: new chat → "Cloud LLM enabled" + task examples + subtitle about instructions
-- [ ] **G2. Local welcome**: switch to Local → new chat → "Local LLM enabled" + chat examples + subtitle about Task tab
-- [ ] **G3. Cloud prompt tap**: tap suggested prompt → stays in Chat tab (not jump to Task)
+- [ ] **G1. Cloud empty state**: PokeClaw icon + "PokeClaw" + "Cloud AI" subtitle + "Chat and tasks work together" hint + 3 prompts (Tokyo, birthday, WhatsApp)
+- [ ] **G2. Local empty state**: PokeClaw icon + "PokeClaw" + "Local AI" subtitle + hint with bold 💬 Chat / 🤖 Task + 3 prompts (joke, what can you do, email)
+- [ ] **G3. Cloud prompt tap**: tap prompt → fills input, stays in chat (no mode switch)
+- [ ] **G4. Local prompt tap**: tap prompt → fills input, does NOT switch to Task mode (prompts are chat prompts)
+- [ ] **G5. Tab switch updates empty state**: switch Local↔Cloud tab → subtitle, hint, and prompts all change immediately
 
 ## H. General UI
 
@@ -333,17 +357,38 @@ Design principle: User perspective. INFO tasks → report actual data. ACTION ta
 - [ ] **M49. Clear notifications**: "clear all my notifications" → clears, confirms
 - [ ] **M50. Phone temp**: "how hot is my phone" → get_device_info(battery) temp OR graceful "not available"
 
+## R. Local LLM — Reasoning Quick Tasks (1-2 tool calls + LLM analysis)
+
+- [ ] **R1. "Am I missing anything important?"**: get_notifications → LLM triages noise vs important → reports only actionable items
+- [ ] **R2. "Will my battery last until tonight?"**: get_device_info(battery) + get_device_info(time) → LLM projects drain → yes/no verdict with advice
+- [ ] **R3. "Rewrite what I just copied"**: clipboard(read) → LLM rewrites → clipboard(write) → reports changes
+- [ ] **R4. "What can I delete to free up space?"**: get_device_info(storage) + get_installed_apps() → LLM cross-references → prioritized delete list
+- [ ] **R5. "Read notifications and summarize"**: get_notifications → LLM groups by category + urgency
+- [ ] **R6. "Should I charge my phone?"**: get_device_info(battery) → LLM judges % + gives advice (not just number)
+
+## S. Cloud LLM — Multi-step Quick Tasks (Siri can't do these)
+
+- [ ] **S1. "Search YouTube for funny cat fails"**: opens YouTube → types search → results shown (M1/M8 verified)
+- [ ] **S2. "Install Telegram from Play Store"**: Play Store → search → Install (M6/M32 verified)
+- [ ] **S3. "Check what's trending on Twitter"**: opens Twitter → navigates to trending → summarizes (M20)
+- [ ] **S4. "What's on my screen right now?"**: get_screen_info → describes UI elements (M6 verified)
+- [ ] **S5. "Copy latest email subject and Google it"**: notifications → clipboard → Chrome → search (M33)
+- [ ] **S6. "Check latest WhatsApp chat and summarize"**: opens WhatsApp → reads top chat → reports (M11)
+- [ ] **S7. "Open Reddit and search for pokeclaw"**: opens Reddit → types search → results (M51 verified)
+- [ ] **S8. "Write an email saying I'll be late"**: opens Gmail → fills To/Subject/Body (M19/M8 verified)
+
 ## P. UI — v9 Design Verification
 
 Reference prototype: `/home/nicole/MyGithub/PokeClaw/prototype/dashboard-v9.html`
 
-### P1. Local/Cloud Tabs (toolbar area)
-- [ ] **P1-1. Both tabs render**: "💬 Local AI" and "🤖 Cloud AI" visible below toolbar
-- [ ] **P1-2. Tab highlight**: selected tab has distinct bg+border, unselected is dim
-- [ ] **P1-3. Cloud tab style**: orange tinted bg when selected (not blue)
-- [ ] **P1-4. Tab syncs with model**: when on Local LLM → Local tab highlighted, Cloud LLM → Cloud tab highlighted
-- [ ] **P1-5. Tab filters dropdown**: tap Local tab → dropdown shows local models only; tap Cloud tab → dropdown shows cloud models only
-- [ ] **P1-6. No model → guidance**: Local tab with no model downloaded → "Download models..." link; Cloud tab with no API key → "Configure API key..." link
+### P1. Local/Cloud Toggle (in toolbar)
+- [ ] **P1-1. Both buttons render**: "Local" and "Cloud" visible on same line as PokeClaw title, right side
+- [ ] **P1-2. Selected state**: selected button has aiBubble bg + aiBubbleBorder, unselected has no bg/border
+- [ ] **P1-3. No background container**: buttons sit directly in toolbar actions, no wrapping rectangle
+- [ ] **P1-4. Tab syncs on launch**: Cloud LLM loaded → Cloud highlighted; Local LLM → Local highlighted
+- [ ] **P1-5. Tab filters dropdown**: tap Local → dropdown shows local models only; tap Cloud → cloud models only
+- [ ] **P1-6. No model → guidance**: Local with no model → "Download models..."; Cloud with no API key → "Configure API key..."
+- [ ] **P1-7. Tab controls UI mode**: tap Local → Chat/Task toggle appears, prompts change to local, placeholder changes; tap Cloud → toggle hides, cloud prompts, cloud placeholder
 
 ### P2. Input Area (bottom)
 - [ ] **P2-1. Local Chat/Task toggle**: "💬 Chat" and "🤖 Task" segment buttons visible ABOVE input (not beside)
@@ -355,22 +400,22 @@ Reference prototype: `/home/nicole/MyGithub/PokeClaw/prototype/dashboard-v9.html
 - [ ] **P2-7. Same chatroom**: switching Chat↔Task does NOT clear messages, stays in same session
 
 ### P3. Quick Tasks Panel (between chat and input)
-- [ ] **P3-1. Panel visible**: "▲ Quick Tasks ▲" handle with centered chevrons visible
+- [ ] **P3-1. Panel visible**: "▲ Quick Tasks ▲" handle with centered up-chevrons visible
 - [ ] **P3-2. Default open**: panel open when new chat starts
-- [ ] **P3-3. Collapsible**: tap handle → panel collapses to just the handle bar; tap again → expands
+- [ ] **P3-3. Collapsible**: tap handle → panel collapses (chevrons flip down); tap again → expands (chevrons flip up)
 - [ ] **P3-4. Five items default**: 5 quick task prompts visible by default
-- [ ] **P3-5. Show more**: "Show more" expands to show all 12 prompts; "Show less" collapses back
-- [ ] **P3-6. Accent bar style**: each prompt has left orange accent bar + full sentence text
-- [ ] **P3-7. Tap fills input**: tap a quick task → text fills input bar
-- [ ] **P3-8. Tap auto-switches mode**: tapping quick task on Local → auto-switches to Task mode
+- [ ] **P3-5. Show more**: "Show more ▼" expands to show all 12 prompts; "Show less ▲" collapses back
+- [ ] **P3-6. Accent bar style**: each prompt has left accent bar (theme color) + full sentence text, finger-friendly height (~38dp)
+- [ ] **P3-7. Tap fills input**: tap a quick task → text fills input bar (without emoji prefix)
+- [ ] **P3-8. Tap auto-switches mode**: tapping quick task on Local tab → auto-switches to Task mode
 - [ ] **P3-9. Background section**: "BACKGROUND" label + Monitor & Auto-Reply card visible below quick tasks
-- [ ] **P3-10. Monitor card tap**: tap Monitor card → opens bottom sheet with contact/app/tone form
+- [ ] **P3-10. Monitor card tap**: tap Monitor card → centered dialog (NOT bottom sheet) with Contact/App/Tone form + "Start Monitoring" button
 
 ### P4. Empty State
-- [ ] **P4-1. Local empty**: 🦞 logo + "PokeClaw" + "Local AI" + one-line hint about Chat/Task + 3 chat prompts
-- [ ] **P4-2. Cloud empty**: 🦞 logo + "PokeClaw" + "Cloud AI" + one-line hint about mixed mode + 2 chat + 1 task prompt
-- [ ] **P4-3. No cards/arrows**: NO mode explainer cards, NO bouncing arrow in empty state
-- [ ] **P4-4. Prompt tap**: tap empty state prompt → fills input, correct mode
+- [ ] **P4-1. Local empty**: PokeClaw icon + "PokeClaw" + "Local AI" + hint with bold 💬 Chat / 🤖 Task + 3 chat prompts (joke, what can you do, email)
+- [ ] **P4-2. Cloud empty**: PokeClaw icon + "PokeClaw" + "Cloud AI" + "Chat and tasks work together" + 3 prompts (Tokyo, birthday, WhatsApp)
+- [ ] **P4-3. Prompt style matches Quick Tasks**: same accent bar, same height (~38dp), same font size, same bg color
+- [ ] **P4-4. Prompt tap**: tap empty state prompt → fills input, correct mode (local prompts = chat, cloud WhatsApp = task)
 
 ### P5. No Duplicate Panels
 - [ ] **P5-1. Task mode clean**: when Task mode active → old TaskSkillsPanel does NOT appear alongside QuickTasksPanel
@@ -378,9 +423,58 @@ Reference prototype: `/home/nicole/MyGithub/PokeClaw/prototype/dashboard-v9.html
 - [ ] **P5-3. No stale labels**: "Tap a skill above to start" label does NOT appear
 
 ### P6. Theme Consistency
-- [ ] **P6-1. ember_dark colors**: all UI uses ember_dark palette (warm browns/oranges, NOT blue)
-- [ ] **P6-2. Task orange**: task mode uses #E8845A orange, not accent blue
-- [ ] **P6-3. Prompt bar color**: left accent bar on prompts is orange (#E8845A)
+- [ ] **P6-1. Theme-aware colors**: all UI uses `colors.accent` (theme-dependent), NOT hardcoded orange
+- [ ] **P6-2. Task mode styling**: task mode input area uses taskBg (#1A1410) + accent border + accent send button
+- [ ] **P6-3. Send button states**: empty = dim (alpha 0.35, bg color), chat active = userBubble color, task active = accent color
+
+## Q. UI E2E — Full Pipeline (Layer 3)
+
+Tests the complete path: user tap → ChatInputBar routing → Activity → LLM → response → UI.
+Layer 1 broadcast bypasses UI routing. Only Layer 3 catches routing bugs.
+
+### Q1. Tab Switch = Model Switch
+- [ ] **Q1-1. Cloud→Local switch**: tap Local button → model status changes to local model name → `isLocalModel` becomes true
+- [ ] **Q1-2. Local→Cloud switch**: tap Cloud button → model status changes to cloud model name → `isLocalModel` becomes false
+- [ ] **Q1-3. No model available**: tap Local with no downloaded model → no crash, stays on current model
+- [ ] **Q1-4. No API key**: tap Cloud with no API key → no crash, stays on current model
+
+### Q2. Cloud Tab Send Routing
+- [ ] **Q2-1. Cloud chat**: Cloud tab → type "hello" → tap send → AI response in chat bubble (routed via onSendTask)
+- [ ] **Q2-2. Cloud task**: Cloud tab → type "how much battery left" → tap send → actual battery info returned
+- [ ] **Q2-3. Cloud no toggle**: Cloud tab → verify NO Chat/Task toggle visible → all input goes to unified pipeline
+
+### Q3. Local Tab Send Routing
+- [ ] **Q3-1. Local chat**: Local tab → Chat mode → type "hello" → tap send → AI response (routed via onSendChat to local LLM)
+- [ ] **Q3-2. Local task**: Local tab → Task mode → type "how much battery left" → tap send → task executes (routed via onSendTask)
+- [ ] **Q3-3. Mode switch**: Local tab → start in Chat → type "hello" → get response → tap Task → type task → executes correctly
+- [ ] **Q3-4. Chat doesn't trigger tasks**: Local tab → Chat mode → type "open YouTube" → should get conversational reply, NOT open YouTube
+
+### Q4. Quick Task → Send E2E
+- [ ] **Q4-1. Quick task fill + send**: Local tab → tap "🔋 How much battery left?" → verify input fills + Task mode active → tap send → battery info returned
+- [ ] **Q4-2. Quick task in Cloud**: Cloud tab → tap quick task → input fills → tap send → task executes
+
+### Q5. Routing Regression Guards
+- [ ] **Q5-1. No OpenCL crash on Local chat**: Local tab → Chat mode → send message → should NOT get "OpenCL not found" (must use CPU fallback)
+- [ ] **Q5-2. No API error on Cloud task**: Cloud tab → send task → should NOT get "invalid_request_error" 
+- [ ] **Q5-3. Tab switch mid-conversation**: send message on Cloud → switch to Local → send message → no crash, correct routing for each
+
+### Q6. Tab Isolation — Local/Cloud Independent Configs
+- [ ] **Q6-1. Cloud→Local preserves cloud config**: configure Cloud (gpt-4.1) → switch to Local → switch back to Cloud → model shows gpt-4.1 (not reset)
+- [ ] **Q6-2. Local tab uses local model**: switch to Local tab → model status shows local model name (Gemma/etc), NOT any cloud model
+- [ ] **Q6-3. Cloud tab uses cloud model**: switch to Cloud tab → model status shows cloud model name, NOT local model
+- [ ] **Q6-4. No cloud model configured**: Fresh install → switch to Cloud → shows "No API key configured" or guidance, NOT crash
+- [ ] **Q6-5. No local model downloaded**: Remove local model → switch to Local → shows "No local model downloaded" or download prompt, NOT crash
+- [ ] **Q6-6. Local chat actually uses local LLM**: Local tab → Chat mode → send "hello" → logcat shows LiteRT/conversation (NOT OpenAI API call)
+- [ ] **Q6-7. Cloud task actually uses cloud LLM**: Cloud tab → send "battery" → logcat shows OpenAI/gpt (NOT LiteRT)
+
+### Q7. Task Stop + Session Preservation
+- [ ] **Q7-1. Stop responds immediately**: start task → tap Stop → task stops within 3 seconds (thread interrupted, HTTP call aborted)
+- [ ] **Q7-2. Stop returns to same session**: start task → task opens other app → tap Stop → returns to PokeClaw → same conversation visible (not new session)
+- [ ] **Q7-3. App doesn't crash on stop**: start task → tap Stop → app remains running, no ANR, no crash
+- [ ] **Q7-4. Send button resets after stop**: stop task → send button changes from red X back to arrow → can send new messages
+- [ ] **Q7-5. Second task after stop**: stop task 1 → start task 2 → task 2 executes normally (no "Agent is already running" error)
+- [ ] **Q7-6. Stop from floating button**: task running in other app → tap floating circle → "Tap to stop" → task stops, returns to PokeClaw
+- [ ] **Q7-7. Auto-return preserves conversation**: task completes in other app → auto-return to PokeClaw → previous messages + task result visible in same conversation
 
 ## N. Tinder Automation
 
@@ -570,3 +664,54 @@ Format: `[date] [status] [test-id] description`
 | M4-a | ~~Compound tasks truncated by Tier 1~~ | ~~FIXED: PipelineRouter skips Tier 1 for tasks with "and"/"then"/"after"~~ | ~~High~~ |
 | M8-a | Gmail compose loops | Agent repeats compose flow, hits budget limit (104K tokens) | Medium |
 | M12-a | YouTube Music system dialog | Login/premium dialog blocks music playback task | Low |
+
+### 2026-04-09 — v9 UI Redesign QA
+
+**Changes tested:** ChatScreen.kt v9 redesign — Local/Cloud toggle in toolbar, empty state, Quick Tasks panel, Chat/Task toggle, Monitor dialog, send routing.
+
+```
+[2026-04-09] [PASS]    G1    Cloud empty state: icon + "Cloud AI" + hint + 3 prompts + no toggle + correct placeholder
+[2026-04-09] [PASS]    G2    Local empty state: icon + "Local AI" + bold hint + 3 local prompts + toggle visible
+[2026-04-09] [PASS]    G5    Tab switch updates empty state immediately (subtitle, hint, prompts all change)
+[2026-04-09] [PASS]    Q1-1  Cloud→Local tab switch: model switches to Gemma 4 E2B, Chat/Task toggle appears
+[2026-04-09] [PASS]    Q1-2  Local→Cloud tab switch: model switches to gpt-4o-mini, toggle hides
+[2026-04-09] [PASS]    Q2-1  Cloud chat "hello" → "Hello! How can I help you today?" (1 round, 5K tokens)
+[2026-04-09] [PASS]    Q2-2  Cloud task "battery" → "100%, charging, 33.5°C" (2 rounds, get_device_info)
+[2026-04-09] [PASS]    Q4-1  Quick Task tap fills input "How much battery left?" + auto-switches to Task mode
+[2026-04-09] [PASS]    P1-1  Local/Cloud buttons in toolbar, same line as PokeClaw
+[2026-04-09] [PASS]    P1-3  No background container on buttons
+[2026-04-09] [PASS]    P2-5  Cloud mode: no Chat/Task toggle, placeholder "Chat or give a task..."
+[2026-04-09] [PASS]    P3-1  Quick Tasks panel with ▲ chevrons
+[2026-04-09] [PASS]    P3-4  5 quick task items visible by default
+[2026-04-09] [PASS]    P3-9  BACKGROUND section + Monitor card
+[2026-04-09] [PASS]    P3-10 Monitor card → centered dialog with Contact/App/Tone form
+[2026-04-09] [PASS]    P5-1  No TaskSkillsPanel in content area (removed)
+[2026-04-09] [PASS]    Q3-1  Local chat via UI — GPU→CPU fallback triggered, Gemma 4 responded "Hello! How can I help you today?" (11 tokens)
+[2026-04-09] [PASS]    Q5-1  GPU→CPU fallback in sendChat() WORKS — OpenCL fail → engine reset → CPU retry → success
+[2026-04-09] [PASS]    Q5-3  Tab switch mid-conversation — Cloud→Local→Cloud with sends, no crash, correct routing each time
+[2026-04-09] [FIXED]   Q5-1  sendChat() GPU→CPU fallback — added catch block that detects OpenCL/nativeSendMessage error, reloads engine with CPU, retries
+[2026-04-09] [FIXED]   Q5-1b Conversation creation "after 5 retries" — added engine reset on attempt 3 to clear stale task agent conversations
+[2026-04-09] [FIXED]   Q5-2  API key was "test" — reconfigured with real key
+[2026-04-09] [FIXED]   Tab LaunchedEffect override — removed LaunchedEffect sync so tab is user-controlled
+[2026-04-09] [FIXED]   Cloud model memory — saves LAST_CLOUD_MODEL to KVUtils before switching to Local, restores when switching back
+[2026-04-09] [FIXED]   Token counter — only shows for Cloud mode, hidden for Local (on-device = free)
+[2026-04-09] [PASS]    Chat bubble verified — Q3-1 Local Chat: user msg y=417, AI response y=525, model tag "gpt-4.1" visible
+[2026-04-09] [PASS]    R1 notifications triage — 150s, get_notifications → LLM summarized important items
+[2026-04-09] [PASS]    R2 battery advice — 135s, get_device_info(battery) → "do not need to charge"
+[2026-04-09] [PASS]    R3 clipboard explain — 135s, clipboard(get) → LLM described content (restaurant list)
+[2026-04-09] [PASS]    R4 storage analysis — 165s, storage + apps → LLM cross-referenced
+[2026-04-09] [PASS]    R5 notification summary — 150s, get_notifications → grouped by app + urgency
+[2026-04-09] [PASS]    R6 charge advice — 105s, get_device_info(battery) → "100% charging, no need"
+[2026-04-09] [ISSUE]   Cloud send fails silently without accessibility — sendTask() navigates to Settings page without Toast/error. Should show Toast first.
+[2026-04-09] [ISSUE]   Accessibility service can't be reliably enabled via ADB on Android 16 — isRunning() checks runtime flag, not settings value
+[2026-04-09] [FIXED]   F2-v9 Stop button slow — added Future.cancel(true) to interrupt agent thread + abort HTTP call immediately (was: flag-only, waited for LLM round to finish)
+[2026-04-09] [ISSUE]   F2-v9 Stop → return to same session — after stopping task, should return to the SAME chat session, not open new one
+[2026-04-09] [ISSUE]   L1-v9 Auto-return should preserve session — after task completes in other app and auto-returns to PokeClaw, should show the same conversation with the result, not a fresh session
+```
+
+### Bugs Found During v9 QA
+
+| ID | Issue | Root Cause | Priority |
+|----|-------|-----------|----------|
+| Q5-1 | LiteRT "Can not find OpenCL" crash in sendChat() | sendChat() uses LiteRT directly without GPU→CPU fallback (LocalLlmClient has fallback, but sendChat doesn't use it) | High |
+| Q5-2 | ~~API key was "test"~~ | ~~Device had dummy key, reconfigured~~ | ~~Config~~ |

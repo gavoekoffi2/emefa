@@ -5,10 +5,13 @@ package io.agents.pokeclaw.ui.chat
 
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -21,6 +24,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
 import io.agents.pokeclaw.R
@@ -29,9 +33,12 @@ import io.agents.pokeclaw.agent.skill.SkillCategory
 import io.agents.pokeclaw.agent.skill.SkillRegistry
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
@@ -117,6 +124,10 @@ fun ChatScreen(
     var prefillIsTask by remember { mutableStateOf(false) }
     // Task mode state — lifted here so content area can react
     var isTaskMode by remember { mutableStateOf(false) }
+    // Local/Cloud tab — controls UI presentation AND triggers model switch
+    // No LaunchedEffect sync — tab is user-controlled, not model-controlled
+    var selectedTab by remember { mutableStateOf(if (isLocalModel) "local" else "cloud") }
+    val isLocalUI = selectedTab == "local"
     // Skill dialog and activation states
     var showMonitorSheet by remember { mutableStateOf(false) }
     var showSendSheet by remember { mutableStateOf(false) }
@@ -173,8 +184,44 @@ fun ChatScreen(
                         sessionTokens = sessionTokens,
                         sessionCost = sessionCost,
                         isLocalModel = isLocalModel,
+                        selectedTab = selectedTab,
+                        onTabChange = { tab ->
+                            selectedTab = tab
+                            val kvUtils = io.agents.pokeclaw.utils.KVUtils
+                            if (tab == "cloud") {
+                                // Save current local state, restore cloud config
+                                val apiKey = kvUtils.getLlmApiKey()
+                                if (apiKey.isNotEmpty()) {
+                                    // Restore saved cloud model name, or pick default
+                                    val savedCloud = kvUtils.getString("LAST_CLOUD_MODEL", "")
+                                    val modelId = if (savedCloud.isNotEmpty()) savedCloud else {
+                                        val baseUrl = kvUtils.getLlmBaseUrl()
+                                        val provider = io.agents.pokeclaw.agent.CloudProvider.entries.find {
+                                            it.defaultBaseUrl == baseUrl
+                                        } ?: io.agents.pokeclaw.agent.CloudProvider.OPENAI
+                                        (provider.models.firstOrNull { it.recommended }
+                                            ?: provider.models.first()).id
+                                    }
+                                    onModelSwitch(modelId, modelId)
+                                }
+                            } else {
+                                // Save current cloud model name before switching to local
+                                val currentProvider = kvUtils.getLlmProvider()
+                                if (currentProvider != "LOCAL") {
+                                    val currentModel = kvUtils.getLlmModelName()
+                                    if (currentModel.isNotEmpty()) {
+                                        kvUtils.putString("LAST_CLOUD_MODEL", currentModel)
+                                    }
+                                }
+                                val localPath = kvUtils.getLocalModelPath()
+                                if (localPath.isNotEmpty() && java.io.File(localPath).exists()) {
+                                    val name = java.io.File(localPath).nameWithoutExtension
+                                        .replace("-", " ").replace("_", " ")
+                                    onModelSwitch("LOCAL", name)
+                                }
+                            }
+                        },
                         onMenuClick = { scope.launch { drawerState.open() } },
-                        onNewChat = onNewChat,
                         onSettings = onOpenSettings,
                         onModelSwitch = onModelSwitch,
                         colors = colors,
@@ -195,11 +242,11 @@ fun ChatScreen(
                     Column {
                         // Quick Tasks collapsible panel (v9 style)
                         QuickTasksPanel(
-                            isLocalModel = isLocalModel,
+                            isLocalModel = isLocalUI,
                             onFillTask = { text ->
                                 prefillText = text
                                 prefillIsTask = true
-                                if (isLocalModel) isTaskMode = true
+                                if (isLocalUI) isTaskMode = true
                             },
                             onMonitorClick = { showMonitorSheet = true },
                             monitorActive = activeTasks.isNotEmpty(),
@@ -209,7 +256,7 @@ fun ChatScreen(
                         ChatInputBar(
                             isProcessing = isProcessing,
                             isTaskMode = isTaskMode,
-                            isLocalModel = isLocalModel,
+                            isLocalModel = isLocalUI,
                             onTaskModeChange = { isTaskMode = it },
                             onSendChat = onSendChat,
                             onSendTask = onSendTask,
@@ -229,43 +276,16 @@ fun ChatScreen(
                     .fillMaxSize()
                     .padding(padding)
             ) {
-                if (isTaskMode && !isDownloading) {
-                    // Task mode: show skill cards + any task progress messages
-                    val taskMessages = messages.filter {
-                        it.role == ChatMessage.Role.SYSTEM ||
-                        (it.role == ChatMessage.Role.USER && it.content.startsWith("🚀"))
-                    }
-                    TaskSkillsPanel(
-                        isLocalModel = isLocalModel,
-                        taskMessages = taskMessages,
-                        onMonitorClick = { showMonitorSheet = true },
-                        onSendClick = { showSendSheet = true },
-                        onSkillTap = { example ->
-                            if (isLocalModel && !example.contains("...")) {
-                                // No-param skill in local mode → direct execute
-                                onSendTask(example)
-                            } else {
-                                prefillText = example
-                                prefillIsTask = true
-                            }
-                        },
-                        activatingSkill = activatingSkill,
-                        monitorActive = activeTasks.isNotEmpty(),
-                        colors = colors,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                } else if (!isDownloading) {
-                    // Chat mode: messages or empty state
+                if (!isDownloading) {
+                    // v9: always show messages or empty state regardless of mode
                     val userMessages = messages.filter { it.role != ChatMessage.Role.SYSTEM }
                     if (userMessages.isEmpty()) {
                         EmptyStateWithPrompts(
-                            isLocalModel = isLocalModel,
+                            isLocalModel = isLocalUI,
                             onSelectPrompt = { text, isTask ->
                                 prefillText = text
                                 prefillIsTask = isTask
-                                // Only switch to Task tab for Local LLM
-                                // Cloud LLM can run tasks directly from Chat
-                                if (isTask && isLocalModel) isTaskMode = true
+                                if (isTask && isLocalUI) isTaskMode = true
                             },
                             colors = colors,
                             modifier = Modifier.fillMaxSize(),
@@ -322,8 +342,9 @@ private fun ChatTopBar(
     sessionTokens: Int = 0,
     sessionCost: Double = 0.0,
     isLocalModel: Boolean = true,
+    selectedTab: String,
+    onTabChange: (String) -> Unit,
     onMenuClick: () -> Unit,
-    onNewChat: () -> Unit,
     onSettings: () -> Unit,
     onModelSwitch: (modelId: String, displayName: String) -> Unit = { _, _ -> },
     colors: PokeclawColors,
@@ -337,12 +358,20 @@ private fun ChatTopBar(
     }
 
     Column {
+        var showModelMenu by remember { mutableStateOf(false) }
+
         TopAppBar(
             title = {
                 Text(
-                    "PokeClaw",
+                    buildAnnotatedString {
+                        append("Poke")
+                        withStyle(SpanStyle(color = colors.accent)) {
+                            append("Claw")
+                        }
+                    },
                     fontWeight = FontWeight.Bold,
                     fontSize = 18.sp,
+                    color = colors.textPrimary,
                 )
             },
             navigationIcon = {
@@ -351,8 +380,33 @@ private fun ChatTopBar(
                 }
             },
             actions = {
-                IconButton(onClick = onNewChat) {
-                    Icon(Icons.Default.Edit, contentDescription = "New Chat")
+                // Local/Cloud toggle — two plain buttons, no container
+                Surface(
+                    onClick = { onTabChange("local") },
+                    shape = RoundedCornerShape(10.dp),
+                    color = if (selectedTab == "local") colors.aiBubble else Color.Transparent,
+                    border = if (selectedTab == "local") androidx.compose.foundation.BorderStroke(1.dp, colors.aiBubbleBorder) else null,
+                ) {
+                    Text(
+                        "Local",
+                        fontSize = 12.sp,
+                        color = if (selectedTab == "local") colors.accent else colors.textTertiary,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
+                    )
+                }
+                Spacer(Modifier.width(4.dp))
+                Surface(
+                    onClick = { onTabChange("cloud") },
+                    shape = RoundedCornerShape(10.dp),
+                    color = if (selectedTab == "cloud") colors.aiBubble else Color.Transparent,
+                    border = if (selectedTab == "cloud") androidx.compose.foundation.BorderStroke(1.dp, colors.aiBubbleBorder) else null,
+                ) {
+                    Text(
+                        "Cloud",
+                        fontSize = 12.sp,
+                        color = if (selectedTab == "cloud") colors.accent else colors.textTertiary,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
+                    )
                 }
                 IconButton(onClick = onSettings) {
                     Icon(Icons.Default.Settings, contentDescription = "Settings")
@@ -365,57 +419,6 @@ private fun ChatTopBar(
                 actionIconContentColor = colors.textSecondary,
             ),
         )
-        // Local/Cloud tab + Model dropdown
-        var showModelMenu by remember { mutableStateOf(false) }
-        // Tab state tracks which panel is shown — syncs with isLocalModel on init
-        var selectedTab by remember { mutableStateOf(if (isLocalModel) "local" else "cloud") }
-        // Sync tab when model changes externally
-        LaunchedEffect(isLocalModel) { selectedTab = if (isLocalModel) "local" else "cloud" }
-
-        // Local / Cloud tabs
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(colors.surface)
-                .padding(horizontal = 12.dp, vertical = 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            // Local tab
-            Surface(
-                onClick = { selectedTab = "local" },
-                shape = RoundedCornerShape(10.dp),
-                color = if (selectedTab == "local") colors.aiBubble else Color.Transparent,
-                border = if (selectedTab == "local") androidx.compose.foundation.BorderStroke(1.dp, colors.aiBubbleBorder) else null,
-                modifier = Modifier.weight(1f),
-            ) {
-                Text(
-                    "💬 Local AI",
-                    fontSize = 12.sp,
-                    fontWeight = if (selectedTab == "local") FontWeight.SemiBold else FontWeight.Normal,
-                    color = if (selectedTab == "local") colors.textPrimary else colors.textTertiary,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(vertical = 8.dp),
-                )
-            }
-            // Cloud tab
-            val taskAccent = Color(0xFFE8751A)
-            Surface(
-                onClick = { selectedTab = "cloud" },
-                shape = RoundedCornerShape(10.dp),
-                color = if (selectedTab == "cloud") taskAccent.copy(alpha = 0.15f) else Color.Transparent,
-                border = if (selectedTab == "cloud") androidx.compose.foundation.BorderStroke(1.dp, taskAccent.copy(alpha = 0.4f)) else null,
-                modifier = Modifier.weight(1f),
-            ) {
-                Text(
-                    "🤖 Cloud AI",
-                    fontSize = 12.sp,
-                    fontWeight = if (selectedTab == "cloud") FontWeight.SemiBold else FontWeight.Normal,
-                    color = if (selectedTab == "cloud") taskAccent else colors.textTertiary,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(vertical = 8.dp),
-                )
-            }
-        }
 
         // Model status + dropdown — filtered by selected tab
         Box {
@@ -439,7 +442,7 @@ private fun ChatTopBar(
                 tint = colors.textTertiary,
                 modifier = Modifier.size(12.dp),
             )
-            if (sessionTokens > 0) {
+            if (sessionTokens > 0 && !isLocalModel) {
                 val formattedTokens = if (sessionTokens >= 1000) {
                     String.format("%.1fK", sessionTokens / 1000.0)
                 } else {
@@ -606,7 +609,7 @@ private fun MessageList(
             val message = messages[index]
             when (message.role) {
                 ChatMessage.Role.USER -> UserBubble(message.content, colors)
-                ChatMessage.Role.ASSISTANT -> AssistantBubble(message.content, colors)
+                ChatMessage.Role.ASSISTANT -> AssistantBubble(message.content, colors, message.modelName)
                 ChatMessage.Role.SYSTEM -> SystemMessage(message.content, colors)
                 ChatMessage.Role.TOOL_GROUP -> ToolGroup(message, colors)
             }
@@ -640,51 +643,62 @@ private fun UserBubble(text: String, colors: PokeclawColors) {
 }
 
 @Composable
-private fun AssistantBubble(text: String, colors: PokeclawColors) {
-    Row(
+private fun AssistantBubble(text: String, colors: PokeclawColors, modelName: String? = null) {
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(start = 14.dp, end = 64.dp, top = 3.dp, bottom = 3.dp),
-        horizontalArrangement = Arrangement.Start,
-        verticalAlignment = Alignment.Bottom,
     ) {
-        // Avatar
-        androidx.compose.foundation.Image(
-            painter = painterResource(R.drawable.pokeclaw_avatar),
-            contentDescription = "PokeClaw",
-            modifier = Modifier
-                .size(32.dp)
-                .clip(CircleShape),
-        )
-        Spacer(Modifier.width(8.dp))
+        Row(
+            horizontalArrangement = Arrangement.Start,
+            verticalAlignment = Alignment.Bottom,
+        ) {
+            // Avatar
+            androidx.compose.foundation.Image(
+                painter = painterResource(R.drawable.pokeclaw_avatar),
+                contentDescription = "PokeClaw",
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(CircleShape),
+            )
+            Spacer(Modifier.width(8.dp))
 
-        // Bubble
-        if (text == "...") {
-            // Typing indicator
-            Surface(
-                color = colors.aiBubble,
-                shape = RoundedCornerShape(20.dp, 20.dp, 20.dp, 4.dp),
-                border = androidx.compose.foundation.BorderStroke(0.5.dp, colors.aiBubbleBorder),
-            ) {
-                TypingIndicator(
-                    color = colors.textTertiary,
-                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 14.dp),
-                )
+            // Bubble
+            if (text == "...") {
+                Surface(
+                    color = colors.aiBubble,
+                    shape = RoundedCornerShape(20.dp, 20.dp, 20.dp, 4.dp),
+                    border = androidx.compose.foundation.BorderStroke(0.5.dp, colors.aiBubbleBorder),
+                ) {
+                    TypingIndicator(
+                        color = colors.textTertiary,
+                        modifier = Modifier.padding(horizontal = 18.dp, vertical = 14.dp),
+                    )
+                }
+            } else {
+                Surface(
+                    color = colors.aiBubble,
+                    shape = RoundedCornerShape(20.dp, 20.dp, 20.dp, 4.dp),
+                    border = androidx.compose.foundation.BorderStroke(0.5.dp, colors.aiBubbleBorder),
+                ) {
+                    Text(
+                        text = text,
+                        color = colors.aiText,
+                        fontSize = 15.sp,
+                        lineHeight = 21.sp,
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                    )
+                }
             }
-        } else {
-            Surface(
-                color = colors.aiBubble,
-                shape = RoundedCornerShape(20.dp, 20.dp, 20.dp, 4.dp),
-                border = androidx.compose.foundation.BorderStroke(0.5.dp, colors.aiBubbleBorder),
-            ) {
-                Text(
-                    text = text,
-                    color = colors.aiText,
-                    fontSize = 15.sp,
-                    lineHeight = 21.sp,
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                )
-            }
+        }
+        // Model name tag below bubble
+        if (!modelName.isNullOrEmpty() && text != "...") {
+            Text(
+                text = modelName,
+                fontSize = 9.sp,
+                color = colors.textTertiary,
+                modifier = Modifier.padding(start = 40.dp, top = 1.dp, bottom = 2.dp),
+            )
         }
     }
 }
@@ -783,9 +797,8 @@ private fun ChatInputBar(
         }
     }
 
-    val taskAccent = Color(0xFFE8751A)
     val taskBg = Color(0xFF1A1410)
-    val taskBorder = taskAccent.copy(alpha = 0.25f)
+    val taskBorder = colors.accent.copy(alpha = 0.25f)
 
     Column(
         modifier = Modifier.background(
@@ -794,7 +807,7 @@ private fun ChatInputBar(
     ) {
         HorizontalDivider(
             color = if (isTaskMode && isLocalModel) taskBorder else colors.divider,
-            thickness = 0.5.dp,
+            thickness = 1.dp,
         )
 
         // Segmented Chat/Task toggle — Local LLM only
@@ -802,7 +815,7 @@ private fun ChatInputBar(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 10.dp, vertical = 4.dp),
+                    .padding(start = 10.dp, end = 10.dp, top = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 // Chat button
@@ -826,8 +839,8 @@ private fun ChatInputBar(
                 Surface(
                     onClick = { onTaskModeChange(true) },
                     shape = RoundedCornerShape(10.dp),
-                    color = if (isTaskMode) taskAccent else Color.Transparent,
-                    border = if (isTaskMode) androidx.compose.foundation.BorderStroke(1.dp, taskAccent) else null,
+                    color = if (isTaskMode) colors.accent else Color.Transparent,
+                    border = if (isTaskMode) androidx.compose.foundation.BorderStroke(1.dp, colors.accent) else null,
                     modifier = Modifier.weight(1f),
                 ) {
                     Text(
@@ -846,7 +859,7 @@ private fun ChatInputBar(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 8.dp, end = 8.dp, bottom = 6.dp),
+                .padding(start = 10.dp, end = 10.dp, top = 4.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             OutlinedTextField(
@@ -859,7 +872,7 @@ private fun ChatInputBar(
                             !isLocalModel -> "Chat or give a task..."
                             else -> "Chat with local AI..."
                         },
-                        color = if (isTaskMode && isLocalModel) taskAccent.copy(alpha = 0.5f) else colors.textTertiary,
+                        color = if (isTaskMode && isLocalModel) colors.accent.copy(alpha = 0.5f) else colors.textTertiary,
                         fontSize = 14.sp,
                     )
                 },
@@ -868,9 +881,9 @@ private fun ChatInputBar(
                     .heightIn(min = 40.dp, max = 100.dp),
                 shape = RoundedCornerShape(20.dp),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = if (isTaskMode && isLocalModel) taskAccent else colors.accent.copy(alpha = 0.4f),
-                    unfocusedBorderColor = if (isTaskMode && isLocalModel) taskAccent.copy(alpha = 0.6f) else colors.inputBorder,
-                    cursorColor = if (isTaskMode && isLocalModel) taskAccent else colors.accent,
+                    focusedBorderColor = if (isTaskMode && isLocalModel) colors.accent else colors.accent.copy(alpha = 0.4f),
+                    unfocusedBorderColor = if (isTaskMode && isLocalModel) colors.accent.copy(alpha = 0.6f) else colors.inputBorder,
+                    cursorColor = if (isTaskMode && isLocalModel) colors.accent else colors.accent,
                     focusedTextColor = colors.textPrimary,
                     unfocusedTextColor = colors.textPrimary,
                     focusedContainerColor = if (isTaskMode && isLocalModel) taskBg else Color.Transparent,
@@ -880,7 +893,7 @@ private fun ChatInputBar(
                 maxLines = 4,
             )
 
-            Spacer(Modifier.width(4.dp))
+            Spacer(Modifier.width(6.dp))
 
             FloatingActionButton(
                 onClick = {
@@ -898,12 +911,14 @@ private fun ChatInputBar(
                         }
                     }
                 },
-                modifier = Modifier.size(36.dp),
+                modifier = Modifier
+                    .size(34.dp)
+                    .alpha(if (text.isBlank() && !isProcessing) 0.35f else 1f),
                 containerColor = when {
                     isProcessing -> Color(0xFFF44336)
-                    text.isBlank() -> colors.background.copy(alpha = 0.5f)
-                    isTaskMode && isLocalModel -> taskAccent
-                    else -> colors.accent
+                    text.isBlank() -> colors.background
+                    isTaskMode && isLocalModel -> colors.accent
+                    else -> colors.userBubble
                 },
                 shape = CircleShape,
                 elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 0.dp),
@@ -912,7 +927,7 @@ private fun ChatInputBar(
                     if (isProcessing) Icons.Default.Close else Icons.Default.ArrowUpward,
                     contentDescription = if (isProcessing) "Stop" else "Send",
                     tint = Color.White,
-                    modifier = Modifier.size(18.dp),
+                    modifier = Modifier.size(14.dp),
                 )
             }
         }
@@ -1020,43 +1035,6 @@ private fun SkillShortcutBar(
     }
 }
 
-@Composable
-private fun ModeTab(
-    label: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    selected: Boolean,
-    onClick: () -> Unit,
-    colors: PokeclawColors,
-    modifier: Modifier = Modifier,
-) {
-    Surface(
-        onClick = onClick,
-        modifier = modifier,
-        shape = RoundedCornerShape(8.dp),
-        color = if (selected) colors.accent.copy(alpha = 0.12f) else Color.Transparent,
-    ) {
-        Row(
-            modifier = Modifier.padding(vertical = 5.dp),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(
-                icon,
-                contentDescription = null,
-                tint = if (selected) colors.accent else colors.textTertiary,
-                modifier = Modifier.size(16.dp),
-            )
-            Spacer(Modifier.width(4.dp))
-            Text(
-                label,
-                fontSize = 13.sp,
-                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                color = if (selected) colors.accent else colors.textTertiary,
-            )
-        }
-    }
-}
-
 // ======================== DOWNLOAD OVERLAY ========================
 
 @Composable
@@ -1149,78 +1127,97 @@ private fun EmptyStateWithPrompts(
 
     val headerText = if (!isLocalModel) "Cloud AI" else "Local AI"
 
-    val subtitleText = if (!isLocalModel) {
-        "Chat and tasks work together — just type anything"
-    } else {
-        "Chat in 💬 Chat mode, or switch to 🤖 Task to control your phone"
-    }
-
     Column(
         modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+        Spacer(Modifier.height(40.dp))
         androidx.compose.foundation.Image(
             painter = painterResource(R.drawable.pokeclaw_avatar),
             contentDescription = "PokeClaw",
             modifier = Modifier
-                .size(72.dp)
-                .clip(RoundedCornerShape(18.dp)),
+                .size(48.dp)
+                .clip(RoundedCornerShape(12.dp)),
         )
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(6.dp))
         Text(
             "PokeClaw",
-            fontSize = 22.sp,
-            fontWeight = FontWeight.Bold,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.SemiBold,
             color = colors.textPrimary,
         )
-        Spacer(Modifier.height(4.dp))
+        Spacer(Modifier.height(3.dp))
         Text(
             headerText,
-            fontSize = 14.sp,
+            fontSize = 12.sp,
             color = colors.accent,
             textAlign = TextAlign.Center,
-            modifier = Modifier.padding(horizontal = 32.dp),
         )
-        Spacer(Modifier.height(4.dp))
-        Text(
-            subtitleText,
-            fontSize = 12.sp,
-            color = colors.textTertiary,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(horizontal = 32.dp),
-        )
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(6.dp))
+        // Hint text — Local has styled bold parts, Cloud is plain
+        if (isLocalModel) {
+            Text(
+                buildAnnotatedString {
+                    append("Chat in ")
+                    withStyle(SpanStyle(color = colors.accent, fontWeight = FontWeight.Bold)) {
+                        append("💬 Chat")
+                    }
+                    append(" mode, or switch to ")
+                    withStyle(SpanStyle(color = colors.accent, fontWeight = FontWeight.Bold)) {
+                        append("🤖 Task")
+                    }
+                    append(" to control your phone")
+                },
+                fontSize = 11.sp,
+                color = colors.textSecondary,
+                textAlign = TextAlign.Center,
+                lineHeight = 16.sp,
+                modifier = Modifier.widthIn(max = 260.dp),
+            )
+        } else {
+            Text(
+                "Chat and tasks work together \u2014 just type anything",
+                fontSize = 11.sp,
+                color = colors.textSecondary,
+                textAlign = TextAlign.Center,
+                lineHeight = 16.sp,
+                modifier = Modifier.widthIn(max = 260.dp),
+            )
+        }
+        Spacer(Modifier.height(12.dp))
 
-        // Suggested prompt chips
+        // Suggested prompt chips — same style as Quick Tasks items
         Column(
-            modifier = Modifier.padding(horizontal = 32.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.padding(horizontal = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(3.dp),
         ) {
             prompts.forEach { prompt ->
-                val chipColor = if (prompt.isTask) colors.accent else colors.accent.copy(alpha = 0.7f)
+                val barAlpha = if (prompt.isTask) 1f else 0.5f
                 Surface(
-                    onClick = { onSelectPrompt(prompt.text, prompt.isTask) },
-                    shape = RoundedCornerShape(12.dp),
-                    color = colors.surface,
+                    shape = RoundedCornerShape(9.dp),
+                    color = colors.background,
                     border = androidx.compose.foundation.BorderStroke(0.5.dp, colors.inputBorder),
                 ) {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onSelectPrompt(prompt.text, prompt.isTask) },
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Box(
                             modifier = Modifier
                                 .width(3.dp)
-                                .height(32.dp)
-                                .background(chipColor, RoundedCornerShape(topStart = 12.dp, bottomStart = 12.dp)),
+                                .height(38.dp)
+                                .background(
+                                    colors.accent.copy(alpha = barAlpha),
+                                    RoundedCornerShape(topStart = 9.dp, bottomStart = 9.dp),
+                                ),
                         )
-                        Spacer(Modifier.width(14.dp))
                         Text(
                             prompt.text,
-                            fontSize = 14.sp,
+                            fontSize = 12.sp,
                             color = colors.textSecondary,
-                            modifier = Modifier.padding(vertical = 12.dp),
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
                         )
                     }
                 }
@@ -1239,110 +1236,124 @@ private fun QuickTasksPanel(
     monitorActive: Boolean,
     colors: PokeclawColors,
 ) {
-    val taskAccent = Color(0xFFE8751A)
     var expanded by remember { mutableStateOf(true) }
-    var showAll by remember { mutableStateOf(false) }
 
-    val quickTasks = listOf(
-        "🔋 How much battery left?",
-        "📶 What WiFi am I on?",
-        "🔔 Read my notifications",
-        "📞 Call someone",
+    // Cloud-only tasks at the top (multi-step, Siri/GA can't do these)
+    // Cloud-only tasks (multi-step, Siri can't do)
+    val cloudOnlyTasks = listOf(
+        "🦞 Open Reddit and search for pokeclaw",
+        "🎬 Search YouTube for funny cat fails",
+        "📦 Install Telegram from Play Store",
+        "🐦 Check what's trending on Twitter and tell me",
+        "💬 Check my latest WhatsApp chat and summarize it",
+        "📋 Copy the latest email subject and Google it",
+        "📧 Write an email saying I'll be late today",
+    )
+    // Reasoning tasks (1-2 tool calls + LLM analysis) — impressive, work on both
+    val reasoningTasks = listOf(
+        "📵 Check my notifications — anything important?",
+        "📋 Read my clipboard and explain what it says",
+        "🧹 Check my storage and apps — what can I delete?",
+        "🔔 Read my notifications and summarize",
+        "🔋 Check my battery and tell me if I need to charge",
+    )
+    // Simple deterministic tasks (1 tool, no reasoning)
+    val deterministicTasks = listOf(
         "💬 Send hi to Mom on WhatsApp",
-        "💾 How much storage do I have?",
-        "🌙 Turn on dark mode",
         "📱 What apps do I have?",
         "🌡️ How hot is my phone?",
         "🔵 Is bluetooth on?",
+        "🔋 How much battery left?",
+        "📞 Call Mom",
+        "💾 How much storage do I have?",
         "📲 What Android version am I running?",
-        "📸 Take a screenshot",
     )
+    // Cloud: cloud-only → reasoning → deterministic
+    // Local: reasoning first (impressive) → deterministic
+    val quickTasks = if (isLocalModel) {
+        reasoningTasks + deterministicTasks
+    } else {
+        cloudOnlyTasks + reasoningTasks + deterministicTasks
+    }
 
     Column(
         modifier = Modifier.background(colors.surface),
     ) {
-        HorizontalDivider(color = colors.divider, thickness = 0.5.dp)
+        HorizontalDivider(color = colors.divider, thickness = 1.dp)
 
         // Handle bar — ▲ Quick Tasks ▲
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable { expanded = !expanded }
-                .padding(vertical = 8.dp),
+                .padding(horizontal = 14.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
-                if (expanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp,
+                if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                 contentDescription = "Toggle",
                 tint = colors.accent,
-                modifier = Modifier.size(14.dp),
+                modifier = Modifier.size(12.dp),
             )
             Spacer(Modifier.width(6.dp))
             Text(
-                "Quick Tasks",
+                "Quick Task Templates",
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Medium,
                 color = colors.accent,
             )
             Spacer(Modifier.width(6.dp))
             Icon(
-                if (expanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp,
+                if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                 contentDescription = "Toggle",
                 tint = colors.accent,
-                modifier = Modifier.size(14.dp),
+                modifier = Modifier.size(12.dp),
             )
         }
 
         // Collapsible content
         if (expanded) {
+            // Quick task items — scrollable
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .heightIn(max = 280.dp)
+                    .verticalScroll(rememberScrollState())
                     .padding(horizontal = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(3.dp),
             ) {
-                val visibleTasks = if (showAll) quickTasks else quickTasks.take(5)
-                visibleTasks.forEach { task ->
+                quickTasks.forEach { task ->
                     Surface(
-                        onClick = { onFillTask(task.substringAfter(" ")) },
                         shape = RoundedCornerShape(9.dp),
                         color = colors.background,
                         border = androidx.compose.foundation.BorderStroke(0.5.dp, colors.inputBorder),
                     ) {
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onFillTask(task.substringAfter(" ")) },
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Box(
                                 modifier = Modifier
                                     .width(3.dp)
-                                    .height(30.dp)
-                                    .background(taskAccent, RoundedCornerShape(topStart = 9.dp, bottomStart = 9.dp)),
+                                    .height(38.dp)
+                                    .background(colors.accent, RoundedCornerShape(topStart = 9.dp, bottomStart = 9.dp)),
                             )
                             Text(
                                 task,
-                                fontSize = 11.sp,
+                                fontSize = 12.sp,
                                 color = colors.textSecondary,
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
                             )
                         }
                     }
                 }
+            }
 
-                // Show more / Show less
-                Text(
-                    if (showAll) "Show less" else "Show more",
-                    fontSize = 10.sp,
-                    color = colors.accent,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { showAll = !showAll }
-                        .padding(vertical = 5.dp),
-                )
-
-                // Background section
+            // Background section — always visible, NOT inside scroll
+            Column(modifier = Modifier.padding(horizontal = 12.dp)) {
                 Text(
                     "BACKGROUND",
                     fontSize = 9.sp,
@@ -1353,7 +1364,7 @@ private fun QuickTasksPanel(
                 )
 
                 // Monitor card
-                val monitorBorderColor = if (monitorActive) taskAccent else colors.inputBorder
+                val monitorBorderColor = if (monitorActive) colors.accent else colors.inputBorder
                 Surface(
                     onClick = onMonitorClick,
                     shape = RoundedCornerShape(10.dp),
@@ -1371,7 +1382,7 @@ private fun QuickTasksPanel(
                             modifier = Modifier
                                 .size(34.dp)
                                 .background(
-                                    taskAccent.copy(alpha = 0.12f),
+                                    colors.accent.copy(alpha = 0.12f),
                                     RoundedCornerShape(9.dp),
                                 ),
                             contentAlignment = Alignment.Center,
@@ -1396,7 +1407,7 @@ private fun QuickTasksPanel(
                     }
                 }
                 Spacer(Modifier.height(6.dp))
-            }
+            } // end Background Column
         }
     }
 }
@@ -1864,64 +1875,120 @@ private fun MonitorDialog(
     var contact by remember { mutableStateOf("") }
     var selectedApp by remember { mutableStateOf("WhatsApp") }
     var appMenuExpanded by remember { mutableStateOf(false) }
-    val apps = listOf("WhatsApp", "Telegram", "Messages")
+    var selectedTone by remember { mutableStateOf("Casual") }
+    val apps = listOf("WhatsApp", "LINE", "Telegram", "WeChat")
+    val tones = listOf("Casual", "Formal", "Funny")
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = colors.surface,
-        title = {
-            Text("Monitor Messages", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
-        },
-        text = {
-            Column {
-                Text("With a smarter LLM, you can just type:", fontSize = 11.sp, color = colors.textTertiary)
-                Spacer(Modifier.height(2.dp))
-                Text("\"monitor Mom on WhatsApp\"", fontSize = 11.sp, color = colors.accent.copy(alpha = 0.7f))
-                Spacer(Modifier.height(16.dp))
+    // Centered modal overlay
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.44f))
+            .clickable(
+                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                indication = null,
+            ) { onDismiss() },
+        contentAlignment = Alignment.Center,
+    ) {
+        // Centered card
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp)
+                .clickable(
+                    interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                    indication = null,
+                ) { /* block clicks from dismissing */ },
+            shape = RoundedCornerShape(16.dp),
+            color = colors.surface,
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                // Drag handle
+                Box(
+                    modifier = Modifier
+                        .width(32.dp)
+                        .height(3.dp)
+                        .align(Alignment.CenterHorizontally)
+                        .background(colors.textTertiary, RoundedCornerShape(2.dp)),
+                )
+                Spacer(Modifier.height(14.dp))
 
-                // Fill-in-the-blank: "Monitor [___] on [WhatsApp ▾]"
+                // Title
+                Text(
+                    "\uD83D\uDC41\uFE0F Monitor & Auto-Reply",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = colors.textPrimary,
+                )
+                Spacer(Modifier.height(12.dp))
+
+                // Contact row: label + input
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text("Monitor ", fontSize = 15.sp, color = colors.textPrimary)
-                    OutlinedTextField(
+                    Text(
+                        "Contact",
+                        fontSize = 11.sp,
+                        color = colors.textSecondary,
+                        modifier = Modifier.width(50.dp),
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    androidx.compose.foundation.text.BasicTextField(
                         value = contact,
                         onValueChange = { contact = it },
-                        placeholder = { Text("name", color = colors.textTertiary, fontSize = 14.sp) },
-                        modifier = Modifier.weight(1f).heightIn(min = 40.dp),
-                        shape = RoundedCornerShape(8.dp),
-                        singleLine = true,
-                        textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = colors.accent,
-                            unfocusedBorderColor = colors.inputBorder,
-                            cursorColor = colors.accent,
-                            focusedTextColor = colors.textPrimary,
-                            unfocusedTextColor = colors.textPrimary,
+                        modifier = Modifier.weight(1f),
+                        textStyle = androidx.compose.ui.text.TextStyle(
+                            fontSize = 12.sp,
+                            color = colors.textPrimary,
                         ),
+                        singleLine = true,
+                        decorationBox = { innerTextField ->
+                            Box(
+                                modifier = Modifier
+                                    .background(colors.background, RoundedCornerShape(8.dp))
+                                    .then(
+                                        Modifier.border(1.dp, colors.inputBorder, RoundedCornerShape(8.dp))
+                                    )
+                                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                            ) {
+                                if (contact.isEmpty()) {
+                                    Text("e.g. Mom, Girlfriend", fontSize = 12.sp, color = colors.textTertiary)
+                                }
+                                innerTextField()
+                            }
+                        },
                     )
                 }
                 Spacer(Modifier.height(8.dp))
+
+                // App row: label + dropdown
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text("on ", fontSize = 15.sp, color = colors.textPrimary)
+                    Text(
+                        "App",
+                        fontSize = 11.sp,
+                        color = colors.textSecondary,
+                        modifier = Modifier.width(50.dp),
+                    )
+                    Spacer(Modifier.width(8.dp))
                     Box {
                         Surface(
-                            onClick = { appMenuExpanded = true },
                             shape = RoundedCornerShape(8.dp),
-                            color = Color.Transparent,
+                            color = colors.background,
                             border = androidx.compose.foundation.BorderStroke(1.dp, colors.inputBorder),
                         ) {
                             Row(
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                                modifier = Modifier
+                                    .clickable { appMenuExpanded = true }
+                                    .padding(horizontal = 10.dp, vertical = 8.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
-                                Text(selectedApp, fontSize = 14.sp, color = colors.textPrimary)
+                                Text(selectedApp, fontSize = 12.sp, color = colors.textPrimary)
                                 Spacer(Modifier.width(4.dp))
-                                Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = colors.textTertiary, modifier = Modifier.size(18.dp))
+                                Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = colors.textTertiary, modifier = Modifier.size(14.dp))
                             }
                         }
                         DropdownMenu(
@@ -1930,31 +1997,71 @@ private fun MonitorDialog(
                         ) {
                             apps.forEach { app ->
                                 DropdownMenuItem(
-                                    text = { Text(app) },
+                                    text = { Text(app, fontSize = 12.sp) },
                                     onClick = { selectedApp = app; appMenuExpanded = false },
                                 )
                             }
                         }
                     }
                 }
+                Spacer(Modifier.height(8.dp))
+
+                // Tone row: label + pill chips
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        "Tone",
+                        fontSize = 11.sp,
+                        color = colors.textSecondary,
+                        modifier = Modifier.width(50.dp),
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        tones.forEach { tone ->
+                            val isOn = tone == selectedTone
+                            Surface(
+                                shape = RoundedCornerShape(14.dp),
+                                color = if (isOn) colors.userBubble.copy(alpha = 0.1f) else colors.background,
+                                border = androidx.compose.foundation.BorderStroke(
+                                    1.dp,
+                                    if (isOn) colors.userBubble else colors.inputBorder,
+                                ),
+                            ) {
+                                Text(
+                                    tone,
+                                    fontSize = 11.sp,
+                                    color = if (isOn) colors.accent else colors.textSecondary,
+                                    modifier = Modifier
+                                        .clickable { selectedTone = tone }
+                                        .padding(horizontal = 10.dp, vertical = 5.dp),
+                                )
+                            }
+                        }
+                    }
+                }
+                Spacer(Modifier.height(6.dp))
+
+                // Start Monitoring button
+                Surface(
+                    onClick = { if (contact.isNotBlank()) onStart(contact.trim()) },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp),
+                    color = colors.userBubble,
+                ) {
+                    Text(
+                        "Start Monitoring",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color.White,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(vertical = 11.dp),
+                    )
+                }
             }
-        },
-        confirmButton = {
-            Button(
-                onClick = { if (contact.isNotBlank()) onStart(contact.trim()) },
-                enabled = contact.isNotBlank(),
-                colors = ButtonDefaults.buttonColors(containerColor = colors.accent),
-                shape = RoundedCornerShape(10.dp),
-            ) {
-                Text("Start")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel", color = colors.textSecondary)
-            }
-        },
-    )
+        }
+    }
 }
 
 @Composable

@@ -437,19 +437,28 @@ class ComposeChatActivity : ComponentActivity() {
             XLog.i(TAG, "loadModelWithBackend: engine ready")
 
             // Retry createConversation with backoff — task conversation may still be closing
+            val convConfig = ConversationConfig(
+                systemInstruction = Contents.of("You are a helpful AI assistant on an Android phone."),
+                samplerConfig = SamplerConfig(topK = 64, topP = 0.95, temperature = 0.7)
+            )
             var created = false
             for (attempt in 1..5) {
                 try {
-                    conversation = engine!!.createConversation(
-                        ConversationConfig(
-                            systemInstruction = Contents.of("You are a helpful AI assistant on an Android phone."),
-                            samplerConfig = SamplerConfig(topK = 64, topP = 0.95, temperature = 0.7)
-                        )
-                    )
+                    conversation = engine!!.createConversation(convConfig)
                     created = true
                     break
                 } catch (e: Exception) {
                     XLog.w(TAG, "loadModelWithBackend: createConversation attempt $attempt failed: ${e.message}")
+                    if (attempt == 3) {
+                        // Force-reset engine to clear stale task agent conversation
+                        XLog.w(TAG, "loadModelWithBackend: resetting engine to clear stale conversations")
+                        try {
+                            EngineHolder.close()
+                            engine = EngineHolder.getOrCreate(modelPath, cacheDir.path, backend)
+                        } catch (resetErr: Exception) {
+                            XLog.e(TAG, "loadModelWithBackend: engine reset failed", resetErr)
+                        }
+                    }
                     if (attempt < 5) Thread.sleep(1500)
                 }
             }
@@ -491,14 +500,13 @@ class ComposeChatActivity : ComponentActivity() {
                     val usage = llmResponse.tokenUsage
                     val inputTokens = usage?.inputTokenCount() ?: (text.length / 4 + 1)
                     val outputTokens = usage?.outputTokenCount() ?: (responseText.length / 4 + 1)
+                    val modelTag = KVUtils.getLlmModelName()
                     runOnUiThread {
                         val idx = _messages.indexOfLast { it.role == ChatMessage.Role.ASSISTANT }
-                        if (idx >= 0) _messages[idx] = _messages[idx].copy(content = responseText)
+                        if (idx >= 0) _messages[idx] = _messages[idx].copy(content = responseText, modelName = modelTag)
                         _isProcessing.value = false
                         _sessionTokens.value += inputTokens + outputTokens
-                        _sessionCost.value += ModelPricing.estimateCost(
-                            KVUtils.getLlmModelName(), inputTokens, outputTokens
-                        )
+                        _sessionCost.value += ModelPricing.estimateCost(modelTag, inputTokens, outputTokens)
                         saveChat()
                     }
                 } else {
@@ -507,15 +515,47 @@ class ComposeChatActivity : ComponentActivity() {
                     val responseText = response?.toString() ?: "(no response)"
                     val inputTokensEst = text.length / 4 + 1
                     val outputTokensEst = responseText.length / 4 + 1
+                    val localModelTag = java.io.File(KVUtils.getLocalModelPath()).nameWithoutExtension
                     runOnUiThread {
                         val idx = _messages.indexOfLast { it.role == ChatMessage.Role.ASSISTANT }
-                        if (idx >= 0) _messages[idx] = _messages[idx].copy(content = responseText)
+                        if (idx >= 0) _messages[idx] = _messages[idx].copy(content = responseText, modelName = localModelTag)
                         _isProcessing.value = false
                         _sessionTokens.value += inputTokensEst + outputTokensEst
                         saveChat()
                     }
                 }
             } catch (e: Exception) {
+                // GPU→CPU fallback: if OpenCL/GPU fails during inference, reload with CPU and retry
+                if (conversation != null && (e.message?.contains("OpenCL") == true
+                        || e.message?.contains("GPU") == true
+                        || e.message?.contains("nativeSendMessage") == true)) {
+                    XLog.w(TAG, "GPU inference failed, falling back to CPU: ${e.message}")
+                    try {
+                        conversation?.close()
+                        conversation = null
+                        engine?.close()
+                        engine = null
+                        val modelPath = KVUtils.getLocalModelPath()
+                        loadModelWithBackend(modelPath, com.google.ai.edge.litertlm.Backend.CPU())
+                        XLog.i(TAG, "CPU fallback engine ready, retrying sendMessage")
+                        val response = conversation!!.sendMessage(text)
+                        val responseText = response?.toString() ?: "(no response)"
+                        val inputTokensEst = text.length / 4 + 1
+                        val outputTokensEst = responseText.length / 4 + 1
+                        val cpuModelTag = java.io.File(KVUtils.getLocalModelPath()).nameWithoutExtension + " (CPU)"
+                        runOnUiThread {
+                            val idx = _messages.indexOfLast { it.role == ChatMessage.Role.ASSISTANT }
+                            if (idx >= 0) _messages[idx] = _messages[idx].copy(content = responseText, modelName = cpuModelTag)
+                            _isProcessing.value = false
+                            _sessionTokens.value += inputTokensEst + outputTokensEst
+                            _modelStatus.value = _modelStatus.value.replace("GPU", "CPU")
+                            saveChat()
+                        }
+                        return@submit
+                    } catch (cpuError: Exception) {
+                        XLog.e(TAG, "CPU fallback also failed", cpuError)
+                    }
+                }
                 XLog.e(TAG, "Chat error", e)
                 runOnUiThread {
                     val idx = _messages.indexOfLast { it.role == ChatMessage.Role.ASSISTANT }
@@ -655,11 +695,12 @@ class ComposeChatActivity : ComponentActivity() {
 
     /** Replace "..." typing indicator with actual text, or add new message. */
     private fun replaceTypingIndicator(text: String) {
+        val activeModel = _modelStatus.value.removePrefix("● ").split(" ·").firstOrNull()?.trim() ?: ""
         val idx = _messages.indexOfLast { it.role == ChatMessage.Role.ASSISTANT && it.content == "..." }
         if (idx >= 0) {
-            _messages[idx] = ChatMessage(ChatMessage.Role.ASSISTANT, text)
+            _messages[idx] = ChatMessage(ChatMessage.Role.ASSISTANT, text, modelName = activeModel)
         } else {
-            _messages.add(ChatMessage(ChatMessage.Role.ASSISTANT, text))
+            _messages.add(ChatMessage(ChatMessage.Role.ASSISTANT, text, modelName = activeModel))
         }
     }
 

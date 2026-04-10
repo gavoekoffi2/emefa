@@ -109,6 +109,7 @@ class DefaultAgentService : AgentService {
     private var executor: ExecutorService? = null
     private val running = AtomicBoolean(false)
     private val cancelled = AtomicBoolean(false)
+    private var taskFuture: java.util.concurrent.Future<*>? = null
 
     override fun initialize(config: AgentConfig) {
         this.config = config
@@ -146,12 +147,17 @@ class DefaultAgentService : AgentService {
         running.set(true)
         cancelled.set(false)
 
-        executor?.submit {
+        taskFuture = executor?.submit {
             try {
                 runAgentLoop(userPrompt, callback)
             } catch (e: Exception) {
-                XLog.e(TAG, "Agent execution error", e)
-                callback.onError(0, e, 0)
+                if (cancelled.get()) {
+                    XLog.i(TAG, "Agent task cancelled (interrupted)")
+                    callback.onComplete(0, ClawApplication.instance.getString(R.string.agent_task_cancel), 0)
+                } else {
+                    XLog.e(TAG, "Agent execution error", e)
+                    callback.onError(0, e, 0)
+                }
             } finally {
                 // Close local engine BEFORE clearing running flag so the chat engine
                 // reload (triggered by onComplete/onError) never overlaps with task engine.
@@ -690,6 +696,9 @@ class DefaultAgentService : AgentService {
 
     override fun cancel() {
         cancelled.set(true)
+        // Interrupt the thread to abort HTTP calls / LLM inference immediately
+        taskFuture?.cancel(true)
+        XLog.i(TAG, "cancel: flag set + thread interrupted")
     }
 
     override fun shutdown() {
