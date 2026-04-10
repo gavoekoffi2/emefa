@@ -260,6 +260,19 @@
       color: var(--text-secondary); background: var(--surface1); text-align: center;
     }
 
+    /* ─── INTERACTIVE DEMO ─── */
+    .demo-interactive-section { background: var(--surface1); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+    .demo-interactive-wrap {
+      display: flex; justify-content: center; align-items: center;
+    }
+    .demo-iframe {
+      width: 440px; height: 920px; border: none; border-radius: 16px;
+      background: #080808; overflow: hidden;
+    }
+    @media (max-width: 767px) {
+      .demo-iframe { width: 100%; height: 80vh; border-radius: 8px; }
+    }
+
     /* ─── TESTIMONIALS ─── */
     .testimonials-section { background: var(--surface1); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
     .testimonials-grid {
@@ -546,31 +559,16 @@
     </div>
   </section>
 
-  <!-- ─── SCREENSHOTS ─── -->
-  <section class="screenshots-section">
-    <div class="screenshots-inner">
-      <div class="section-header">
-        <h2>Inside the App</h2>
-      </div>
-      <div class="screenshots-scroll">
-        <a href="screenshots/chat.png" class="screenshot-card" target="_blank" rel="noopener">
-          <img src="screenshots/chat.png" alt="PokeClaw chat interface showing on-device AI conversation" loading="lazy" />
-          <div class="screenshot-caption">Chat</div>
-        </a>
-        <a href="screenshots/task.png" class="screenshot-card" target="_blank" rel="noopener">
-          <img src="screenshots/task.png" alt="PokeClaw task queue with automation workflows" loading="lazy" />
-          <div class="screenshot-caption">Task Queue</div>
-        </a>
-        <a href="screenshots/settings.png" class="screenshot-card" target="_blank" rel="noopener">
-          <img src="screenshots/settings.png" alt="PokeClaw settings with model and API configuration" loading="lazy" />
-          <div class="screenshot-caption">Settings</div>
-        </a>
-        <a href="screenshots/model.png" class="screenshot-card" target="_blank" rel="noopener">
-          <img src="screenshots/model.png" alt="PokeClaw model manager for downloading Gemma 4" loading="lazy" />
-          <div class="screenshot-caption">Model Manager</div>
-        </a>
-      </div>
+  <!-- ─── INTERACTIVE DEMO ─── -->
+  <section class="demo-interactive-section">
+    <div class="section-header">
+      <h2>Try the App — No Download Needed</h2>
+      <p>Click through the real UI. This is what PokeClaw looks like on your phone.</p>
     </div>
+    <div class="demo-interactive-wrap">
+      <iframe src="demo.html" class="demo-iframe" title="PokeClaw interactive UI demo" loading="lazy" sandbox="allow-scripts"></iframe>
+    </div>
+    <p style="text-align:center;margin-top:16px;font-size:13px;color:var(--text-muted);">Use the navigation tabs above the phone to switch between screens</p>
   </section>
 
   <!-- ─── TESTIMONIALS ─── -->
