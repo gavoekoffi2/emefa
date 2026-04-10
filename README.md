@@ -6,7 +6,19 @@
   <img src="option.png" width="600" />
 </p>
 
-# PokeClaw (PocketClaw) - A Pocket Version Inspired By OpenClaw
+<p align="center">
+  <a href="https://github.com/agents-io/PokeClaw/stargazers"><img src="https://img.shields.io/github/stars/agents-io/PokeClaw?style=social" alt="Stars" /></a>
+  <a href="https://github.com/agents-io/PokeClaw/network/members"><img src="https://img.shields.io/github/forks/agents-io/PokeClaw?style=social" alt="Forks" /></a>
+  <img src="https://img.shields.io/badge/Android-9%2B-3DDC84?logo=android&logoColor=white" alt="Android 9+" />
+  <img src="https://img.shields.io/badge/license-Apache%202.0-blue" alt="License" />
+  <a href="https://github.com/agents-io/PokeClaw/releases/latest"><img src="https://img.shields.io/github/v/release/agents-io/PokeClaw" alt="Latest Release" /></a>
+</p>
+
+<p align="center">
+  🌐 <a href="https://agents-io.github.io/PokeClaw/">Landing Page</a> — available in English · हिन्दी · 日本語 · Deutsch · 繁中
+</p>
+
+# PokeClaw — A Pocket Version Inspired By OpenClaw
 
 PokeClaw turns an Android phone into an AI-operated device.
 
@@ -157,8 +169,6 @@ Both are designed to be extensible. We're building the first 8-10 skills as buil
 
 As on-device models get smarter, more of this can become free-form. Right now, skills are how we get reliable automation out of a small local model while keeping the tool layer generic.
 
-🌐 **Landing Page:** https://agents-io.github.io/PokeClaw/
-
 ## Download
 
 [**Download APK**](https://github.com/agents-io/PokeClaw/releases/latest)
@@ -247,6 +257,9 @@ Every star helps more people find the project. Every issue helps shape the next 
 - **The updater now covers more real-world installs.** From v0.5.0 onward, accidental debug-build users also get the once-per-day GitHub release check, and the dialog warns when Android may require uninstalling an old debug build before installing the new APK.
 - **Verified release-upgrade behavior.** Older public `0.4.0` builds do show the `v0.5.0` in-app update prompt, but upgrading from the old public debug signing path to the new public APK is a one-time uninstall + reinstall instead of an in-place replace.
 
+<details>
+<summary>Older versions (v0.1.0 — v0.4.1)</summary>
+
 ### v0.4.1 (2026-04-08)
 - **Experimental task badge.** Task tab now shows `Experimental — more workflows coming soon`.
 - **12 new complex task QA cases.** Added broader Cloud task coverage for YouTube search, contextual messaging, screen reading, settings toggles, app installs, web search, email compose, camera flows, typo tolerance, and ambiguous requests.
@@ -254,7 +267,6 @@ Every star helps more people find the project. Every issue helps shape the next 
 ### v0.3.2 (2026-04-07)
 - **Security fix.** Debug task receivers now disabled in release builds. External apps can no longer trigger tasks via broadcast.
 - **Security fix.** The LAN config server was binding to all network interfaces, exposing API keys to anyone on the same WiFi. Now binds to localhost only.
-
 
 ### v0.3.0 (2026-04-07)
 - **Cloud LLM support.** Chat and task modes now work with OpenAI, Anthropic, Google, and any OpenAI-compatible API. Switch providers with one tap in the new tabbed LLM Config screen.
@@ -281,6 +293,8 @@ Every star helps more people find the project. Every issue helps shape the next 
 
 ### v0.1.0 (2026-04-06)
 - Initial release. On-device Gemma 4 E2B with tool calling, accessibility-based phone control, auto-reply, task mode.
+
+</details>
 
 ## Acknowledgments
 
