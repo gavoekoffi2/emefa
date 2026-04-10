@@ -786,6 +786,7 @@ Format: `[date] [status] [test-id] description`
 [2026-04-10] [PASS]    LQ1-LQ5  Local reasoning quick-task sweep on Pixel 8 Pro: notifications triage, clipboard explain, storage analysis, notification summary, and battery advice all completed on-device via LiteRT CPU fallback with correct tool routing and no crashes/loops
 [2026-04-10] [PASS]    LQ7-LQ10/LQ12/LQ13  Local deterministic quick-task sweep: installed apps, phone temperature, bluetooth state, battery, storage, and Android version all returned correct device data through `get_installed_apps` / `get_device_info`, with no stale-session or routing regressions
 [2026-04-10] [PASS]    LQ6/LQ11  Contact-specific local quick tasks still route the correct tools (`send_message`, `make_call`) and fail gracefully when `Mom` does not exist on this device; treat literal send/call success as env-blocked coverage, not a product failure
+[2026-04-10] [PASS]    P3-7/P3-8/Q4-1  Local UI quick-task E2E: tap visible `Check my battery and tell me if I need to charge` card → input prefilled → Local task send routes through `provider=LOCAL / gemma4-e2b` → `get_device_info(category=battery)` → response bubble `The battery is at 100% and is charging. You do not need to charge.` appears with local model tag `Gemma 4 E2B — 2.6GB`; input resets to task placeholder `Describe a phone task...`
 ```
 
 ### Bugs Found During v9 QA
