@@ -40,8 +40,8 @@ class ComposeChatActivity : ComponentActivity() {
         private const val TAG = "ComposeChatActivity"
     }
 
-    private var conversationId = "chat_${System.currentTimeMillis()}"
     private val executor = Executors.newSingleThreadExecutor()
+    private val conversationStore by lazy { ConversationStore(this) }
 
     // Compose state — observed by ChatScreen
     private val _messages = mutableStateListOf<ChatMessage>()
@@ -72,7 +72,7 @@ class ComposeChatActivity : ComponentActivity() {
                 sessionCost = _sessionCost,
             ),
             onPersistConversation = { saveChat() },
-            onRefreshSidebarHistory = { loadSidebarHistory() }
+            onRefreshSidebarHistory = { refreshSidebarHistory() }
         )
     }
 
@@ -150,14 +150,14 @@ class ComposeChatActivity : ComponentActivity() {
                 conversations = _conversations.toList(),
                 onSelectConversation = { loadConversation(it) },
                 onDeleteConversation = { conv ->
-                    val deleted = ChatHistoryManager.delete(conv.file)
+                    val deleted = conversationStore.deleteConversation(conv)
                     XLog.i(TAG, "Delete conversation: ${conv.file.absolutePath} deleted=$deleted")
-                    loadSidebarHistory()
+                    refreshSidebarHistory()
                 },
                 onRenameConversation = { conv, newName ->
-                    val renamed = ChatHistoryManager.rename(conv.file, newName)
+                    val renamed = conversationStore.renameConversation(conv, newName)
                     XLog.i(TAG, "Rename conversation: '${conv.title}' → '$newName' renamed=$renamed")
-                    loadSidebarHistory()
+                    refreshSidebarHistory()
                 },
                 activeTasks = activeTasks,
                 onStopTask = { contact ->
@@ -192,21 +192,18 @@ class ComposeChatActivity : ComponentActivity() {
             )
         }
 
-        loadSidebarHistory()
+        refreshSidebarHistory()
 
         // Restore last conversation if Activity was recreated (e.g., system killed it during a task)
         if (_messages.isEmpty()) {
-            val savedConvId = KVUtils.getString("CURRENT_CONVERSATION_ID", "")
-            if (savedConvId.isNotEmpty()) {
-                val convos = ChatHistoryManager.listConversations(this)
-                val match = convos.firstOrNull { it.id == savedConvId }
-                if (match != null) {
-                    conversationId = savedConvId
-                    val restored = ChatHistoryManager.load(match.file)
-                    if (restored.isNotEmpty()) {
-                        _messages.addAll(restored)
-                        XLog.i(TAG, "Restored ${restored.size} messages from conversation $savedConvId")
-                    }
+            conversationStore.restoreLastConversation()?.let { restored ->
+                syncSidebar(restored.conversations)
+                if (restored.messages.isNotEmpty()) {
+                    _messages.addAll(restored.messages)
+                    XLog.i(
+                        TAG,
+                        "Restored ${restored.messages.size} messages from conversation ${restored.conversationId}"
+                    )
                 }
             }
         }
@@ -261,7 +258,7 @@ class ComposeChatActivity : ComponentActivity() {
         super.onResume()
         _needsPermission.value =
             AppCapabilityCoordinator.accessibilityState(this) != ServiceBindingState.READY
-        loadSidebarHistory()
+        refreshSidebarHistory()
         permHandler.removeCallbacks(permPoller)
         permHandler.postDelayed(permPoller, 1000)
         chatSessionController.onResume()
@@ -271,7 +268,7 @@ class ComposeChatActivity : ComponentActivity() {
         super.onPause()
         saveChat()
         permHandler.removeCallbacks(permPoller)
-        chatSessionController.onPause(conversationId)
+        chatSessionController.onPause(conversationStore.currentConversationId)
     }
 
     override fun onDestroy() {
@@ -481,8 +478,8 @@ class ComposeChatActivity : ComponentActivity() {
     }
 
     private fun newChat() {
-        saveChat()
-        conversationId = "chat_${System.currentTimeMillis()}"
+        val session = conversationStore.startNewConversation(_messages, currentConversationModelName())
+        syncSidebar(session.conversations)
         _messages.clear()
         _sessionTokens.value = 0
         _sessionCost.value = 0.0
@@ -490,12 +487,11 @@ class ComposeChatActivity : ComponentActivity() {
     }
 
     private fun loadConversation(conv: ChatHistoryManager.ConversationSummary) {
-        saveChat()
-        conversationId = conv.id
+        val session = conversationStore.openConversation(conv, _messages, currentConversationModelName())
+        syncSidebar(session.conversations)
         _messages.clear()
-        val messages = ChatHistoryManager.load(conv.file)
-        _messages.addAll(messages)
-        chatSessionController.restoreConversationRuntime(conv.id, messages)
+        _messages.addAll(session.messages)
+        chatSessionController.restoreConversationRuntime(session.conversationId, session.messages)
     }
 
     // ==================== MONITOR (Java routing, no LLM) ====================
@@ -589,16 +585,19 @@ class ComposeChatActivity : ComponentActivity() {
     private fun addSystem(text: String) { _messages.add(ChatMessage(ChatMessage.Role.SYSTEM, text)) }
 
     private fun saveChat() {
-        val modelName = KVUtils.getLocalModelPath().substringAfterLast('/').substringBeforeLast('.')
-        ChatHistoryManager.save(this, conversationId, _messages, modelName)
-        // Persist current conversation ID so we can restore on Activity recreation
-        KVUtils.putString("CURRENT_CONVERSATION_ID", conversationId)
-        loadSidebarHistory()
+        syncSidebar(conversationStore.saveCurrent(_messages, currentConversationModelName()))
     }
 
-    private fun loadSidebarHistory() {
-        val convos = ChatHistoryManager.listConversations(this)
+    private fun refreshSidebarHistory() {
+        syncSidebar(conversationStore.refreshSidebar())
+    }
+
+    private fun syncSidebar(convos: List<ChatHistoryManager.ConversationSummary>) {
         _conversations.clear()
         _conversations.addAll(convos)
+    }
+
+    private fun currentConversationModelName(): String {
+        return KVUtils.getLocalModelPath().substringAfterLast('/').substringBeforeLast('.')
     }
 }

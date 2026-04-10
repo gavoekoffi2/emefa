@@ -251,6 +251,9 @@ This checklist is **not** yet a fully rerun 100% green master sheet. The honest 
     - User bubbles render a subtle IG-style time footer under the bubble
     - Assistant bubbles render `model name · time` under the bubble
     - Saved markdown history persists per-message timestamps via hidden metadata comments
+  - ConversationStore smoke:
+    - cold relaunch still restores the same saved conversation instead of falling back to a blank chat shell
+    - sidebar refresh, save, and restore now come through a single boundary instead of ad-hoc `KVUtils + ChatHistoryManager` calls in `ComposeChatActivity`
 - **Covered, but still environment-sensitive**
   - WhatsApp send flows
   - Local contact-specific send/call flows
@@ -932,6 +935,7 @@ Format: `[date] [status] [test-id] description`
 [2026-04-10] [PASS]    Phase4-r2/Q3-1/Q5-1/Q5-1b  Local UI send smoke after runtime consolidation: typed `say pong`, tapped the live send-button bounds, and received assistant reply `Pong! 🏓`; both top status and assistant bubble tag remained `gemma4_2b_v09_obfus_fix_all_modalities_thinking (CPU)`
 [2026-04-10] [PASS]    P7-1/P7-2  Chat bubble metadata smoke: after relaunching `ComposeChatActivity`, user bubbles render a subtle time footer (`5:57 p.m.`) and assistant bubbles render `gemma4_2b_v09_obfus_fix_all_modalities_thinking (CPU) · 5:57 p.m.` under the reply bubble
 [2026-04-10] [PASS]    P7-3/Q7-7  Saved chat history now persists per-message timestamps in markdown via hidden `<!-- pokeclaw:timestamp=... -->` comments, so reloaded conversations keep stable bubble times instead of resetting to the current clock
+[2026-04-10] [PASS]    Phase1b-r1/Q7-7  After `ConversationStore` extraction, cold relaunch still restored `chat_1775851530681` with 9 saved messages; logcat showed `Restored 9 messages from conversation chat_1775851530681`, and the foreground UI still showed the existing `ay pong` / `Hello! How can I help you today?` conversation instead of a blank new chat
 [2026-04-10] [NOTE]    QA-wf-r2  Device-state guard for Compose UI smoke: if notification shade or another app steals foreground, collapse/foreground PokeClaw again before judging the refactor; if IME moves the input bar, re-dump live bounds instead of reusing stale tap coordinates
 ```
 

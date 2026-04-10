@@ -202,6 +202,55 @@ Introduce a `TaskSessionStore` or equivalent state holder that owns:
 - Stop request still safely unwinds and returns to idle shell on `ComposeChatActivity`
 - Fresh reinstall testing needs Accessibility + `POST_NOTIFICATIONS` restored first, or the smoke gets polluted by permission prompts instead of task-session logic
 
+## Phase 1b — Conversation Persistence Boundary
+
+### Status
+
+- Landed on `main`
+- Current landing scope: `ConversationStore` now owns current conversation identity, markdown save/restore, and sidebar refresh flow instead of leaving `ComposeChatActivity` to stitch together `KVUtils + ChatHistoryManager` directly
+
+### Goal
+
+Pull conversation persistence glue out of the Activity so chat UI work stops being coupled to file/KV details.
+
+### New boundary
+
+`ConversationStore` owns:
+
+- current conversation id
+- restore-last-conversation lookup
+- save-current-conversation persistence
+- switch-conversation persistence handoff
+- sidebar conversation summary refresh
+- rename/delete wrappers over markdown history
+
+### Keep in `ComposeChatActivity`
+
+- message list state
+- lifecycle hooks
+- chat/task UI bindings
+- controller wiring
+- task-specific side effects
+
+### Must Preserve
+
+- same current-conversation restore behavior after relaunch
+- same sidebar contents and ordering
+- same new-chat semantics
+- same visible chat history contents
+
+### Mandatory QA bundle
+
+- `P7-1`, `P7-2`, `P7-3`
+- `Q7-7`
+- one cold relaunch restore smoke
+
+### Early smoke evidence
+
+- Cold relaunch still restored `chat_1775851530681` with 9 saved messages
+- logcat confirmed `Restored 9 messages from conversation chat_1775851530681`
+- foreground UI still showed the existing `ay pong` / `Hello! How can I help you today?` conversation instead of a blank shell
+
 ## Phase 3 — Permission / Accessibility Coordinator
 
 ### Status
