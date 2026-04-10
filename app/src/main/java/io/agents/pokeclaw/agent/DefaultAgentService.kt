@@ -442,6 +442,7 @@ class DefaultAgentService : AgentService {
         }
 
         val inAppSearchGuard = InAppSearchGuard.fromTask(userPrompt)
+        val emailComposeGuard = EmailComposeGuard.fromTask(userPrompt)
 
         // For local LLM, inject matching playbook into system prompt
         val playbookSection = if (config.provider == LlmProvider.LOCAL) {
@@ -456,6 +457,7 @@ class DefaultAgentService : AgentService {
             append(basePrompt)
             append(playbookSection)
             append(inAppSearchGuard.buildPromptSection())
+            append(emailComposeGuard.buildPromptSection())
             append(buildDeviceContext())
         }
 
@@ -592,7 +594,9 @@ class DefaultAgentService : AgentService {
             // Push thinking content in non-streaming mode
             if (!config.streaming && !llmResponse.text.isNullOrEmpty()) {
                 val suppressHallucinatedCompletion =
-                    !llmResponse.hasToolExecutionRequests() && inAppSearchGuard.shouldBlockTextOnlyCompletion()
+                    !llmResponse.hasToolExecutionRequests() &&
+                        (inAppSearchGuard.shouldBlockTextOnlyCompletion() ||
+                            emailComposeGuard.shouldBlockTextOnlyCompletion())
                 if (!suppressHallucinatedCompletion) {
                     callback.onContent(iterations, llmResponse.text)
                 }
@@ -606,6 +610,12 @@ class DefaultAgentService : AgentService {
                     if (inAppSearchGuard.shouldBlockTextOnlyCompletion()) {
                         val correction = inAppSearchGuard.buildCompletionCorrection()
                         XLog.i(TAG, "InAppSearchGuard blocked text-only completion for '$userPrompt'")
+                        messages.add(UserMessage.from(correction))
+                        continue
+                    }
+                    if (emailComposeGuard.shouldBlockTextOnlyCompletion()) {
+                        val correction = emailComposeGuard.buildCompletionCorrection()
+                        XLog.i(TAG, "EmailComposeGuard blocked text-only completion for '$userPrompt'")
                         messages.add(UserMessage.from(correction))
                         continue
                     }
@@ -654,10 +664,11 @@ class DefaultAgentService : AgentService {
                         null
                     }
                     inAppSearchGuard.maybeBlockFinish(screenInfo)
+                        ?: emailComposeGuard.maybeBlockFinish(screenInfo)
                 } else null
                 if (blockedFinish != null) {
                     val blockedResult = ToolResult.error(blockedFinish)
-                    XLog.i(TAG, "InAppSearchGuard blocked premature finish for '$userPrompt'")
+                    XLog.i(TAG, "Task guard blocked premature finish for '$userPrompt'")
                     callback.onToolCall(iterations, toolName, displayName, toolArgs)
                     callback.onToolResult(iterations, toolName, displayName, params.toString(), blockedResult)
                     messages.add(ToolExecutionResultMessage.from(toolRequest, GSON.toJson(blockedResult)))
@@ -666,12 +677,14 @@ class DefaultAgentService : AgentService {
                 }
 
                 callback.onToolCall(iterations, toolName, displayName, toolArgs)
+                emailComposeGuard.recordToolAttempt(toolName)
 
                 val result = ToolRegistry.getInstance().executeTool(toolName, params)
                 val paramsString = if (params.isEmpty()) "" else params.toString()
                 callback.onToolResult(iterations, toolName, displayName, paramsString, result)
                 if (result.isSuccess) {
                     inAppSearchGuard.recordSuccessfulTool(toolName, params)
+                    emailComposeGuard.recordSuccessfulTool(toolName)
                 }
 
                 // System dialog blocking detected → notify user and stop task

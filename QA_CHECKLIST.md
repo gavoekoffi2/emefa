@@ -392,7 +392,7 @@ Design principle: User perspective. INFO tasks → report actual data. ACTION ta
 - [ ] **S5. "Copy latest email subject and Google it"**: notifications → clipboard → Chrome → search (M33)
 - [ ] **S6. "Check latest WhatsApp chat and summarize"**: opens WhatsApp → reads top chat → reports (M11)
 - [ ] **S7. "Open Reddit and search for pokeclaw"**: opens Reddit → types search → results (M51 verified)
-- [ ] **S8. "Write an email saying I'll be late"**: opens Gmail → fills To/Subject/Body (M19/M8 verified)
+- [ ] **S8. "Write an email saying I'll be late"**: opens Gmail → compose draft ready with Subject/Body filled; recipient stays blank unless the task names one; does NOT send (M8/M19 verified)
 
 ## P. UI — v9 Design Verification
 
@@ -697,7 +697,7 @@ Format: `[date] [status] [test-id] description`
 | M1-a | ~~YouTube search: LLM skips input_text~~ | Fixed 2026-04-10: generic in-app search guard now blocks premature completion on explicit `search [app] for [query]` / `search for [query] on [app]` tasks until the agent actually calls `input_text`, then inspects results before finishing | Fixed |
 | M3-a | ~~Screen reading routed as chat~~ | ~~FIXED: added "check", "screen", "notification", "compose", "find", "read my" to task detection~~ | ~~High~~ |
 | M4-a | ~~Compound tasks truncated by Tier 1~~ | ~~FIXED: PipelineRouter skips Tier 1 for tasks with "and"/"then"/"after"~~ | ~~High~~ |
-| M8-a | Gmail compose loops | Agent repeats compose flow, hits budget limit (104K tokens) | Medium |
+| M8-a | ~~Gmail compose loops~~ | Fixed 2026-04-10: explicit email-compose tasks now use a generic compose guard, so task mode no longer short-circuits into draft text or loops; it opens an email app, fills the draft fields, and finishes only after in-app compose work has started | Fixed |
 | M12-a | YouTube Music system dialog | Login/premium dialog blocks music playback task | Low |
 
 ### 2026-04-09 — v9 UI Redesign QA
@@ -783,6 +783,9 @@ Format: `[date] [status] [test-id] description`
 [2026-04-10] [PASS]    M8/M1-a  Cloud task `search youtube for lofi beats` → `open_app` → `input_text(node_id=...)` succeeds → `system_key(enter)` → `get_screen_info` → `finish`; completes in 6 rounds / 46.7K tokens, no budget stop, auto-return restores `ComposeChatActivity`
 [2026-04-10] [PASS]    M8-alt/M1-a  Alternate phrasing `search for lofi beats on youtube` follows the same generic path (`open_app` → `input_text(node_id=...)` → `system_key` → `get_screen_info` → `finish`) and also completes in 6 rounds / 47.5K tokens
 [2026-04-10] [PASS]    M1-control  Non-search control task `how much battery left` remains unaffected by the search guard: `get_device_info(category=battery)` → `finish`; completes in 2 rounds / 10.4K tokens with no `InAppSearchGuard` activity
+[2026-04-10] [FIXED]   M8-a  Explicit email-compose tasks now use a generic `EmailComposeGuard`: the agent can no longer satisfy task-mode email requests with text-only draft output before attempting any in-app compose actions
+[2026-04-10] [PASS]    M8/S8  Cloud task `Write an email saying I will be late today` → `get_installed_apps(mail)` → `open_app(com.google.android.gm)` → `tap_node` compose → `input_text` subject `Running late today` → `input_text` body → `get_screen_info` → `finish`; completes in 8 rounds / 52.2K tokens, auto-returns to `ComposeChatActivity`, and correctly leaves recipient blank because none was provided
+[2026-04-10] [PASS]    M8-control  Control task `how much battery left` remains unaffected by `EmailComposeGuard`: `get_device_info(category=battery)` → `finish`; completes in 2 rounds / 10.4K tokens with no compose-specific interference
 [2026-04-10] [PASS]    LQ1-LQ5  Local reasoning quick-task sweep on Pixel 8 Pro: notifications triage, clipboard explain, storage analysis, notification summary, and battery advice all completed on-device via LiteRT CPU fallback with correct tool routing and no crashes/loops
 [2026-04-10] [PASS]    LQ7-LQ10/LQ12/LQ13  Local deterministic quick-task sweep: installed apps, phone temperature, bluetooth state, battery, storage, and Android version all returned correct device data through `get_installed_apps` / `get_device_info`, with no stale-session or routing regressions
 [2026-04-10] [PASS]    LQ6/LQ11  Contact-specific local quick tasks still route the correct tools (`send_message`, `make_call`) and fail gracefully when `Mom` does not exist on this device; treat literal send/call success as env-blocked coverage, not a product failure
