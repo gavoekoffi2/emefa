@@ -110,6 +110,11 @@ Before broad refactors, freeze the test rules.
 
 ## Phase 1 — Chat Runtime Extraction
 
+### Status
+
+- Landed on `main` as `fc788d9`
+- Compile-gated and device-smoked on Pixel 8 Pro
+
 ### Goal
 
 Slim `ComposeChatActivity` down so it stops directly owning every runtime concern.
@@ -146,6 +151,11 @@ Extract a `ChatSessionController` that owns:
 - `LQ1-LQ13`
 
 ## Phase 2 — Task Session Store
+
+### Status
+
+- In progress on `main`
+- Current landing scope: add `TaskSessionStore` and rewire `TaskOrchestrator` / `AppViewModel` / `ChannelSetup` to use it as task-session truth
 
 ### Goal
 
@@ -184,6 +194,13 @@ Introduce a `TaskSessionStore` or equivalent state holder that owns:
 - `L1`, `L3`
 - `Q7-*`
 - `S2`, `S3`, `S5`, `S7`, `S8`
+
+### Early smoke evidence
+
+- Local quick-task fill still reaches task-mode input correctly
+- Task shell still enters `Task running...` + `Stop`
+- Stop request still safely unwinds and returns to idle shell on `ComposeChatActivity`
+- Fresh reinstall testing needs Accessibility + `POST_NOTIFICATIONS` restored first, or the smoke gets polluted by permission prompts instead of task-session logic
 
 ## Phase 3 — Permission / Accessibility Coordinator
 

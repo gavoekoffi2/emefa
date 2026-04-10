@@ -38,14 +38,12 @@ class TaskOrchestrator(
     private lateinit var agentService: AgentService
     private val pipelineRouter = PipelineRouter(ClawApplication.instance)
     private val skillExecutor = SkillExecutor()
+    val taskSessionStore = TaskSessionStore()
 
-    private val taskLock = Any()
-    @Volatile
-    var inProgressTaskMessageId: String = ""
-        private set
-    @Volatile
-    var inProgressTaskChannel: Channel? = null
-        private set
+    val inProgressTaskMessageId: String
+        get() = taskSessionStore.snapshot().messageId
+    val inProgressTaskChannel: Channel?
+        get() = taskSessionStore.snapshot().channel
 
     // ==================== Agent Lifecycle ====================
 
@@ -79,35 +77,22 @@ class TaskOrchestrator(
 
     // ==================== Task Lock ====================
 
-    fun tryAcquireTask(messageId: String, channel: Channel): Boolean {
-        synchronized(taskLock) {
-            if (inProgressTaskMessageId.isNotEmpty()) return false
-            inProgressTaskMessageId = messageId
-            inProgressTaskChannel = channel
-            return true
-        }
+    fun tryAcquireTask(messageId: String, channel: Channel, taskText: String = ""): Boolean {
+        return taskSessionStore.tryAcquire(
+            messageId = messageId,
+            channel = channel,
+            taskText = taskText,
+        )
     }
 
-    private fun releaseTask(): Pair<Channel?, String> {
-        synchronized(taskLock) {
-            val ch = inProgressTaskChannel
-            val id = inProgressTaskMessageId
-            inProgressTaskMessageId = ""
-            inProgressTaskChannel = null
-            return ch to id
-        }
-    }
+    private fun releaseTask(): TaskSessionState = taskSessionStore.release()
 
-    fun isTaskRunning(): Boolean {
-        synchronized(taskLock) {
-            return inProgressTaskMessageId.isNotEmpty()
-        }
-    }
+    fun isTaskRunning(): Boolean = taskSessionStore.isTaskRunning()
 
     // ==================== Task Execution ====================
 
     fun cancelCurrentTask() {
-        if (!isTaskRunning()) return
+        if (!taskSessionStore.markStopping()) return
         if (::agentService.isInitialized) {
             agentService.cancel()
         }
@@ -121,10 +106,15 @@ class TaskOrchestrator(
     fun startNewTask(channel: Channel, task: String, messageID: String, isFallback: Boolean = false) {
         // Acquire task lock if not already held
         if (!isTaskRunning()) {
-            if (!tryAcquireTask(messageID, channel)) {
+            if (!tryAcquireTask(messageID, channel, task)) {
                 XLog.w(TAG, "Failed to acquire task lock for: $task")
                 taskEventCallback?.invoke(TaskEvent.Failed("Another task is running"))
                 return
+            }
+        } else {
+            val current = taskSessionStore.snapshot()
+            if (current.messageId == messageID && current.channel == channel) {
+                taskSessionStore.updateTaskText(task)
             }
         }
 
@@ -303,10 +293,14 @@ class TaskOrchestrator(
                     taskEventCallback?.invoke(TaskEvent.Cancelled)
                     ForegroundService.resetToIdle(ClawApplication.instance)
                     flushRoundBuffer()
-                    val (cancelChannel, cancelMessageId) = releaseTask()
-                    if (cancelChannel != null && cancelMessageId.isNotEmpty()) {
-                        ChannelManager.sendMessage(cancelChannel, ClawApplication.instance.getString(R.string.channel_msg_task_cancelled), cancelMessageId)
-                        ChannelManager.flushMessages(cancelChannel)
+                    val cancelledSession = releaseTask()
+                    if (cancelledSession.channel != null && cancelledSession.messageId.isNotEmpty()) {
+                        ChannelManager.sendMessage(
+                            cancelledSession.channel,
+                            ClawApplication.instance.getString(R.string.channel_msg_task_cancelled),
+                            cancelledSession.messageId
+                        )
+                        ChannelManager.flushMessages(cancelledSession.channel)
                     }
                     FloatingCircleManager.setErrorState()
                     onTaskFinished()
@@ -320,11 +314,11 @@ class TaskOrchestrator(
                 taskEventCallback?.invoke(TaskEvent.Completed(answer, modelName))
                 ForegroundService.resetToIdle(ClawApplication.instance)
                 flushRoundBuffer()
-                releaseTask()
-                ChannelManager.flushMessages(channel)
+                val completedSession = releaseTask()
+                ChannelManager.flushMessages(completedSession.channel ?: channel)
                 FloatingCircleManager.setSuccessState()
                 // Auto-return to PokeClaw after in-app task completes
-                if (channel == Channel.LOCAL) {
+                if (completedSession.autoReturnToChat) {
                     XLog.i(TAG, "onComplete: auto-returning to PokeClaw chatroom")
                     try {
                         val context = ClawApplication.instance
@@ -345,9 +339,15 @@ class TaskOrchestrator(
                 taskEventCallback?.invoke(TaskEvent.Failed(error.message ?: "Unknown error"))
                 ForegroundService.resetToIdle(ClawApplication.instance)
                 flushRoundBuffer()
-                releaseTask()
-                ChannelManager.sendMessage(channel, ClawApplication.instance.getString(R.string.channel_msg_task_error, error.message), messageID)
-                ChannelManager.flushMessages(channel)
+                val failedSession = releaseTask()
+                val failedChannel = failedSession.channel ?: channel
+                val failedMessageId = failedSession.messageId.ifEmpty { messageID }
+                ChannelManager.sendMessage(
+                    failedChannel,
+                    ClawApplication.instance.getString(R.string.channel_msg_task_error, error.message),
+                    failedMessageId
+                )
+                ChannelManager.flushMessages(failedChannel)
                 FloatingCircleManager.setErrorState()
                 onTaskFinished()
             }
@@ -356,8 +356,14 @@ class TaskOrchestrator(
                 XLog.w(TAG, "onSystemDialogBlocked: round=$round, totalTokens=$totalTokens")
                 taskEventCallback?.invoke(TaskEvent.Blocked)
                 flushRoundBuffer()
-                releaseTask()
-                ChannelManager.sendMessage(channel, ClawApplication.instance.getString(R.string.channel_msg_system_dialog_blocked), messageID)
+                val blockedSession = releaseTask()
+                val blockedChannel = blockedSession.channel ?: channel
+                val blockedMessageId = blockedSession.messageId.ifEmpty { messageID }
+                ChannelManager.sendMessage(
+                    blockedChannel,
+                    ClawApplication.instance.getString(R.string.channel_msg_system_dialog_blocked),
+                    blockedMessageId
+                )
                 try {
                     val service = ClawAccessibilityService.getInstance()
                     val bitmap = service?.takeScreenshot(5000)
@@ -365,7 +371,7 @@ class TaskOrchestrator(
                         val stream = java.io.ByteArrayOutputStream()
                         bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 80, stream)
                         bitmap.recycle()
-                        ChannelManager.sendImage(channel, stream.toByteArray(), messageID)
+                        ChannelManager.sendImage(blockedChannel, stream.toByteArray(), blockedMessageId)
                     }
                 } catch (e: Exception) {
                     XLog.e(TAG, "Failed to send screenshot for system dialog", e)

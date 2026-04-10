@@ -36,8 +36,10 @@ class AppViewModel : ViewModel() {
 
     private val channelSetup = ChannelSetup(taskOrchestrator = taskOrchestrator)
 
-    val inProgressTaskMessageId: String get() = taskOrchestrator.inProgressTaskMessageId
-    val inProgressTaskChannel: Channel? get() = taskOrchestrator.inProgressTaskChannel
+    val taskSessionStore: TaskSessionStore
+        get() = taskOrchestrator.taskSessionStore
+    val inProgressTaskMessageId: String get() = taskSessionStore.snapshot().messageId
+    val inProgressTaskChannel: Channel? get() = taskSessionStore.snapshot().channel
 
     // ==================== Task API (clean interface for Activity) ====================
 
@@ -61,7 +63,7 @@ class AppViewModel : ViewModel() {
         taskOrchestrator.cancelCurrentTask()
     }
 
-    fun isTaskRunning(): Boolean = taskOrchestrator.isTaskRunning()
+    fun isTaskRunning(): Boolean = taskSessionStore.isTaskRunning()
 
     fun clearTaskCallback() {
         taskOrchestrator.taskEventCallback = null

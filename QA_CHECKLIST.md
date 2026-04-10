@@ -233,6 +233,11 @@ This checklist is **not** yet a fully rerun 100% green master sheet. The honest 
     - Cloud runtime rehydrate after relaunch
     - Local runtime rehydrate after relaunch
     - Local chat send with GPU→CPU fallback
+  - Phase 2 task-session-store smoke:
+    - Local quick-task prompt fill still routes correctly
+    - Task shell enters `Task running...` + `Stop`
+    - Stop request safely unwinds without leaving `ComposeChatActivity`
+    - Idle shell restores after stop
 - **Covered, but still environment-sensitive**
   - WhatsApp send flows
   - Local contact-specific send/call flows
@@ -567,10 +572,10 @@ Layer 1 broadcast bypasses UI routing. Only Layer 3 catches routing bugs.
 
 ### Q7. Task Stop + Session Preservation
 - [ ] **Q7-1. Cloud stop responds immediately**: start cloud/network task → tap Stop → task stops within 3 seconds (thread interrupted, HTTP call aborted)
-- [ ] **Q7-1b. Local stop is safe and honest**: start local task → tap Stop → UI stays in `Task running...`/`Stop` while the current LiteRT round unwinds, then returns to idle with `Task cancelled`, no crash
+- [x] **Q7-1b. Local stop is safe and honest**: start local task → tap Stop → UI stays in `Task running...`/`Stop` while the current LiteRT round unwinds, then returns to idle with `Task cancelled`, no crash
 - [ ] **Q7-2. Stop returns to same session**: start task → task opens other app → tap Stop → returns to PokeClaw → same conversation visible (not new session)
-- [ ] **Q7-3. App doesn't crash on stop**: start task → tap Stop → app remains running, no ANR, no crash
-- [ ] **Q7-4. Send button resets after stop**: stop task → send button changes from red X back to arrow → can send new messages
+- [x] **Q7-3. App doesn't crash on stop**: start task → tap Stop → app remains running, no ANR, no crash
+- [x] **Q7-4. Send button resets after stop**: stop task → send button changes from red X back to arrow → can send new messages
 - [ ] **Q7-5. Second task after stop**: stop task 1 → start task 2 → task 2 executes normally (no "Agent is already running" error)
 - [ ] **Q7-6. Stop from floating button**: task running in other app → tap floating circle → "Tap to stop" → task stops, returns to PokeClaw
 - [ ] **Q7-7. Auto-return preserves conversation**: task completes in other app → auto-return to PokeClaw → previous messages + task result visible in same conversation
@@ -856,6 +861,7 @@ Format: `[date] [status] [test-id] description`
 [2026-04-10] [ISSUE]   Q7-local  Local task stop could trigger a native crash / stale-session race: stop during LiteRT `sendMessage()` → chat UI reloads early → `session already exists` and occasional `SIGSEGV`
 [2026-04-10] [FIXED]   Q7-local  Local stop now avoids interrupting LiteRT mid-round; terminal cleanup waits for the task-side client to close, and `TaskOrchestrator` only releases the task after the cancel completion callback arrives
 [2026-04-10] [PASS]    Q7-1b/Q7-3/Q7-4  Local task "how much battery left" → tap Stop → 1s later UI still shows `Task running...` + `Stop` while safe unwind is in progress → app remains on `ComposeChatActivity` → logs show `Task cancelled` → send button resets to arrow
+[2026-04-10] [PASS]    Phase2-r1  TaskSessionStore smoke on Pixel 8 Pro → local quick-task card still fills task input correctly → sending enters `Task running...` + `Stop` with honest `Model busy` chat status → stop request is logged by `TaskOrchestrator` and UI returns to idle placeholder on the same `ComposeChatActivity` shell
 [2026-04-10] [PASS]    Q7-5-local  After local stop, a second local task starts and completes normally — no `already running`, no `session already exists`, no crash
 [2026-04-10] [FIXED]   Dbg-u1  Debug builds now run the same once-per-day GitHub release check as release builds, so accidental debug installs still see upgrade prompts
 [2026-04-10] [BLOCKED] Dbg-u1  Live prompt verification still needs a throwaway device/build that is older than the just-installed `0.5.0`; current handset has already been upgraded, so this turn only covers code inspection + build/install verification, not a fresh old-debug prompt capture
