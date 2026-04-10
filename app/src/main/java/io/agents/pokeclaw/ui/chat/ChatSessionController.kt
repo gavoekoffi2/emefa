@@ -11,14 +11,12 @@ import dev.langchain4j.data.message.AiMessage
 import dev.langchain4j.data.message.SystemMessage
 import dev.langchain4j.data.message.UserMessage
 import io.agents.pokeclaw.agent.ModelPricing
-import io.agents.pokeclaw.agent.llm.EngineHolder
 import io.agents.pokeclaw.agent.llm.LlmClient
 import io.agents.pokeclaw.agent.llm.LlmSessionManager
 import io.agents.pokeclaw.agent.llm.LocalModelManager
+import io.agents.pokeclaw.agent.llm.LocalModelRuntime
 import io.agents.pokeclaw.agent.llm.ModelConfigRepository
-import io.agents.pokeclaw.utils.KVUtils
 import io.agents.pokeclaw.utils.XLog
-import com.google.ai.edge.litertlm.Backend
 import com.google.ai.edge.litertlm.Contents
 import com.google.ai.edge.litertlm.Conversation
 import com.google.ai.edge.litertlm.ConversationConfig
@@ -188,7 +186,7 @@ class ChatSessionController(
                     } catch (_: Exception) {
                     }
                     conversation = null
-                    conversation = engine!!.createConversation(buildConversationConfig())
+                    conversation = createConversationWithRetries(currentModelPath, buildConversationConfig())
                     isModelReady = true
                     postToMain {
                         updateLocalModelStatus(currentModelPath)
@@ -305,7 +303,8 @@ class ChatSessionController(
                     val responseText = response?.toString() ?: "(no response)"
                     val inputTokensEst = text.length / 4 + 1
                     val outputTokensEst = responseText.length / 4 + 1
-                    val localModelTag = File(KVUtils.getLocalModelPath()).nameWithoutExtension
+                    val modelPath = ModelConfigRepository.snapshot().local.modelPath.ifEmpty { loadedModelPath.orEmpty() }
+                    val localModelTag = localModelTag(modelPath)
                     postToMain {
                         replaceTypingIndicator(responseText, localModelTag)
                         uiState.isProcessing.value = false
@@ -314,25 +313,14 @@ class ChatSessionController(
                     }
                 }
             } catch (e: Exception) {
-                if (conversation != null && (e.message?.contains("OpenCL") == true
-                            || e.message?.contains("GPU") == true
-                            || e.message?.contains("nativeSendMessage") == true)
-                ) {
+                if (conversation != null && LocalModelRuntime.isGpuBackendFailure(e)) {
                     XLog.w(TAG, "GPU inference failed, falling back to CPU: ${e.message}")
                     try {
-                        KVUtils.setLocalBackendPreference("CPU")
-                        conversation?.close()
-                        conversation = null
-                        EngineHolder.close()
-                        engine = null
-                        val modelPath = KVUtils.getLocalModelPath()
-                        loadModelWithBackend(modelPath, Backend.CPU())
-                        XLog.i(TAG, "CPU fallback engine ready, retrying sendMessage")
-                        val response = conversation!!.sendMessage(text)
-                        val responseText = response?.toString() ?: "(no response)"
+                        val modelPath = ModelConfigRepository.snapshot().local.modelPath.ifEmpty { loadedModelPath.orEmpty() }
+                        val responseText = retryLocalChatOnCpu(modelPath, text)
                         val inputTokensEst = text.length / 4 + 1
                         val outputTokensEst = responseText.length / 4 + 1
-                        val cpuModelTag = File(KVUtils.getLocalModelPath()).nameWithoutExtension + " (CPU)"
+                        val cpuModelTag = localModelTag(modelPath)
                         postToMain {
                             replaceTypingIndicator(responseText, cpuModelTag)
                             uiState.isProcessing.value = false
@@ -399,7 +387,11 @@ class ChatSessionController(
                 conversation?.close()
             } catch (_: Exception) {
             }
-            conversation = engine?.createConversation(buildConversationConfig())
+            val modelPath = ModelConfigRepository.snapshot().local.modelPath.ifEmpty { loadedModelPath.orEmpty() }
+            if (modelPath.isNotEmpty()) {
+                conversation = createConversationWithRetries(modelPath, buildConversationConfig())
+                isModelReady = true
+            }
             postToMain {
                 addSystem("New conversation started.")
                 onRefreshSidebarHistory()
@@ -421,7 +413,8 @@ class ChatSessionController(
                     }
                     val recentMsgs = messages.takeLast(5)
                     val systemPrompt = ConversationCompactor.buildRestoredSystemPrompt(activity, conversationId, recentMsgs)
-                    conversation = engine!!.createConversation(
+                    val modelPath = ModelConfigRepository.snapshot().local.modelPath.ifEmpty { loadedModelPath.orEmpty() }
+                    conversation = createConversationWithRetries(modelPath,
                         ConversationConfig(
                             systemInstruction = Contents.of(systemPrompt),
                             samplerConfig = SamplerConfig(topK = 64, topP = 0.95, temperature = 0.7)
@@ -441,30 +434,8 @@ class ChatSessionController(
     }
 
     private fun loadModel(modelPath: String) {
-        val preferredBackend = KVUtils.getLocalBackendPreference().uppercase()
-        if (preferredBackend == "CPU") {
-            XLog.i(TAG, "loadModel: using saved CPU preference for local model")
-            loadModelWithBackend(modelPath, Backend.CPU())
-            return
-        }
         try {
-            loadModelWithBackend(modelPath, Backend.GPU())
-        } catch (gpuError: Exception) {
-            XLog.w(TAG, "GPU load failed: ${gpuError.message}, falling back to CPU")
-            try {
-                KVUtils.setLocalBackendPreference("CPU")
-                EngineHolder.close()
-                engine = null
-                loadModelWithBackend(modelPath, Backend.CPU())
-            } catch (cpuError: Exception) {
-                throw cpuError
-            }
-        }
-    }
-
-    private fun loadModelWithBackend(modelPath: String, backend: Backend) {
-        try {
-            XLog.i(TAG, "loadModelWithBackend: requesting engine from EngineHolder for $modelPath")
+            XLog.i(TAG, "loadModel: acquiring shared runtime for $modelPath")
             try {
                 conversation?.close()
             } catch (_: Exception) {
@@ -472,35 +443,10 @@ class ChatSessionController(
             conversation = null
             Thread.sleep(200)
 
-            engine = EngineHolder.getOrCreate(modelPath, activity.cacheDir.path, backend)
-            XLog.i(TAG, "loadModelWithBackend: engine ready")
-
-            val convConfig = buildConversationConfig()
-            var created = false
-            for (attempt in 1..5) {
-                try {
-                    conversation = engine!!.createConversation(convConfig)
-                    created = true
-                    break
-                } catch (e: Exception) {
-                    XLog.w(TAG, "loadModelWithBackend: createConversation attempt $attempt failed: ${e.message}")
-                    if (attempt == 3) {
-                        XLog.w(TAG, "loadModelWithBackend: resetting engine to clear stale conversations")
-                        try {
-                            EngineHolder.close()
-                            engine = EngineHolder.getOrCreate(modelPath, activity.cacheDir.path, backend)
-                        } catch (resetErr: Exception) {
-                            XLog.e(TAG, "loadModelWithBackend: engine reset failed", resetErr)
-                        }
-                    }
-                    if (attempt < 5) {
-                        Thread.sleep(1500)
-                    }
-                }
-            }
-            if (!created) {
-                throw RuntimeException("Failed to create conversation after 5 retries")
-            }
+            val lease = LocalModelRuntime.acquireSharedEngine(activity, modelPath)
+            engine = lease.engine
+            XLog.i(TAG, "loadModel: engine ready (${lease.backendLabel})")
+            conversation = createConversationWithRetries(modelPath, buildConversationConfig())
 
             isModelReady = true
             loadedModelPath = modelPath
@@ -533,6 +479,47 @@ class ChatSessionController(
                 setButtonsEnabled(false)
             }
         }
+    }
+
+    private fun createConversationWithRetries(modelPath: String, convConfig: ConversationConfig): Conversation {
+        var lastError: Exception? = null
+        for (attempt in 1..5) {
+            try {
+                val sharedEngine = engine ?: throw IllegalStateException("Local engine not initialized")
+                return sharedEngine.createConversation(convConfig)
+            } catch (e: Exception) {
+                lastError = e
+                XLog.w(TAG, "createConversationWithRetries attempt $attempt failed: ${e.message}")
+                if (attempt == 3) {
+                    XLog.w(TAG, "createConversationWithRetries: resetting shared runtime")
+                    try {
+                        LocalModelRuntime.resetSharedEngine()
+                        engine = LocalModelRuntime.acquireSharedEngine(activity, modelPath).engine
+                    } catch (resetErr: Exception) {
+                        XLog.e(TAG, "createConversationWithRetries: runtime reset failed", resetErr)
+                    }
+                }
+                if (attempt < 5) {
+                    Thread.sleep(1500)
+                }
+            }
+        }
+        throw RuntimeException("Failed to create conversation after 5 retries: ${lastError?.message}", lastError)
+    }
+
+    private fun retryLocalChatOnCpu(modelPath: String, text: String): String {
+        require(modelPath.isNotEmpty()) { "Local model path missing for CPU retry" }
+        try {
+            conversation?.close()
+        } catch (_: Exception) {
+        }
+        conversation = null
+        val lease = LocalModelRuntime.forceCpuEngine(activity, modelPath)
+        engine = lease.engine
+        loadedModelPath = modelPath
+        conversation = createConversationWithRetries(modelPath, buildConversationConfig())
+        XLog.i(TAG, "retryLocalChatOnCpu: CPU runtime ready, retrying sendMessage")
+        return conversation!!.sendMessage(text)?.toString() ?: "(no response)"
     }
 
     private fun buildConversationConfig(): ConversationConfig {
@@ -587,8 +574,18 @@ class ChatSessionController(
         }
         val modelInfo = LocalModelManager.AVAILABLE_MODELS.find { modelPath.endsWith(it.fileName) }
         val modelName = modelInfo?.displayName ?: modelPath.substringAfterLast('/').substringBeforeLast('.')
-        val backendLabel = EngineHolder.getBackendLabel(modelPath) ?: "On-device"
+        val backendLabel = LocalModelRuntime.currentBackendLabel(modelPath) ?: "On-device"
         uiState.modelStatus.value = "● $modelName · $backendLabel"
+    }
+
+    private fun localModelTag(modelPath: String): String {
+        val baseName = modelPath.takeIf { it.isNotEmpty() }?.let { File(it).nameWithoutExtension } ?: "Local"
+        val backendLabel = LocalModelRuntime.currentBackendLabel(modelPath)
+        return if (backendLabel.isNullOrBlank() || backendLabel.equals("GPU", ignoreCase = true)) {
+            baseName
+        } else {
+            "$baseName ($backendLabel)"
+        }
     }
 
     private fun setButtonsEnabled(enabled: Boolean) {

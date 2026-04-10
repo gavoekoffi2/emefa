@@ -138,18 +138,32 @@ object LlmSessionManager {
             val modelPath = ModelConfigRepository.snapshot().local.modelPath
             if (modelPath.isNullOrEmpty()) return null
 
-            val cacheDir = io.agents.pokeclaw.ClawApplication.instance.cacheDir.path
-            val engine = EngineHolder.getOrCreate(modelPath, cacheDir)
-            val conv = engine.createConversation(
-                com.google.ai.edge.litertlm.ConversationConfig(
-                    com.google.ai.edge.litertlm.Contents.of("You are a helpful assistant. Answer concisely."),
-                    emptyList(), emptyList(),
-                    com.google.ai.edge.litertlm.SamplerConfig(64, 0.95, temperature, 0)
+            val context = io.agents.pokeclaw.ClawApplication.instance
+            fun runSingleShot() : String? {
+                val engine = LocalModelRuntime.acquireSharedEngine(context, modelPath).engine
+                val conv = engine.createConversation(
+                    com.google.ai.edge.litertlm.ConversationConfig(
+                        com.google.ai.edge.litertlm.Contents.of("You are a helpful assistant. Answer concisely."),
+                        emptyList(), emptyList(),
+                        com.google.ai.edge.litertlm.SamplerConfig(64, 0.95, temperature, 0)
+                    )
                 )
-            )
-            val response = conv.sendMessage(prompt, emptyMap())
-            conv.close()
-            response.contents?.toString()?.trim()
+                return try {
+                    val response = conv.sendMessage(prompt, emptyMap())
+                    response.contents?.toString()?.trim()
+                } finally {
+                    conv.close()
+                }
+            }
+
+            try {
+                runSingleShot()
+            } catch (e: Exception) {
+                if (!LocalModelRuntime.isGpuBackendFailure(e)) throw e
+                XLog.w(TAG, "singleShotLocal: GPU path failed, retrying on CPU: ${e.message}")
+                LocalModelRuntime.forceCpuEngine(context, modelPath)
+                runSingleShot()
+            }
         } catch (e: Exception) {
             XLog.w(TAG, "singleShotLocal failed: ${e.message}")
             null

@@ -6,16 +6,13 @@ package io.agents.pokeclaw.agent.llm
 import io.agents.pokeclaw.ClawApplication
 import io.agents.pokeclaw.agent.AgentConfig
 import io.agents.pokeclaw.utils.XLog
-import com.google.ai.edge.litertlm.Backend
 import com.google.ai.edge.litertlm.Contents
 import com.google.ai.edge.litertlm.ConversationConfig
 import com.google.ai.edge.litertlm.Engine
-import com.google.ai.edge.litertlm.EngineConfig
 import com.google.ai.edge.litertlm.MessageCallback
 import com.google.ai.edge.litertlm.OpenApiTool
 import com.google.ai.edge.litertlm.SamplerConfig
 import com.google.ai.edge.litertlm.tool
-import io.agents.pokeclaw.agent.llm.EngineHolder
 import dev.langchain4j.agent.tool.ToolExecutionRequest
 import dev.langchain4j.agent.tool.ToolSpecification
 import dev.langchain4j.data.message.AiMessage
@@ -39,9 +36,8 @@ class LocalLlmClient(private val config: AgentConfig) : LlmClient {
 
     private val GSON = Gson()
 
-    // Engine is now owned by EngineHolder (shared with ComposeChatActivity).
-    // We keep a local reference only for null-check convenience — the source of
-    // truth is EngineHolder.
+    // Engine is owned by the shared local runtime.
+    // We keep a local reference only for null-check convenience.
     private var engine: Engine? = null
     private var conversation: com.google.ai.edge.litertlm.Conversation? = null
     private var processedMessageCount = 0
@@ -51,38 +47,25 @@ class LocalLlmClient(private val config: AgentConfig) : LlmClient {
     private fun ensureEngine() {
         val modelPath = config.baseUrl
         val context = ClawApplication.instance
-        val savedBackend = io.agents.pokeclaw.utils.KVUtils.getLocalBackendPreference().uppercase()
-        // If GPU previously failed during inference, or the app already learned this
-        // device/model should run on CPU, skip the GPU path entirely.
-        val backend = if (gpuFailed || savedBackend == "CPU") {
-            com.google.ai.edge.litertlm.Backend.CPU()
-        } else {
-            com.google.ai.edge.litertlm.Backend.GPU()
-        }
-
         try {
-            val shared = EngineHolder.getOrCreate(modelPath, context.cacheDir.path, backend)
+            val shared = LocalModelRuntime.acquireSharedEngine(
+                context = context,
+                modelPath = modelPath,
+                preferCpu = gpuFailed,
+            ).engine
             if (engine !== shared) {
-                XLog.i(TAG, "ensureEngine: obtained shared engine for $modelPath (${backend.javaClass.simpleName})")
+                XLog.i(TAG, "ensureEngine: obtained shared engine for $modelPath")
                 engine = shared
             }
         } catch (e: Exception) {
-            val triedGpu = backend is com.google.ai.edge.litertlm.Backend.GPU
-            if (!triedGpu) {
-                XLog.e(TAG, "ensureEngine: failed to get engine from EngineHolder", e)
+            if (gpuFailed || !LocalModelRuntime.isGpuBackendFailure(e)) {
+                XLog.e(TAG, "ensureEngine: failed to get engine from shared runtime", e)
                 throw e
             }
 
             XLog.w(TAG, "ensureEngine: GPU engine init failed, retrying on CPU: ${e.message}")
             gpuFailed = true
-            io.agents.pokeclaw.utils.KVUtils.setLocalBackendPreference("CPU")
-            try { EngineHolder.close() } catch (_: Exception) {}
-            engine = null
-            val cpuShared = EngineHolder.getOrCreate(
-                modelPath,
-                context.cacheDir.path,
-                com.google.ai.edge.litertlm.Backend.CPU()
-            )
+            val cpuShared = LocalModelRuntime.forceCpuEngine(context, modelPath).engine
             if (engine !== cpuShared) {
                 XLog.i(TAG, "ensureEngine: obtained shared CPU engine for $modelPath")
                 engine = cpuShared
@@ -97,12 +80,11 @@ class LocalLlmClient(private val config: AgentConfig) : LlmClient {
     private fun fallbackToCpu() {
         XLog.w(TAG, "fallbackToCpu: GPU inference failed, switching to CPU")
         gpuFailed = true
-        io.agents.pokeclaw.utils.KVUtils.setLocalBackendPreference("CPU")
         try { conversation?.close() } catch (_: Exception) {}
         conversation = null
-        EngineHolder.close()
-        engine = null
-        ensureEngine()
+        processedMessageCount = 0
+        sendCount = 0
+        engine = LocalModelRuntime.forceCpuEngine(ClawApplication.instance, config.baseUrl).engine
     }
 
     /**
@@ -133,7 +115,6 @@ class LocalLlmClient(private val config: AgentConfig) : LlmClient {
 
         XLog.i(TAG, "createConversation: ${nativeTools.size} native tools")
 
-        val eng = engine ?: throw RuntimeException("LiteRT-LM engine not initialized — check model path: ${config.baseUrl}")
         val convConfig = ConversationConfig(
             systemInstruction = Contents.of(systemPrompt),
             tools = nativeTools,
@@ -149,12 +130,25 @@ class LocalLlmClient(private val config: AgentConfig) : LlmClient {
         var lastError: Exception? = null
         for (attempt in 1..5) {
             try {
+                val eng = engine ?: throw RuntimeException("LiteRT-LM engine not initialized — check model path: ${config.baseUrl}")
                 conversation = eng.createConversation(convConfig)
                 processedMessageCount = 0
                 return
             } catch (e: Exception) {
                 lastError = e
                 XLog.w(TAG, "createConversation attempt $attempt failed: ${e.message}")
+                if (attempt == 3) {
+                    try {
+                        LocalModelRuntime.resetSharedEngine()
+                        engine = LocalModelRuntime.acquireSharedEngine(
+                            context = ClawApplication.instance,
+                            modelPath = config.baseUrl,
+                            preferCpu = gpuFailed,
+                        ).engine
+                    } catch (resetError: Exception) {
+                        XLog.e(TAG, "createConversation: shared runtime reset failed", resetError)
+                    }
+                }
                 if (attempt < 5) Thread.sleep(1500)
             }
         }
@@ -168,7 +162,7 @@ class LocalLlmClient(private val config: AgentConfig) : LlmClient {
             chatInternal(messages, toolSpecs)
         } catch (e: Exception) {
             // GPU inference failure (OpenCL not found) — fallback to CPU and retry once
-            if (!gpuFailed && e.message?.contains("OpenCL") == true) {
+            if (!gpuFailed && LocalModelRuntime.isGpuBackendFailure(e)) {
                 XLog.w(TAG, "chat: GPU inference failed, retrying with CPU: ${e.message}")
                 fallbackToCpu()
                 chatInternal(messages, toolSpecs)
@@ -216,9 +210,6 @@ class LocalLlmClient(private val config: AgentConfig) : LlmClient {
                             val rawOutput = errorMsg.substringAfter("from response: ").substringBefore("code block:")
                                 .ifEmpty { errorMsg.substringAfter("from response: ") }
                             lastResponse = rawOutput.trim()
-                        } else if (errorMsg.contains("OpenCL") || errorMsg.contains("GPU")) {
-                            fallbackToCpu()
-                            lastResponse = conv.sendMessage(msg.singleText())
                         } else {
                             throw e
                         }

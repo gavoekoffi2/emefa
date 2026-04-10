@@ -206,8 +206,8 @@ Introduce a `TaskSessionStore` or equivalent state holder that owns:
 
 ### Status
 
-- In progress on `main`
-- Current landing scope: add `AppCapabilityCoordinator`, split `Disabled` vs `Connecting` vs `Ready`, and gate notification-access auto-return behind an explicit pending-return flag
+- Landed on `main` as `4c4d49d`
+- Current landed scope: `AppCapabilityCoordinator` now centralizes app capability truth, splits `Disabled` vs `Connecting` vs `Ready`, and gates notification-access auto-return behind an explicit pending-return flag
 
 ### Goal
 
@@ -244,6 +244,11 @@ Introduce a coordinator/repository that distinguishes:
 
 ## Phase 4 — Local Model Runtime Consolidation
 
+### Status
+
+- In progress on `main`
+- Current landing scope: add `LocalModelRuntime` so shared engine acquisition, GPU→CPU fallback, and backend-truth lookup stop being duplicated across `ChatSessionController`, `LocalLlmClient`, and `LlmSessionManager`
+
 ### Goal
 
 Separate model file management from model runtime management.
@@ -269,9 +274,22 @@ This is the phase that makes lower-RAM support and more local models safer to ad
 ### Mandatory QA bundle
 
 - `H4`, `H4-b`
+- `Q3-1`
 - `Q5-1`, `Q5-1b`
 - `LQ1-LQ13`
 - device-specific local model smoke tests
+
+### Early smoke evidence
+
+- Cold launch after the Phase 4 refactor still lands on `ComposeChatActivity` with truthful local backend status `● gemma4_2b_v09_obfus_fix_all_modalities_thinking · CPU`
+- Real Local UI send still works after runtime consolidation:
+  - typed `say pong`
+  - tapped the live send-button bounds
+  - assistant replied `Pong! 🏓`
+  - top status and assistant model tag both remained `CPU`
+- Practical QA note:
+  - stale absolute tap coordinates are not a valid regression signal once the IME shifts the input bar
+  - for Compose chat smoke, collapse any notification shade / foreground interruption first, then re-dump live bounds before tapping send
 
 ## Phase 5 — Release / Distribution Surface
 

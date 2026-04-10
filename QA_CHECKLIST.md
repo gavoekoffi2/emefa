@@ -243,6 +243,10 @@ This checklist is **not** yet a fully rerun 100% green master sheet. The honest 
     - App Settings truthfully shows `Connecting` during enabled-but-rebinding Accessibility state
     - App Settings truthfully shows `Notification Access = Disabled` when the listener is not enabled in system settings
     - Notification-listener auto-return is now gated by a pending permission-flow flag instead of firing on every reconnect
+  - Phase 4 local-runtime consolidation smoke:
+    - Shared local runtime still cold-launches into `ComposeChatActivity` with truthful `CPU` backend status
+    - Real local UI send still works after runtime consolidation: `say pong` → `Pong! 🏓`
+    - Assistant bubble model tag remains aligned with the actual backend after send
 - **Covered, but still environment-sensitive**
   - WhatsApp send flows
   - Local contact-specific send/call flows
@@ -282,6 +286,11 @@ Do **not** rerun the entire world after every refactor. Rerun the right bundle f
   - `H2`, `H2-b`, `H2-c`, `H4`, `H4-b`
   - `Q4-1`, `Q4-2`, `Q5-1`, `Q5-1b`
   - `LQ1-LQ13`
+- **Local runtime / LiteRT fallback changes**
+  - `H4`, `H4-b`
+  - `Q3-1`, `Q5-1`, `Q5-1b`
+  - `LQ1-LQ13`
+  - one real Local UI send smoke using live bounds from the current `uiautomator dump`
 - **Task lifecycle / orchestration changes**
   - `F1-F6`
   - `I1-I3`
@@ -905,6 +914,9 @@ Format: `[date] [status] [test-id] description`
 [2026-04-10] [PASS]    Phase3-r2  Rebinding truth smoke: after restoring `enabled_accessibility_services` / `accessibility_enabled` via `adb shell settings put secure ...`, app Settings showed `Accessibility Service = Connecting` while the service was still rebinding, instead of collapsing enabled+unbound into `Disabled`
 [2026-04-10] [PASS]    Phase3-r3  Permission truth smoke: with no PokeClaw listener in `enabled_notification_listeners`, app Settings shows `Notification Access = Disabled`
 [2026-04-10] [FIXED]   K4-r1  Notification-listener foreground return is now gated by a pending permission-flow flag, so listener reconnects no longer blindly foreground app Settings unless the user actually came from the in-app permission flow
+[2026-04-10] [PASS]    Phase4-r1/H4-b  After local-runtime consolidation, cold launch still lands on `ComposeChatActivity` with truthful local status `● gemma4_2b_v09_obfus_fix_all_modalities_thinking · CPU`
+[2026-04-10] [PASS]    Phase4-r2/Q3-1/Q5-1/Q5-1b  Local UI send smoke after runtime consolidation: typed `say pong`, tapped the live send-button bounds, and received assistant reply `Pong! 🏓`; both top status and assistant bubble tag remained `gemma4_2b_v09_obfus_fix_all_modalities_thinking (CPU)`
+[2026-04-10] [NOTE]    QA-wf-r2  Device-state guard for Compose UI smoke: if notification shade or another app steals foreground, collapse/foreground PokeClaw again before judging the refactor; if IME moves the input bar, re-dump live bounds instead of reusing stale tap coordinates
 ```
 
 ### Bugs Found During v9 QA
