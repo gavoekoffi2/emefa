@@ -3,13 +3,9 @@
 
 package io.agents.pokeclaw.ui.chat
 
-import io.agents.pokeclaw.TaskEvent
 import io.agents.pokeclaw.AppCapabilityCoordinator
 import io.agents.pokeclaw.ServiceBindingState
-import android.Manifest
 import android.content.Intent
-import android.content.pm.PackageManager
-import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -17,11 +13,9 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.*
-import androidx.core.content.ContextCompat
 import io.agents.pokeclaw.agent.llm.ModelConfigRepository
 import io.agents.pokeclaw.appViewModel
 import io.agents.pokeclaw.floating.FloatingCircleManager
-import io.agents.pokeclaw.service.ClawAccessibilityService
 import io.agents.pokeclaw.ui.settings.LlmConfigActivity
 import io.agents.pokeclaw.ui.settings.SettingsActivity
 import io.agents.pokeclaw.utils.KVUtils
@@ -73,6 +67,21 @@ class ComposeChatActivity : ComponentActivity() {
             ),
             onPersistConversation = { saveChat() },
             onRefreshSidebarHistory = { refreshSidebarHistory() }
+        )
+    }
+
+    private val taskFlowController by lazy {
+        TaskFlowController(
+            activity = this,
+            executor = executor,
+            appViewModel = appViewModel,
+            chatSessionController = chatSessionController,
+            uiState = TaskFlowUiState(
+                messages = _messages,
+                modelStatus = _modelStatus,
+                isProcessing = _isProcessing,
+            ),
+            onPersistConversation = { saveChat() },
         )
     }
 
@@ -137,10 +146,10 @@ class ComposeChatActivity : ComponentActivity() {
                 sessionTokens = _sessionTokens.value,
                 sessionCost = _sessionCost.value,
                 onSendChat = { sendChat(it) },
-                onSendTask = { sendTask(it) },
-                onStartMonitor = { contact -> handleMonitorTask("monitor $contact on WhatsApp") },
+                onSendTask = { taskFlowController.sendTask(it) },
+                onStartMonitor = { contact -> taskFlowController.handleMonitorTask("monitor $contact on WhatsApp") },
                 onSendDirectMessage = { contact, app, message ->
-                    sendTask("send \"$message\" to $contact on $app")
+                    taskFlowController.sendTask("send \"$message\" to $contact on $app")
                 },
                 onNewChat = { newChat() },
                 onOpenSettings = { startActivity(Intent(this, SettingsActivity::class.java)) },
@@ -225,7 +234,7 @@ class ComposeChatActivity : ComponentActivity() {
             handler.postDelayed(object : Runnable {
                 override fun run() {
                     if (chatSessionController.isModelReady()) {
-                        sendTask(taskText)
+                        taskFlowController.sendTask(taskText)
                     } else {
                         handler.postDelayed(this, 1000)
                     }
@@ -241,12 +250,12 @@ class ComposeChatActivity : ComponentActivity() {
         intent.getStringExtra("task")?.let { taskText ->
             XLog.i(TAG, "Task from onNewIntent: $taskText")
             if (chatSessionController.isModelReady()) {
-                sendTask(taskText)
+                taskFlowController.sendTask(taskText)
             } else {
                 val handler = Handler(Looper.getMainLooper())
                 handler.postDelayed(object : Runnable {
                     override fun run() {
-                        if (chatSessionController.isModelReady()) sendTask(taskText)
+                        if (chatSessionController.isModelReady()) taskFlowController.sendTask(taskText)
                         else handler.postDelayed(this, 1000)
                     }
                 }, 1000)
@@ -283,186 +292,6 @@ class ComposeChatActivity : ComponentActivity() {
         chatSessionController.sendChat(text)
     }
 
-    private var sendTaskRetryCount = 0
-
-    private fun sendTask(text: String) {
-        // Java keyword routing FIRST — monitor/auto-reply don't need accessibility service
-        val lower = text.lowercase()
-        if (lower.contains("monitor") || lower.contains("auto-reply") || lower.contains("auto reply")
-            || lower.contains("watch") && (lower.contains("message") || lower.contains("reply"))) {
-            handleMonitorTask(text)
-            return
-        }
-
-        // Accessibility check — only for tasks that need phone control (agent loop)
-        when (AppCapabilityCoordinator.accessibilityState(this)) {
-            ServiceBindingState.DISABLED -> {
-                // Show Toast first, then navigate to PokeClaw Settings (not Android Settings directly)
-                Toast.makeText(this, "Enable Accessibility Service to run tasks", Toast.LENGTH_LONG).show()
-                addSystem("⚠️ Task mode needs Accessibility Service enabled. Opening Settings...")
-                startActivity(Intent(this, SettingsActivity::class.java))
-                sendTaskRetryCount = 0
-                return
-            }
-            ServiceBindingState.CONNECTING -> {
-            // Enabled in settings but service not yet connected — wait briefly
-                if (sendTaskRetryCount >= 1) {
-                    Toast.makeText(this, "Accessibility service not connected. Try toggling it off and on.", Toast.LENGTH_LONG).show()
-                    addSystem("Accessibility service didn't connect. Try toggling it off and on in Settings.")
-                    startActivity(Intent(this, SettingsActivity::class.java))
-                    sendTaskRetryCount = 0
-                    return
-                }
-                sendTaskRetryCount++
-                addSystem("Accessibility service connecting, please wait...")
-                executor.submit {
-                    val connected = ClawAccessibilityService.awaitRunning(5000)
-                    runOnUiThread {
-                        if (connected) {
-                            sendTask(text)
-                        } else {
-                            Toast.makeText(this, "Accessibility service didn't connect", Toast.LENGTH_LONG).show()
-                            addSystem("Accessibility service didn't connect. Go to Settings and toggle it off then on.")
-                            sendTaskRetryCount = 0
-                        }
-                    }
-                }
-                return
-            }
-            ServiceBindingState.READY -> Unit
-        }
-        sendTaskRetryCount = 0
-
-        // Ensure notification permission + foreground service for task progress visibility
-        ensureNotificationPermission()
-
-        // Reset stuck processing state from previous task
-        _isProcessing.value = false
-
-        if (!KVUtils.hasLlmConfig()) {
-            Toast.makeText(this, "Configure LLM in Settings first", Toast.LENGTH_LONG).show()
-            return
-        }
-
-        addUser(text)
-        _isProcessing.value = true
-        XLog.i(TAG, "sendTask: isProcessing=TRUE")
-        _messages.add(ChatMessage(ChatMessage.Role.ASSISTANT, "..."))
-
-        val taskText = text
-        val taskId = "task_${System.currentTimeMillis()}"
-
-        // Release chat conversation so task agent can use the engine
-        executor.submit {
-            try { appViewModel.stopTask(); Thread.sleep(200) } catch (_: Exception) {}
-            chatSessionController.prepareForTaskStart()
-
-            runOnUiThread {
-                try {
-                    appViewModel.startTask(taskText, taskId) { event ->
-                        runOnUiThread { handleTaskEvent(event) }
-                    }
-                } catch (e: Exception) {
-                    XLog.e(TAG, "sendTask failed: ${e.message}", e)
-                    addSystem("Error: ${e.message}")
-                    cleanupAfterTask()
-                }
-            }
-        }
-    }
-
-    /** Handle typed events from TaskOrchestrator — no string parsing. */
-    private fun handleTaskEvent(event: TaskEvent) {
-        try {
-            when (event) {
-                is TaskEvent.Completed -> {
-                    replaceTypingIndicator(event.answer, event.modelName)
-                    cleanupAfterTask()
-                    checkAutoReplyConfirmation()
-                }
-                is TaskEvent.Failed -> {
-                    replaceTypingIndicator("Error: ${event.error}")
-                    cleanupAfterTask()
-                }
-                is TaskEvent.Cancelled -> {
-                    removeTypingIndicator()
-                    cleanupAfterTask()
-                }
-                is TaskEvent.Blocked -> {
-                    replaceTypingIndicator("Blocked by system dialog.")
-                    cleanupAfterTask()
-                }
-                is TaskEvent.ToolAction -> {
-                    if (!event.toolName.contains("Finish", ignoreCase = true)) {
-                        // First real tool action = this is a task, remove typing "..."
-                        removeTypingIndicator()
-                        addSystem("${event.toolName}...")
-                    }
-                }
-                is TaskEvent.ToolResult -> {
-                    if (!event.success) addSystem("${event.toolName} failed")
-                }
-                is TaskEvent.Response -> {
-                    replaceTypingIndicator(event.text)
-                }
-                is TaskEvent.Progress -> {
-                    addSystem(event.description)
-                }
-                // These are handled by floating button / notification, not chat
-                is TaskEvent.LoopStart, is TaskEvent.TokenUpdate, is TaskEvent.Thinking -> { }
-            }
-        } catch (e: Exception) {
-            XLog.w(TAG, "handleTaskEvent error", e)
-        }
-    }
-
-    /** Replace "..." typing indicator with actual text, or add new message. */
-    /**
-     * Replace "..." typing indicator with actual response.
-     * @param text the response text
-     * @param actualModelName the real model that generated this response (from API).
-     *                        If null, falls back to parsing _modelStatus (less reliable).
-     */
-    private fun replaceTypingIndicator(text: String, actualModelName: String? = null) {
-        val modelTag = actualModelName
-            ?: _modelStatus.value.removePrefix("● ").split(" ·").firstOrNull()?.trim()
-            ?: ""
-        val idx = _messages.indexOfLast { it.role == ChatMessage.Role.ASSISTANT && it.content == "..." }
-        if (idx >= 0) {
-            _messages[idx] = ChatMessage(ChatMessage.Role.ASSISTANT, text, modelName = modelTag)
-        } else {
-            _messages.add(ChatMessage(ChatMessage.Role.ASSISTANT, text, modelName = modelTag))
-        }
-        saveChat()
-    }
-
-    /** Remove "..." typing indicator if it exists. */
-    private fun removeTypingIndicator() {
-        val idx = _messages.indexOfLast { it.role == ChatMessage.Role.ASSISTANT && it.content == "..." }
-        if (idx >= 0) _messages.removeAt(idx)
-    }
-
-    /** Clean up state after any task finishes. */
-    private fun cleanupAfterTask() {
-        XLog.i(TAG, "cleanupAfterTask: isProcessing=FALSE")
-        _isProcessing.value = false
-        appViewModel.clearTaskCallback()
-        Handler(Looper.getMainLooper()).postDelayed({
-            try { chatSessionController.loadModelIfReady() } catch (e: Exception) {
-                XLog.e(TAG, "cleanupAfterTask: loadModel error", e)
-            }
-        }, 500)
-    }
-
-    /** If auto-reply was enabled by the task, show confirmation and keep the user in PokeClaw. */
-    private fun checkAutoReplyConfirmation() {
-        val arm = io.agents.pokeclaw.service.AutoReplyManager.getInstance()
-        if (!arm.isEnabled) return
-        val contacts = arm.monitoredContacts.joinToString(", ") { it.replaceFirstChar { c -> c.uppercase() } }
-        addSystem("✓ Auto-reply active for $contacts.\nMonitoring in background — stop from bar above.")
-        XLog.i(TAG, "checkAutoReplyConfirmation: monitor active, staying in PokeClaw")
-    }
-
     private fun syncTaskAgentConfig() {
         if (!appViewModel.updateAgentConfig()) {
             XLog.w(TAG, "syncTaskAgentConfig: failed to update task agent config")
@@ -493,96 +322,6 @@ class ComposeChatActivity : ComponentActivity() {
         _messages.addAll(session.messages)
         chatSessionController.restoreConversationRuntime(session.conversationId, session.messages)
     }
-
-    // ==================== MONITOR (Java routing, no LLM) ====================
-
-    /**
-     * Handle monitor/auto-reply tasks directly via Java — no LLM needed.
-     * Extracts contact name from user input, enables AutoReplyManager,
-     * shows confirmation, then goes to home so notifications can fire.
-     */
-    private fun handleMonitorTask(text: String) {
-        val contact = extractContactName(text)
-        if (contact.isEmpty()) {
-            addUser(text)
-            addSystem("Could not figure out who to monitor. Try: \"Monitor Mom on WhatsApp\"")
-            return
-        }
-
-        addUser(text)
-
-        // Check required permissions before starting monitor
-        val missing = AppCapabilityCoordinator.missingMonitorRequirements(this)
-        if (missing.isNotEmpty()) {
-            Toast.makeText(
-                this,
-                "Enable ${missing.joinToString(" & ") { it.label }} in Settings first",
-                Toast.LENGTH_LONG
-            ).show()
-            startActivity(Intent(this, io.agents.pokeclaw.ui.settings.SettingsActivity::class.java))
-            return
-        }
-
-        _isProcessing.value = true
-        addSystem("Setting up auto-reply for $contact...")
-
-        val arm = io.agents.pokeclaw.service.AutoReplyManager.getInstance()
-        arm.addContact(contact)
-        arm.setEnabled(true)
-        XLog.i(TAG, "handleMonitorTask: enabled auto-reply for '$contact'")
-
-        Handler(Looper.getMainLooper()).postDelayed({
-            _isProcessing.value = false
-            addSystem("✓ Auto-reply is now active for $contact.\nMonitoring in background — you can stop anytime from the bar above.")
-            // Stay in PokeClaw — ClawNotificationListener catches notifications
-            // regardless of which app is in foreground. No need to press Home.
-            XLog.i(TAG, "handleMonitorTask: monitor active, staying in PokeClaw")
-        }, 1500)
-    }
-
-    /**
-     * Extract contact name from monitor task text.
-     * Handles: "monitor Mom on WhatsApp", "auto-reply to Mom's messages", "watch Mom", etc.
-     */
-    private fun extractContactName(text: String): String {
-        val lower = text.lowercase()
-        // Remove known keywords to isolate the contact name
-        var cleaned = lower
-        val removeWords = listOf(
-            "monitoring", "monitor", "auto-reply", "auto reply", "watching", "watch",
-            "on whatsapp", "on telegram", "on messages", "on wechat", "on line",
-            "messages", "message", "'s", "'s", "for", "from",
-            "please", "can you", "start", "enable", "begin", "help me",
-        )
-        for (word in removeWords) {
-            cleaned = cleaned.replace(word, " ")
-        }
-        // Collapse whitespace and trim
-        cleaned = cleaned.replace(Regex("\\s+"), " ").trim()
-        // What's left should be the contact name
-        return if (cleaned.isNotEmpty()) cleaned.replaceFirstChar { it.uppercase() } else ""
-    }
-
-    // ==================== HELPERS ====================
-
-    /**
-     * Request notification permission (Android 13+) and start ForegroundService
-     * so the user sees task progress in the status bar while PokeClaw is in background.
-     */
-    private fun ensureNotificationPermission() {
-        if (!AppCapabilityCoordinator.isNotificationPermissionGranted(this)) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 101)
-            }
-        }
-        // Start foreground service if not running
-        if (!io.agents.pokeclaw.service.ForegroundService.isRunning()) {
-            io.agents.pokeclaw.service.ForegroundService.start(this)
-        }
-    }
-
-    private fun addUser(text: String) { _messages.add(ChatMessage(ChatMessage.Role.USER, text)) }
-    private fun addSystem(text: String) { _messages.add(ChatMessage(ChatMessage.Role.SYSTEM, text)) }
 
     private fun saveChat() {
         syncSidebar(conversationStore.saveCurrent(_messages, currentConversationModelName()))
