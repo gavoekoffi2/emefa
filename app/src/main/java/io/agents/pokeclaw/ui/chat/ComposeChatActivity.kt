@@ -580,26 +580,31 @@ class ComposeChatActivity : ComponentActivity() {
         // Accessibility check — only for tasks that need phone control (agent loop)
         if (!ClawAccessibilityService.isRunning()) {
             if (!ClawAccessibilityService.isEnabledInSettings(this)) {
-                addSystem("Task mode needs Accessibility permission to control your phone.")
-                startActivity(Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS))
-                Toast.makeText(this, "Enable PokeClaw in Accessibility settings", Toast.LENGTH_LONG).show()
+                // Show Toast first, then navigate to PokeClaw Settings (not Android Settings directly)
+                Toast.makeText(this, "Enable Accessibility Service to run tasks", Toast.LENGTH_LONG).show()
+                addSystem("⚠️ Task mode needs Accessibility Service enabled. Opening Settings...")
+                startActivity(Intent(this, SettingsActivity::class.java))
                 sendTaskRetryCount = 0
                 return
             }
+            // Enabled in settings but service not yet connected — wait briefly
             if (sendTaskRetryCount >= 1) {
-                addSystem("Accessibility service didn't connect. Try toggling it off and on in Settings > Accessibility.")
+                Toast.makeText(this, "Accessibility service not connected. Try toggling it off and on.", Toast.LENGTH_LONG).show()
+                addSystem("Accessibility service didn't connect. Try toggling it off and on in Settings.")
+                startActivity(Intent(this, SettingsActivity::class.java))
                 sendTaskRetryCount = 0
                 return
             }
             sendTaskRetryCount++
-            addSystem("Accessibility service starting, please wait...")
+            addSystem("Accessibility service connecting, please wait...")
             executor.submit {
-                val connected = ClawAccessibilityService.awaitRunning(3000)
+                val connected = ClawAccessibilityService.awaitRunning(5000)
                 runOnUiThread {
                     if (connected) {
                         sendTask(text)
                     } else {
-                        addSystem("Accessibility service didn't connect. Try toggling it off and on in Settings > Accessibility.")
+                        Toast.makeText(this, "Accessibility service didn't connect", Toast.LENGTH_LONG).show()
+                        addSystem("Accessibility service didn't connect. Go to Settings and toggle it off then on.")
                         sendTaskRetryCount = 0
                     }
                 }
