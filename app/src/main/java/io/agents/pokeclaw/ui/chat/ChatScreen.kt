@@ -104,7 +104,7 @@ fun ChatScreen(
     sessionCost: Double = 0.0,
     onSendChat: (String) -> Unit,
     onSendTask: (String) -> Unit,
-    onStartMonitor: (contact: String) -> Unit = {},
+    onStartMonitor: (MonitorTargetSpec) -> Unit = {},
     onSendDirectMessage: (contact: String, app: String, message: String) -> Unit = { _, _, _ -> },
     onNewChat: () -> Unit,
     onOpenSettings: () -> Unit,
@@ -314,10 +314,10 @@ fun ChatScreen(
     if (showMonitorSheet) {
         MonitorDialog(
             onDismiss = { showMonitorSheet = false },
-            onStart = { contact ->
+            onStart = { target ->
                 showMonitorSheet = false
                 activatingSkill = "monitor"
-                onStartMonitor(contact)
+                onStartMonitor(target)
             },
             colors = colors,
         )
@@ -1890,14 +1890,14 @@ private fun SkillCard(
 @Composable
 private fun MonitorDialog(
     onDismiss: () -> Unit,
-    onStart: (contact: String) -> Unit,
+    onStart: (MonitorTargetSpec) -> Unit,
     colors: PokeclawColors,
 ) {
     var contact by remember { mutableStateOf("") }
     var selectedApp by remember { mutableStateOf("WhatsApp") }
     var appMenuExpanded by remember { mutableStateOf(false) }
     var selectedTone by remember { mutableStateOf("Casual") }
-    val apps = listOf("WhatsApp", "LINE", "Telegram", "WeChat")
+    val apps = MonitorTargetSpec.supportedApps
     val tones = listOf("Casual", "Formal", "Funny")
 
     // Centered modal overlay
@@ -1949,7 +1949,7 @@ private fun MonitorDialog(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        "Contact",
+                        "Target",
                         fontSize = 11.sp,
                         color = colors.textSecondary,
                         modifier = Modifier.width(50.dp),
@@ -1971,10 +1971,10 @@ private fun MonitorDialog(
                                     .then(
                                         Modifier.border(1.dp, colors.inputBorder, RoundedCornerShape(8.dp))
                                     )
-                                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                                .padding(horizontal = 10.dp, vertical = 8.dp),
                             ) {
                                 if (contact.isEmpty()) {
-                                    Text("e.g. Mom, Girlfriend", fontSize = 12.sp, color = colors.textTertiary)
+                                    Text("e.g. Mom, +1 555 123 4567", fontSize = 12.sp, color = colors.textTertiary)
                                 }
                                 innerTextField()
                             }
@@ -2066,7 +2066,18 @@ private fun MonitorDialog(
 
                 // Start Monitoring button
                 Surface(
-                    onClick = { if (contact.isNotBlank()) onStart(contact.trim()) },
+                    onClick = {
+                        val trimmed = contact.trim()
+                        if (trimmed.isNotBlank()) {
+                            onStart(
+                                MonitorTargetSpec(
+                                    label = trimmed,
+                                    app = selectedApp,
+                                    tone = selectedTone,
+                                )
+                            )
+                        }
+                    },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(10.dp),
                     color = colors.userBubble,

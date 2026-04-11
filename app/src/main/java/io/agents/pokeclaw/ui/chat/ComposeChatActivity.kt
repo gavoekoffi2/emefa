@@ -140,7 +140,7 @@ class ComposeChatActivity : ComponentActivity() {
                 sessionCost = _sessionCost.value,
                 onSendChat = { sendChat(it) },
                 onSendTask = { taskFlowController.sendTask(it) },
-                onStartMonitor = { contact -> taskFlowController.handleMonitorTask("monitor $contact on WhatsApp") },
+                onStartMonitor = { target -> taskFlowController.startMonitor(target) },
                 onSendDirectMessage = { contact, app, message ->
                     taskFlowController.sendTask("send \"$message\" to $contact on $app")
                 },

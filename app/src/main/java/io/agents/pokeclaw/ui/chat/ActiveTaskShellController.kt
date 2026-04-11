@@ -44,7 +44,7 @@ class ActiveTaskShellController(
     }
 
     fun stopTask(contact: String): String {
-        autoReplyManager.removeContact(contact.lowercase())
+        autoReplyManager.removeContact(contact)
         if (autoReplyManager.monitoredContacts.isEmpty()) {
             autoReplyManager.isEnabled = false
         }

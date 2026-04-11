@@ -368,6 +368,7 @@ When in doubt, rerun the smaller bundle first, then expand only if something dri
 ## C. Cloud LLM — Monitor Workflow
 
 - [ ] **C1. Start monitor**: "monitor Girlfriend on WhatsApp" → top bar shows "Monitoring: Girlfriend" → user stays in PokeClaw chat (no Home press)
+- [ ] **C1-b. Monitor dialog honors chosen app**: open Monitor dialog → choose `Telegram` (or another supported app) → start monitor → top bar / stop shell show `... on Telegram`, not `... on WhatsApp`
 - [ ] **C2. Auto-reply triggers**: Girlfriend sends message → notification caught → WhatsApp opens → reads context → Cloud LLM generates reply → reply sent
 - [ ] **C3. Stop monitor**: tap top bar → expand → Stop → monitoring stops
 - [ ] **C4. Start Telegram monitor**: "monitor NicoleBot on Telegram" → top bar shows "Monitoring: NicoleBot" → user stays in PokeClaw chat
@@ -961,6 +962,8 @@ Format: `[date] [status] [test-id] description`
 [2026-04-10] [PASS]    Phase2c-r1  After `ActiveTaskShellController` extraction, the Compose top bar still rendered `Monitoring: Mom`; expanded state showed `Mom` + `Stop`, and tapping `Stop` disabled auto-reply and removed the monitor
 [2026-04-10] [PASS]    Phase2c-r2  Debug `autoreply on mom` no longer bypasses app behavior: `TaskTriggerReceiver` rewrites it to `monitor mom on WhatsApp`, and on this device the flow foregrounded in-app `SettingsActivity` with no direct `Added contact` log and no ghost `Monitoring:` bar in the dumped UI
 [2026-04-10] [NOTE]    TgMon-r1  Telegram monitor QA now requires an external sender path (second account or bot token + existing bot chat); without that sender, Telegram incoming-message monitor cases must be marked `BLOCKED`
+[2026-04-10] [PASS]    Phase4-r3  Monitor target parser unit bundle passed: `monitor Mom on Telegram`, default WhatsApp when app is omitted, `watch Alex on sms` -> `Messages`, and `monitor Caroline` does not get misparsed as `LINE`
+[2026-04-10] [PASS]    Phase4-r4  Live device dialog smoke: Monitor dialog now shows the supported app list (`WhatsApp`, `Telegram`, `Messages`, `LINE`, `WeChat`) and retained `Telegram` as the selected app in the live screenshot instead of collapsing back to WhatsApp
 [2026-04-10] [NOTE]    QA-wf-r2  Device-state guard for Compose UI smoke: if notification shade or another app steals foreground, collapse/foreground PokeClaw again before judging the refactor; if IME moves the input bar, re-dump live bounds instead of reusing stale tap coordinates
 ```
 

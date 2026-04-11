@@ -41,8 +41,17 @@ public class TaskTriggerReceiver extends BroadcastReceiver {
                 io.agents.pokeclaw.service.AutoReplyManager.getInstance().stopAll();
                 XLog.i(TAG, "Auto-reply disabled");
             } else if (cmd.startsWith("on ")) {
-                String contact = cmd.substring(3).trim();
-                task = "monitor " + contact + " on WhatsApp";
+                String target = cmd.substring(3).trim();
+                String lowerTarget = target.toLowerCase();
+                if (lowerTarget.contains(" on whatsapp")
+                        || lowerTarget.contains(" on telegram")
+                        || lowerTarget.contains(" on messages")
+                        || lowerTarget.contains(" on line")
+                        || lowerTarget.contains(" on wechat")) {
+                    task = "monitor " + target;
+                } else {
+                    task = "monitor " + target + " on WhatsApp";
+                }
                 XLog.i(TAG, "Rewriting debug auto-reply command to task flow: " + task);
             }
         }

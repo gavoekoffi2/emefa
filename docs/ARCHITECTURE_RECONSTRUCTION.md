@@ -102,7 +102,8 @@ Each phase should land as a small, reviewable set of commits with a matching reg
 - **Phase 3 — Permission / Accessibility Truth Boundary**: keep system permission truth and app-visible state aligned
 - **Phase 4 — Structured Monitor Targets**: replace raw contact-name-only monitor requests with a structured app-aware target model
 - **Phase 5 — Local Model Lifecycle Cleanup**: isolate device compatibility, import, fallback, and engine bring-up from UI code
-- **Phase 6 — RC QA Sweep**: rerun the full release checklist once the reconstruction phases above stop moving
+- **Phase 6 — Release / Distribution Surface**: make signed upgrades, release artifacts, and public update behavior boring and predictable
+- **Phase 7 — RC QA Sweep**: rerun the full release checklist once the reconstruction phases above stop moving
 
 ## Phase 0 — QA Gate First
 
@@ -402,7 +403,50 @@ Introduce a coordinator/repository that distinguishes:
 - Notification Access row now derives from system listener settings and correctly shows `Disabled` when PokeClaw is absent from `enabled_notification_listeners`
 - Notification-listener `onListenerConnected()` no longer drags SettingsActivity to foreground on every reconnect; return-to-app now only happens when the in-app permission flow explicitly armed a pending flag
 
-## Phase 4 — Local Model Runtime Consolidation
+## Phase 4 — Structured Monitor Targets
+
+### Status
+
+- In progress on `main`
+- Current landing scope: monitor setup now carries `target + app` end-to-end instead of dropping app selection and collapsing everything back to WhatsApp
+
+### Goal
+
+Make monitor setup app-aware first, then stable-identifier-aware second.
+
+### New boundary
+
+Split monitor setup into a structured target model that carries:
+
+- user-facing label
+- selected app
+- app package for notification matching
+- future alias / stable-id expansion point
+
+### Must Preserve
+
+- existing `monitor Mom on WhatsApp` behavior still works
+- monitor still stays in-app
+- stop flow still works from the top shell
+- visible UX stays the same apart from the chosen app actually being honored
+
+### Mandatory QA bundle
+
+- `C1`, `C4`, `C5`, `C6`
+- `L3`, `L4`, `L5`, `L5-b`
+- parser/unit coverage for free-text variants (`Telegram`, `Messages`, default WhatsApp)
+
+### Early smoke evidence
+
+- `MonitorDialog` now surfaces the same supported app list used by monitor routing: `WhatsApp`, `Telegram`, `Messages`, `LINE`, `WeChat`
+- live device screenshot confirms the dialog keeps `Telegram` selected instead of collapsing back to WhatsApp
+- `MonitorTargetParserTest` now guards:
+  - `monitor Mom on Telegram` -> `Mom + Telegram`
+  - `watch Alex on sms` -> `Alex + Messages`
+  - `monitor Caroline` does **not** get misparsed as `LINE`
+  - no explicit app still defaults to `WhatsApp`
+
+## Phase 5 — Local Model Runtime Consolidation
 
 ### Status
 
@@ -451,7 +495,7 @@ This is the phase that makes lower-RAM support and more local models safer to ad
   - stale absolute tap coordinates are not a valid regression signal once the IME shifts the input bar
   - for Compose chat smoke, collapse any notification shade / foreground interruption first, then re-dump live bounds before tapping send
 
-## Phase 5 — Release / Distribution Surface
+## Phase 6 — Release / Distribution Surface
 
 ### Goal
 
@@ -473,6 +517,18 @@ Make upgrade behavior and public release quality boring and predictable.
 
 - `Dbg-u1-Dbg-u3`
 - `Rel-s1-Rel-s7`
+
+## Phase 7 — RC QA Sweep
+
+### Goal
+
+Run the full release-candidate sheet only after the reconstruction phases stop moving.
+
+### Scope
+
+- rerun full `QA_CHECKLIST.md`
+- convert `BLOCKED` vs `FAIL` vs `PASS` into a real release decision
+- verify device coverage across local/cloud/runtime/permissions/release-upgrade paths
 
 ## What Should Not Happen
 

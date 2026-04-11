@@ -49,7 +49,9 @@ public class AutoReplyTool extends BaseTool {
                 new ToolParameter("action", "string",
                         "Either 'on' to enable or 'off' to disable auto-reply", true),
                 new ToolParameter("contact", "string",
-                        "The contact name to monitor (required when action='on')", false)
+                        "The contact name to monitor (required when action='on')", false),
+                new ToolParameter("app", "string",
+                        "Messaging app name to monitor (default: WhatsApp)", false)
         );
     }
 
@@ -67,12 +69,15 @@ public class AutoReplyTool extends BaseTool {
             String contact = params.containsKey("contact")
                     ? String.valueOf(params.get("contact")).trim()
                     : "";
+            String app = params.containsKey("app")
+                    ? String.valueOf(params.get("app")).trim()
+                    : "WhatsApp";
             if (contact.isEmpty()) {
                 return ToolResult.error("Contact name is required when enabling auto-reply.");
             }
-            manager.addContact(contact);
+            manager.addTarget(contact, app);
             manager.setEnabled(true);
-            return ToolResult.success("Auto-reply enabled for " + contact +
+            return ToolResult.success("Auto-reply enabled for " + contact + " on " + app +
                     ". Monitoring incoming messages and will reply automatically.");
         }
 

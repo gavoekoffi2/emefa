@@ -31,7 +31,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *
  * Usage:
  *   AutoReplyManager.getInstance().setEnabled(true);
- *   AutoReplyManager.getInstance().addContact("Mom");
+ *   AutoReplyManager.getInstance().addTarget("Mom", "WhatsApp");
  *
  * When enabled, intercepts notifications from messaging apps,
  * extracts sender + message, generates a reply via on-device LLM,
@@ -39,11 +39,90 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public class AutoReplyManager {
 
+    public static final class MonitorTarget {
+        private final String displayName;
+        private final String appName;
+        private final String packageName;
+        private final String key;
+        private final LinkedHashSet<String> normalizedAliases;
+        private final LinkedHashSet<String> digitAliases;
+
+        private MonitorTarget(String displayName, String appName, String packageName) {
+            this.displayName = displayName;
+            this.appName = appName;
+            this.packageName = packageName;
+            this.key = packageName + "|" + normalizeNameStatic(displayName);
+            this.normalizedAliases = buildNormalizedAliases(displayName);
+            this.digitAliases = buildDigitAliases(displayName);
+        }
+
+        public String getDisplayName() {
+            return displayName;
+        }
+
+        public String getAppName() {
+            return appName;
+        }
+
+        public String getPackageName() {
+            return packageName;
+        }
+
+        public String getDisplayLabel() {
+            return displayName + " on " + appName;
+        }
+
+        public String getKey() {
+            return key;
+        }
+
+        private boolean matches(String incomingPackage, String incomingTitle) {
+            if (!packageName.equals(incomingPackage)) return false;
+
+            String normalizedTitle = normalizeNameStatic(incomingTitle);
+            for (String alias : normalizedAliases) {
+                if (!alias.isEmpty() && normalizedTitle.contains(alias)) {
+                    return true;
+                }
+            }
+
+            String titleDigits = digitsOnly(incomingTitle);
+            for (String alias : digitAliases) {
+                if (!alias.isEmpty() && titleDigits.contains(alias)) {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private boolean matchesRemovalQuery(String query) {
+            String normalizedQuery = normalizeNameStatic(query);
+            if (normalizedQuery.equals(normalizeNameStatic(displayName))) return true;
+            if (normalizedQuery.equals(normalizeNameStatic(getDisplayLabel()))) return true;
+            return normalizedQuery.equals(normalizeNameStatic(appName + " " + displayName));
+        }
+
+        private static LinkedHashSet<String> buildNormalizedAliases(String displayName) {
+            LinkedHashSet<String> aliases = new LinkedHashSet<>();
+            String normalized = normalizeNameStatic(displayName);
+            if (!normalized.isEmpty()) aliases.add(normalized);
+            return aliases;
+        }
+
+        private static LinkedHashSet<String> buildDigitAliases(String displayName) {
+            LinkedHashSet<String> aliases = new LinkedHashSet<>();
+            String digits = digitsOnly(displayName);
+            if (digits.length() >= 6) aliases.add(digits);
+            return aliases;
+        }
+    }
+
     private static final String TAG = "AutoReplyManager";
     private static AutoReplyManager instance;
 
     private boolean enabled = false;
-    private final Map<String, String> monitoredContacts = new LinkedHashMap<>();
+    private final Map<String, MonitorTarget> monitoredTargets = new LinkedHashMap<>();
     private final Set<String> monitoredApps = new LinkedHashSet<>();
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final AtomicBoolean replying = new AtomicBoolean(false);
@@ -73,6 +152,8 @@ public class AutoReplyManager {
         monitoredApps.add("com.whatsapp");
         monitoredApps.add("org.telegram.messenger");
         monitoredApps.add("com.google.android.apps.messaging");
+        monitoredApps.add("jp.naver.line.android");
+        monitoredApps.add("com.tencent.mm");
     }
 
     public static synchronized AutoReplyManager getInstance() {
@@ -89,27 +170,54 @@ public class AutoReplyManager {
     public boolean isEnabled() { return enabled; }
 
     public Set<String> getMonitoredContacts() {
-        return new LinkedHashSet<>(monitoredContacts.values());
+        LinkedHashSet<String> labels = new LinkedHashSet<>();
+        for (MonitorTarget target : monitoredTargets.values()) {
+            labels.add(target.getDisplayLabel());
+        }
+        return labels;
+    }
+
+    public List<MonitorTarget> getMonitoredTargets() {
+        return new ArrayList<>(monitoredTargets.values());
     }
 
     public void stopAll() {
         enabled = false;
-        monitoredContacts.clear();
+        monitoredTargets.clear();
         XLog.i(TAG, "Auto-reply stopped and all contacts cleared");
     }
 
     public void addContact(String name) {
-        String displayName = name.trim();
-        monitoredContacts.put(normalizeName(displayName), displayName);
-        XLog.i(TAG, "Added contact: " + displayName);
+        addTarget(name, "WhatsApp");
+    }
+
+    public void addTarget(String name, String appName) {
+        MonitorTarget target = buildTarget(name, appName);
+        if (target == null) {
+            XLog.w(TAG, "Ignoring empty monitor target");
+            return;
+        }
+        monitoredTargets.put(target.getKey(), target);
+        XLog.i(TAG, "Added monitor target: " + target.getDisplayLabel());
     }
 
     public void removeContact(String name) {
-        monitoredContacts.remove(normalizeName(name));
+        String query = name != null ? name.trim() : "";
+        if (query.isEmpty()) return;
+
+        List<String> toRemove = new ArrayList<>();
+        for (Map.Entry<String, MonitorTarget> entry : monitoredTargets.entrySet()) {
+            if (entry.getValue().matchesRemovalQuery(query)) {
+                toRemove.add(entry.getKey());
+            }
+        }
+        for (String key : toRemove) {
+            monitoredTargets.remove(key);
+        }
     }
 
     public void clearContacts() {
-        monitoredContacts.clear();
+        monitoredTargets.clear();
     }
 
     /**
@@ -156,19 +264,15 @@ public class AutoReplyManager {
 
     private void handleIncomingMessage(String packageName, String title, String text) {
 
-        // Check if sender is in our monitored list
-        String senderLower = title.toLowerCase();
-        boolean isMonitored = false;
-        String matchedContact = "";
-        for (Map.Entry<String, String> entry : monitoredContacts.entrySet()) {
-            String contactKey = entry.getKey();
-            if (senderLower.contains(contactKey)) {
-                isMonitored = true;
-                matchedContact = entry.getValue();
+        // Check if sender belongs to one of our monitored targets for this app
+        MonitorTarget matchedTarget = null;
+        for (MonitorTarget target : monitoredTargets.values()) {
+            if (target.matches(packageName, title)) {
+                matchedTarget = target;
                 break;
             }
         }
-        if (!isMonitored) return;
+        if (matchedTarget == null) return;
 
         // Skip summary notifications like "2 new messages", "3 messages from Mom"
         if (text.matches("^\\d+ (new )?messages?.*")) {
@@ -184,9 +288,9 @@ public class AutoReplyManager {
 
         // Debounce — don't reply to same contact within 30s
         long now = System.currentTimeMillis();
-        Long lastReply = lastReplyTime.get(senderLower);
+        Long lastReply = lastReplyTime.get(matchedTarget.getKey());
         if (lastReply != null && (now - lastReply) < DEBOUNCE_MS) {
-            XLog.d(TAG, "Debounce: skipping reply to " + matchedContact + " (replied " + ((now - lastReply) / 1000) + "s ago)");
+            XLog.d(TAG, "Debounce: skipping reply to " + matchedTarget.getDisplayLabel() + " (replied " + ((now - lastReply) / 1000) + "s ago)");
             return;
         }
 
@@ -195,16 +299,17 @@ public class AutoReplyManager {
         if (!replying.compareAndSet(false, true)) {
             hasPending = true;
             pendingPackage = packageName;
-            pendingContact = matchedContact;
-            XLog.d(TAG, "Already replying, flagged pending from " + matchedContact);
+            pendingContact = matchedTarget.getDisplayName();
+            XLog.d(TAG, "Already replying, flagged pending from " + matchedTarget.getDisplayLabel());
             return;
         }
 
-        String finalContact = matchedContact;
+        final MonitorTarget finalTarget = matchedTarget;
+        String finalContact = finalTarget.getDisplayName();
         String incomingMessage = text;
-        String appName = resolveAppName(packageName);
+        String appName = finalTarget.getAppName();
 
-        XLog.i(TAG, "Auto-replying to " + finalContact + " via " + appName + ": '" + incomingMessage + "'");
+        XLog.i(TAG, "Auto-replying to " + finalTarget.getDisplayLabel() + ": '" + incomingMessage + "'");
 
         executor.submit(() -> {
             try {
@@ -316,7 +421,7 @@ public class AutoReplyManager {
 
                 if (result.isSuccess()) {
                     XLog.i(TAG, "Auto-reply sent to " + finalContact + ": '" + reply + "'");
-                    lastReplyTime.put(senderLower, System.currentTimeMillis());
+                    lastReplyTime.put(finalTarget.getKey(), System.currentTimeMillis());
 
                     // Dismiss the messaging app's notifications so the next message
                     // triggers a fresh notification event (not an update to existing one).
@@ -353,8 +458,30 @@ public class AutoReplyManager {
         });
     }
 
+    private MonitorTarget buildTarget(String name, String appName) {
+        String displayName = name != null ? name.trim() : "";
+        if (displayName.isEmpty()) return null;
+        String resolvedAppName = normalizeAppName(appName);
+        String packageName = resolvePackageName(resolvedAppName);
+        if (packageName == null) {
+            resolvedAppName = "WhatsApp";
+            packageName = "com.whatsapp";
+        }
+        return new MonitorTarget(displayName, resolvedAppName, packageName);
+    }
+
     private String normalizeName(String name) {
+        return normalizeNameStatic(name);
+    }
+
+    private static String normalizeNameStatic(String name) {
+        if (name == null) return "";
         return name.trim().replaceAll("\\s+", " ").toLowerCase(Locale.ROOT);
+    }
+
+    private static String digitsOnly(String value) {
+        if (value == null) return "";
+        return value.replaceAll("\\D+", "");
     }
 
     /**
@@ -907,7 +1034,46 @@ public class AutoReplyManager {
             case "com.whatsapp": return "WhatsApp";
             case "org.telegram.messenger": return "Telegram";
             case "com.google.android.apps.messaging": return "Messages";
+            case "jp.naver.line.android": return "LINE";
+            case "com.tencent.mm": return "WeChat";
             default: return "WhatsApp";
+        }
+    }
+
+    private String normalizeAppName(String appName) {
+        if (appName == null) return "WhatsApp";
+        String lower = appName.trim().toLowerCase(Locale.ROOT);
+        switch (lower) {
+            case "telegram":
+                return "Telegram";
+            case "messages":
+            case "google messages":
+            case "sms":
+                return "Messages";
+            case "line":
+                return "LINE";
+            case "wechat":
+            case "we chat":
+                return "WeChat";
+            default:
+                return "WhatsApp";
+        }
+    }
+
+    private String resolvePackageName(String appName) {
+        switch (appName) {
+            case "WhatsApp":
+                return "com.whatsapp";
+            case "Telegram":
+                return "org.telegram.messenger";
+            case "Messages":
+                return "com.google.android.apps.messaging";
+            case "LINE":
+                return "jp.naver.line.android";
+            case "WeChat":
+                return "com.tencent.mm";
+            default:
+                return null;
         }
     }
 }

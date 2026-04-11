@@ -132,14 +132,24 @@ class TaskFlowController(
     }
 
     fun handleMonitorTask(text: String) {
-        val requestedContact = extractContactName(text)
-        if (requestedContact.isEmpty()) {
+        val target = MonitorTargetParser.fromTaskText(text)
+        if (target == null) {
             addUser(text)
             addSystem("Could not figure out who to monitor. Try: \"Monitor Mom on WhatsApp\"")
             return
         }
 
-        addUser(text)
+        startMonitor(target, typedInput = text)
+    }
+
+    fun startMonitor(target: MonitorTargetSpec, typedInput: String? = null) {
+        val trimmedLabel = target.label.trim()
+        if (trimmedLabel.isEmpty()) {
+            addSystem("Could not figure out who to monitor. Try: \"Monitor Mom on WhatsApp\"")
+            return
+        }
+
+        addUser(typedInput ?: "monitor ${trimmedLabel} on ${target.app}")
         val missing = AppCapabilityCoordinator.missingMonitorRequirements(activity)
         if (missing.isNotEmpty()) {
             Toast.makeText(
@@ -151,19 +161,20 @@ class TaskFlowController(
             return
         }
 
-        val contact = requestedContact
+        val contact = trimmedLabel
+        val app = target.app
         uiState.isProcessing.value = true
-        addSystem("Setting up auto-reply for $contact...")
+        addSystem("Setting up auto-reply for $contact on $app...")
 
         val autoReplyManager = AutoReplyManager.getInstance()
-        autoReplyManager.addContact(contact)
+        autoReplyManager.addTarget(contact, app)
         autoReplyManager.setEnabled(true)
-        XLog.i(TAG, "handleMonitorTask: enabled auto-reply for '$contact'")
+        XLog.i(TAG, "startMonitor: enabled auto-reply for '${target.displayLabel}'")
 
         Handler(Looper.getMainLooper()).postDelayed({
             uiState.isProcessing.value = false
-            addSystem("✓ Auto-reply is now active for $contact.\nMonitoring in background — you can stop anytime from the bar above.")
-            XLog.i(TAG, "handleMonitorTask: monitor active, staying in PokeClaw")
+            addSystem("✓ Auto-reply is now active for ${target.displayLabel}.\nMonitoring in background — you can stop anytime from the bar above.")
+            XLog.i(TAG, "startMonitor: monitor active, staying in PokeClaw")
         }, 1500)
     }
 
@@ -253,22 +264,6 @@ class TaskFlowController(
         if (!ForegroundService.isRunning()) {
             ForegroundService.start(activity)
         }
-    }
-
-    private fun extractContactName(text: String): String {
-        val lower = text.lowercase()
-        var cleaned = lower
-        val removeWords = listOf(
-            "monitoring", "monitor", "auto-reply", "auto reply", "watching", "watch",
-            "on whatsapp", "on telegram", "on messages", "on wechat", "on line",
-            "messages", "message", "'s", "'s", "for", "from",
-            "please", "can you", "start", "enable", "begin", "help me",
-        )
-        for (word in removeWords) {
-            cleaned = cleaned.replace(word, " ")
-        }
-        cleaned = cleaned.replace(Regex("\\s+"), " ").trim()
-        return if (cleaned.isNotEmpty()) cleaned.replaceFirstChar { it.uppercase() } else ""
     }
 
     private fun addUser(text: String) {
