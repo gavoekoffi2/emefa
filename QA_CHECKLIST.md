@@ -993,6 +993,8 @@ Format: `[date] [status] [test-id] description`
 [2026-04-10] [NOTE]    QA-wf-r2  Device-state guard for Compose UI smoke: if notification shade or another app steals foreground, collapse/foreground PokeClaw again before judging the refactor; if IME moves the input bar, re-dump live bounds instead of reusing stale tap coordinates
 [2026-04-10] [PASS]    H2-d  Chat keyboard dismiss smoke passed on Pixel 8 Pro: after focusing the input, tapping the blank header area cleared focus (`focused=true` -> `focused=false`) and hid the IME instead of trapping the keyboard on screen
 [2026-04-10] [PASS]    B4-c  Accessibility text-match hardening compile/unit bundle passed: low-level lookup now keeps Android's fast text path but falls back to a Unicode-normalized tree walk, and standard launch dialogs try stable positive-button ids before language-specific keywords
+[2026-04-10] [PASS]    Phase5-r5  Cloud send smoke passed after send-affordance hardening: `send yo to girlfriend on WhatsApp` ran on `gpt-4.1`, called `send_message(contact=\"girlfriend\", message=\"yo\", app=\"WhatsApp\")`, finished in 2 rounds, and auto-returned with `Task completed: Sent 'yo' to your girlfriend on WhatsApp.`
+[2026-04-10] [PASS]    Phase5-r6  Chat-noise filtering is no longer English-string-bound: conversation-reading heuristics now treat timestamps and centered system labels as layout noise using shared tested rules (`ChatNoiseFilterUtilsTest`, `UiTextMatchUtilsTest`, `ContactMatchUtilsTest`)
 ```
 
 ### Bugs Found During v9 QA

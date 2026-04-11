@@ -520,6 +520,7 @@ This is the phase that makes lower-RAM support and more local models safer to ad
   - chain-launch allow dialogs now try stable positive-button ids before falling back to visible text keywords, which reduces language dependence
   - chat keyboard dismissal now has an explicit focus-clear path for tapping back into the chatroom, but the final focused-device QA should still be tracked under `H2-d`
   - send / reply affordances are moving to the same rule: prefer structure, geometry, and resource-id hints first; only use localized visible text as a fallback; and when the LLM must help, describe the control by function instead of exact wording
+  - message-reading / monitor context extraction is also moving off English-only string filters; centered separators, banners, and timestamp-like labels are now treated as layout noise through shared heuristics instead of hand-coded words like `Today`, `Yesterday`, or `typing`
 
 ## Phase 6 — Release / Distribution Surface
 

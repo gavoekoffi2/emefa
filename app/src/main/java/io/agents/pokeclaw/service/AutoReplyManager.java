@@ -12,6 +12,7 @@ import io.agents.pokeclaw.tool.ToolRegistry;
 import io.agents.pokeclaw.tool.ToolResult;
 import io.agents.pokeclaw.tool.impl.SendMessageTool;
 import io.agents.pokeclaw.ClawApplication;
+import io.agents.pokeclaw.utils.ChatNoiseFilterUtils;
 import io.agents.pokeclaw.utils.ContactMatchUtils;
 import io.agents.pokeclaw.utils.UiActionMatchUtils;
 import io.agents.pokeclaw.utils.XLog;
@@ -560,14 +561,16 @@ public class AutoReplyManager {
         List<AccessibilityNodeInfo> candidates = new ArrayList<>();
         collectTextNodesInRegion(root, 0, 300, candidates); // top 300px = toolbar area
 
+        android.graphics.Rect rootBounds = new android.graphics.Rect();
+        root.getBoundsInScreen(rootBounds);
         for (AccessibilityNodeInfo node : candidates) {
             CharSequence text = node.getText();
             if (text != null && text.length() > 0 && text.length() < 30) {
                 String t = text.toString();
-                // Skip timestamps, status texts
-                if (t.contains(":") && t.length() < 10) continue; // "7:47 p.m."
-                if (t.toLowerCase().contains("last seen") || t.toLowerCase().contains("online")) continue;
-                if (t.toLowerCase().contains("typing")) continue;
+                android.graphics.Rect bounds = new android.graphics.Rect();
+                node.getBoundsInScreen(bounds);
+                if (ChatNoiseFilterUtils.isLikelyTimestampLike(t)) continue;
+                if (ChatNoiseFilterUtils.isLikelyCenteredSystemLabel(bounds, rootBounds, t)) continue;
                 return t;
             }
         }
@@ -601,12 +604,7 @@ public class AutoReplyManager {
             // Left-aligned = incoming (not our own message)
             if (bounds.centerX() < midX) {
                 String msg = text.toString();
-                // Skip system messages, timestamps, and input hints
-                if (msg.contains("end-to-end encrypted") || msg.contains("Learn more")) continue;
-                if (msg.equals("Today") || msg.equals("Yesterday")) continue;
-                if (msg.equals("Message") || msg.equals("Type a message")) continue;
-                // Skip timestamps: short text with time patterns
-                if (msg.length() < 15 && (msg.contains(":") && (msg.contains("a.m.") || msg.contains("p.m.") || msg.matches(".*\\d+:\\d+.*")))) continue;
+                if (ChatNoiseFilterUtils.isLikelyNonMessageLabel(bounds, rootBounds, msg)) continue;
                 lastIncoming = msg;
             }
         }
@@ -970,11 +968,7 @@ public class AutoReplyManager {
             if (bounds.top < 300 || bounds.top > rootBounds.height() - 250) continue;
 
             String msg = text.toString();
-            // Skip system messages, timestamps, input hints
-            if (msg.contains("end-to-end encrypted") || msg.contains("Learn more")) continue;
-            if (msg.equals("Today") || msg.equals("Yesterday")) continue;
-            if (msg.equals("Message") || msg.equals("Type a message")) continue;
-            if (msg.length() < 15 && (msg.contains(":") && (msg.contains("a.m.") || msg.contains("p.m.") || msg.matches(".*\\d+:\\d+.*")))) continue;
+            if (ChatNoiseFilterUtils.isLikelyNonMessageLabel(bounds, rootBounds, msg)) continue;
 
             // Left = them, Right = me
             String speaker = bounds.centerX() < midX ? "them" : "me";
