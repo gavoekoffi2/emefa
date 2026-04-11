@@ -258,10 +258,9 @@ fun ChatScreen(
                         onModelSwitch = onModelSwitch,
                         colors = colors,
                     )
-                    if (activeTasks.isNotEmpty() || isTaskRunning) {
+                    if (activeTasks.isNotEmpty()) {
                         ActiveTaskBar(
                             tasks = activeTasks,
-                            isRunningTask = isTaskRunning,
                             onStopTask = onStopTask,
                             onStopAll = onStopAllTasks,
                             colors = colors,
@@ -2279,7 +2278,6 @@ private fun SendMessageDialog(
 @Composable
 private fun ActiveTaskBar(
     tasks: List<String>,
-    isRunningTask: Boolean = false,
     onStopTask: (String) -> Unit,
     onStopAll: () -> Unit,
     colors: PokeclawColors,
@@ -2291,42 +2289,6 @@ private fun ActiveTaskBar(
             .fillMaxWidth()
             .background(colors.surface)
     ) {
-        // Running task bar (agent task in progress)
-        if (isRunningTask) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(androidx.compose.ui.graphics.Color(0xFF332200))
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(8.dp)
-                        .background(
-                            color = androidx.compose.ui.graphics.Color(0xFFFF9800),
-                            shape = androidx.compose.foundation.shape.CircleShape,
-                        )
-                )
-                Spacer(Modifier.width(10.dp))
-                Text(
-                    text = "Task running...",
-                    color = androidx.compose.ui.graphics.Color(0xFFFF9800),
-                    fontSize = 13.sp,
-                    modifier = Modifier.weight(1f),
-                )
-                Text(
-                    text = "Stop",
-                    color = androidx.compose.ui.graphics.Color(0xFFF44336),
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier
-                        .clickable { onStopAll() }
-                        .padding(horizontal = 8.dp, vertical = 4.dp),
-                )
-            }
-        }
-
         // Monitor tasks bar
         if (tasks.isNotEmpty()) {
             Row(
