@@ -206,7 +206,10 @@ class ComposeChatActivity : ComponentActivity() {
             }
         }
 
-        chatSessionController.loadModelIfReady()
+        chatSessionController.loadModelIfReady(
+            conversationId = conversationStore.currentConversationId,
+            visibleMessages = _messages.toList(),
+        )
         _isLocalModelActive.value = ModelConfigRepository.isLocalActive()
 
         // Release local LLM conversation before task starts so the agent can use the engine
@@ -236,7 +239,10 @@ class ComposeChatActivity : ComponentActivity() {
         permHandler.removeCallbacks(permPoller)
         permHandler.postDelayed(permPoller, 1000)
         activeTaskShellController.onResume()
-        chatSessionController.onResume()
+        chatSessionController.onResume(
+            conversationId = conversationStore.currentConversationId,
+            visibleMessages = _messages.toList(),
+        )
     }
 
     override fun onPause() {

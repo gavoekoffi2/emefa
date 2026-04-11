@@ -62,7 +62,10 @@ class ChatSessionController(
 
     fun isModelReady(): Boolean = isModelReady
 
-    fun loadModelIfReady() {
+    fun loadModelIfReady(
+        conversationId: String? = null,
+        visibleMessages: List<ChatMessage> = emptyList(),
+    ) {
         val resolvedConfig = ModelConfigRepository.snapshot()
 
         if (!resolvedConfig.isLocalActive()) {
@@ -176,17 +179,21 @@ class ChatSessionController(
             return
         }
 
+        val restoredSystemPrompt = buildRestoredSystemPrompt(conversationId, visibleMessages)
         uiState.modelStatus.value = "Loading..."
         setButtonsEnabled(false)
         val generation = ++localUiGeneration
-        executor.submit { loadModel(modelPath, generation) }
+        executor.submit { loadModel(modelPath, generation, restoredSystemPrompt) }
     }
 
-    fun onResume() {
+    fun onResume(
+        conversationId: String,
+        visibleMessages: List<ChatMessage>,
+    ) {
         syncUiToActiveModel()
         val currentModelPath = ModelConfigRepository.snapshot().local.modelPath
         if (currentModelPath.isNotEmpty() && currentModelPath != loadedModelPath) {
-            loadModelIfReady()
+            loadModelIfReady(conversationId, visibleMessages)
         } else if (!isModelReady && engine != null && currentModelPath.isNotEmpty()) {
             val generation = ++localUiGeneration
             executor.submit {
@@ -196,7 +203,11 @@ class ChatSessionController(
                     } catch (_: Exception) {
                     }
                     conversation = null
-                    val lease = LocalModelRuntime.openConversation(activity, currentModelPath, buildConversationConfig())
+                    val lease = LocalModelRuntime.openConversation(
+                        activity,
+                        currentModelPath,
+                        buildConversationConfig(buildRestoredSystemPrompt(conversationId, visibleMessages))
+                    )
                     engine = lease.engine
                     conversation = lease.conversation
                     isModelReady = true
@@ -231,7 +242,7 @@ class ChatSessionController(
                 }
             }
         } else if (!isModelReady && engine == null && currentModelPath.isNotEmpty()) {
-            loadModelIfReady()
+            loadModelIfReady(conversationId, visibleMessages)
         }
     }
 
@@ -456,7 +467,11 @@ class ChatSessionController(
         }
     }
 
-    private fun loadModel(modelPath: String, generation: Long) {
+    private fun loadModel(
+        modelPath: String,
+        generation: Long,
+        restoredSystemPrompt: String? = null,
+    ) {
         try {
             XLog.i(TAG, "loadModel: acquiring shared runtime for $modelPath")
             try {
@@ -466,7 +481,11 @@ class ChatSessionController(
             conversation = null
             Thread.sleep(200)
 
-            val lease = LocalModelRuntime.openConversation(activity, modelPath, buildConversationConfig())
+            val lease = LocalModelRuntime.openConversation(
+                activity,
+                modelPath,
+                buildConversationConfig(restoredSystemPrompt)
+            )
             engine = lease.engine
             XLog.i(TAG, "loadModel: engine ready (${lease.backendLabel})")
             conversation = lease.conversation
@@ -529,10 +548,25 @@ class ChatSessionController(
         return conversation!!.sendMessage(text)?.toString() ?: "(no response)"
     }
 
-    private fun buildConversationConfig(): ConversationConfig {
+    private fun buildConversationConfig(systemPrompt: String? = null): ConversationConfig {
         return ConversationConfig(
-            systemInstruction = Contents.of(BASE_SYSTEM_PROMPT),
+            systemInstruction = Contents.of(systemPrompt ?: BASE_SYSTEM_PROMPT),
             samplerConfig = SamplerConfig(topK = 64, topP = 0.95, temperature = 0.7)
+        )
+    }
+
+    private fun buildRestoredSystemPrompt(
+        conversationId: String?,
+        visibleMessages: List<ChatMessage>,
+    ): String? {
+        val meaningfulMessages = visibleMessages.filter {
+            it.role == ChatMessage.Role.USER || it.role == ChatMessage.Role.ASSISTANT
+        }
+        if (conversationId.isNullOrBlank() || meaningfulMessages.isEmpty()) return null
+        return ConversationCompactor.buildRestoredSystemPrompt(
+            activity,
+            conversationId,
+            meaningfulMessages.takeLast(6)
         )
     }
 
