@@ -357,6 +357,8 @@ Do **not** rerun the entire world after every refactor. Rerun the right bundle f
   - `DD1-DD7`
   - `R1-R6`
   - `Q2-2`, `Q3-2`
+  - one Cloud chatroom bridge smoke where a direct-device-data answer visibly appears as an assistant bubble
+  - one Local chatroom bridge smoke where a direct-device-data/task answer visibly appears in the same conversation
 - **Release / installer / updater changes**
   - `Dbg-u1-Dbg-u3`
   - `Rel-s1-Rel-s7`
@@ -644,12 +646,15 @@ Layer 1 broadcast bypasses UI routing. Only Layer 3 catches routing bugs.
 - [ ] **Q2-1. Cloud chat**: Cloud tab → type "hello" → tap send → AI response in chat bubble (routed via onSendTask)
 - [ ] **Q2-2. Cloud task**: Cloud tab → type "how much battery left" → tap send → actual battery info returned
 - [ ] **Q2-3. Cloud no toggle**: Cloud tab → verify NO Chat/Task toggle visible → all input goes to unified pipeline
+- [ ] **Q2-4. Cloud direct-data bridge**: Cloud tab → type `read my clipboard and explain what it says` → backend uses the clipboard tool AND the explanation appears as a visible assistant bubble in the same chatroom
+- [ ] **Q2-5. Cloud notifications bridge**: Cloud tab → type `read my notifications and summarize` → backend uses notifications tool AND the summary appears as a visible assistant bubble in the same chatroom
 
 ### Q3. Local Tab Send Routing
 - [x] **Q3-1. Local chat**: Local tab → Chat mode → type "hello" → tap send → AI response (routed via onSendChat to local LLM)
 - [ ] **Q3-2. Local task**: Local tab → Task mode → type "how much battery left" → tap send → task executes (routed via onSendTask)
 - [ ] **Q3-3. Mode switch**: Local tab → start in Chat → type "hello" → get response → tap Task → type task → executes correctly
 - [ ] **Q3-4. Chat doesn't trigger tasks**: Local tab → Chat mode → type "open YouTube" → should get conversational reply, NOT open YouTube
+- [ ] **Q3-5. Local task bridge**: Local tab → Task mode → type `how much battery left` → task completes AND the result appears as a visible assistant bubble in the same conversation after the task finishes
 
 ### Q4. Quick Task → Send E2E
 - [ ] **Q4-1. Quick task fill + send**: Local tab → tap "🔋 How much battery left?" → verify input fills + Task mode active → tap send → battery info returned
