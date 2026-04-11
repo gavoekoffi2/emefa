@@ -30,6 +30,7 @@ internal class DirectDeviceDataGuard private constructor(
             This request is about the user's real phone data, not a generic chatbot-only question.
             You ARE allowed to access this data with PokeClaw tools.
             Never claim that you cannot access the user's clipboard, notifications, phone state, installed apps, or current screen when a matching tool exists.
+            Empty or missing data is still a valid result. For example, an empty clipboard or no notifications should be reported plainly, not treated as a failure.
 
             Current task: "${task.taskText}"
             Use one of these tools first: ${task.allowedTools.joinToString(", ")}.
@@ -47,7 +48,7 @@ internal class DirectDeviceDataGuard private constructor(
         return "[System Guard] This is a ${task.taskLabel} request about the user's phone data. " +
             "Do not answer as if you lack device access. First use one of these tools: " +
             task.allowedTools.joinToString(", ") +
-            ". Then explain the real result."
+            ". Then explain the real result. Empty or missing data is still a valid answer."
     }
 
     fun maybeBlockFinish(): String? {
@@ -56,7 +57,7 @@ internal class DirectDeviceDataGuard private constructor(
         return "[System Guard] Do not call finish yet for this ${task.taskLabel} request. " +
             "You have not tried a direct phone-data tool yet. " +
             "Use one of these first: ${task.allowedTools.joinToString(", ")}. " +
-            task.requiredAction
+            task.requiredAction + " Empty or missing data is still a valid result."
     }
 
     fun recordToolAttempt(toolName: String) {

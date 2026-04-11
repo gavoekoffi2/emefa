@@ -37,4 +37,13 @@ class DirectDeviceDataGuardTest {
         assertFalse(guard.shouldBlockTextOnlyCompletion())
         assertNull(guard.maybeBlockFinish())
     }
+
+    @Test
+    fun `empty clipboard remains a valid answer path`() {
+        val guard = DirectDeviceDataGuard.fromTask("Read my clipboard and explain what it says")
+
+        assertTrue(guard.buildPromptSection().contains("valid result", ignoreCase = true))
+        assertTrue(guard.buildCompletionCorrection().contains("valid answer", ignoreCase = true))
+        assertTrue(guard.maybeBlockFinish()?.contains("valid result", ignoreCase = true) == true)
+    }
 }
