@@ -115,7 +115,8 @@ fun ChatScreen(
     messages: List<ChatMessage>,
     modelStatus: String,
     needsPermission: Boolean,
-    isProcessing: Boolean,
+    isAwaitingReply: Boolean,
+    isTaskRunning: Boolean,
     isDownloading: Boolean = false,
     downloadProgress: Int = 0,
     isLocalModel: Boolean = true,
@@ -228,7 +229,11 @@ fun ChatScreen(
                                 // Check if cloud default model is configured
                                 if (kvUtils.hasDefaultCloudModel()) {
                                     val modelId = kvUtils.getDefaultCloudModel()
-                                    onModelSwitch(modelId, modelId)
+                                    val provider = io.agents.pokeclaw.agent.CloudProvider.fromName(
+                                        kvUtils.getDefaultCloudProvider().ifBlank { kvUtils.getLlmProvider() }
+                                    )
+                                    val displayName = provider.models.find { it.id == modelId }?.displayName ?: modelId
+                                    onModelSwitch(modelId, displayName)
                                 } else {
                                     // No cloud model configured — signal "no model" state
                                     io.agents.pokeclaw.utils.XLog.i("ChatScreen", "Cloud tab: no default cloud model configured")
@@ -253,10 +258,10 @@ fun ChatScreen(
                         onModelSwitch = onModelSwitch,
                         colors = colors,
                     )
-                    if (activeTasks.isNotEmpty() || isProcessing) {
+                    if (activeTasks.isNotEmpty() || isTaskRunning) {
                         ActiveTaskBar(
                             tasks = activeTasks,
-                            isRunningTask = isProcessing,
+                            isRunningTask = isTaskRunning,
                             onStopTask = onStopTask,
                             onStopAll = onStopAllTasks,
                             colors = colors,
@@ -283,7 +288,8 @@ fun ChatScreen(
                         )
 
                         ChatInputBar(
-                            isProcessing = isProcessing,
+                            isAwaitingReply = isAwaitingReply,
+                            isTaskRunning = isTaskRunning,
                             inputEnabled = inputEnabled,
                             isTaskMode = isTaskMode,
                             isLocalModel = isLocalUI,
@@ -827,7 +833,8 @@ private fun ToolGroup(message: ChatMessage, colors: PokeclawColors) {
 
 @Composable
 private fun ChatInputBar(
-    isProcessing: Boolean,
+    isAwaitingReply: Boolean,
+    isTaskRunning: Boolean,
     inputEnabled: Boolean = true,
     isTaskMode: Boolean,
     isLocalModel: Boolean,
@@ -953,9 +960,9 @@ private fun ChatInputBar(
 
             FloatingActionButton(
                 onClick = {
-                    if (isProcessing) {
+                    if (isTaskRunning) {
                         onStopAll()
-                    } else if (inputEnabled && text.isNotBlank()) {
+                    } else if (!isAwaitingReply && inputEnabled && text.isNotBlank()) {
                         if (!isLocalModel || isTaskMode) {
                             onSendTask(text.trim())
                             text = ""
@@ -971,9 +978,10 @@ private fun ChatInputBar(
                 },
                 modifier = Modifier
                     .size(34.dp)
-                    .alpha(if ((text.isBlank() || !inputEnabled) && !isProcessing) 0.35f else 1f),
+                    .alpha(if ((text.isBlank() || !inputEnabled || isAwaitingReply) && !isTaskRunning) 0.35f else 1f),
                 containerColor = when {
-                    isProcessing -> Color(0xFFF44336)
+                    isTaskRunning -> Color(0xFFF44336)
+                    isAwaitingReply -> colors.background
                     text.isBlank() -> colors.background
                     isTaskMode && isLocalModel -> colors.accent
                     else -> colors.userBubble
@@ -982,8 +990,16 @@ private fun ChatInputBar(
                 elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 0.dp),
             ) {
                 Icon(
-                    if (isProcessing) Icons.Default.Close else Icons.Default.ArrowUpward,
-                    contentDescription = if (isProcessing) "Stop" else "Send",
+                    when {
+                        isTaskRunning -> Icons.Default.Close
+                        isAwaitingReply -> Icons.Default.MoreHoriz
+                        else -> Icons.Default.ArrowUpward
+                    },
+                    contentDescription = when {
+                        isTaskRunning -> "Stop"
+                        isAwaitingReply -> "Waiting for reply"
+                        else -> "Send"
+                    },
                     tint = Color.White,
                     modifier = Modifier.size(14.dp),
                 )

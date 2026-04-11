@@ -29,7 +29,8 @@ import java.util.concurrent.ExecutorService
 data class TaskFlowUiState(
     val messages: SnapshotStateList<ChatMessage>,
     val modelStatus: MutableState<String>,
-    val isProcessing: MutableState<Boolean>,
+    val isAwaitingReply: MutableState<Boolean>,
+    val isTaskRunning: MutableState<Boolean>,
 )
 
 /**
@@ -97,7 +98,8 @@ class TaskFlowController(
         sendTaskRetryCount = 0
 
         ensureNotificationPermission()
-        uiState.isProcessing.value = false
+        uiState.isAwaitingReply.value = false
+        uiState.isTaskRunning.value = false
 
         if (!KVUtils.hasLlmConfig()) {
             Toast.makeText(activity, "Configure LLM in Settings first", Toast.LENGTH_LONG).show()
@@ -106,7 +108,8 @@ class TaskFlowController(
 
         val agentPromptOverride = buildAgentPromptOverride(text)
         addUser(text)
-        uiState.isProcessing.value = true
+        uiState.isAwaitingReply.value = true
+        uiState.isTaskRunning.value = false
         XLog.i(TAG, "sendTask: isProcessing=TRUE")
         uiState.messages.add(ChatMessage(ChatMessage.Role.ASSISTANT, "..."))
 
@@ -166,7 +169,8 @@ class TaskFlowController(
 
         val contact = trimmedLabel
         val app = target.app
-        uiState.isProcessing.value = true
+        uiState.isAwaitingReply.value = false
+        uiState.isTaskRunning.value = false
         addSystem("Setting up auto-reply for $contact on $app...")
 
         val autoReplyManager = AutoReplyManager.getInstance()
@@ -175,7 +179,8 @@ class TaskFlowController(
         XLog.i(TAG, "startMonitor: enabled auto-reply for '${target.displayLabel}'")
 
         Handler(Looper.getMainLooper()).postDelayed({
-            uiState.isProcessing.value = false
+            uiState.isAwaitingReply.value = false
+            uiState.isTaskRunning.value = false
             addSystem("✓ Auto-reply is now active for ${target.displayLabel}.\nMonitoring in background — you can stop anytime from the bar above.")
             XLog.i(TAG, "startMonitor: monitor active, staying in PokeClaw")
         }, 1500)
@@ -202,17 +207,32 @@ class TaskFlowController(
                     cleanupAfterTask()
                 }
                 is TaskEvent.ToolAction -> {
+                    uiState.isAwaitingReply.value = false
+                    uiState.isTaskRunning.value = true
                     if (!event.toolName.contains("Finish", ignoreCase = true)) {
                         removeTypingIndicator()
                         addSystem("${event.toolName}...")
                     }
                 }
                 is TaskEvent.ToolResult -> {
+                    uiState.isAwaitingReply.value = false
+                    uiState.isTaskRunning.value = true
                     if (!event.success) addSystem("${event.toolName} failed")
                 }
-                is TaskEvent.Response -> replaceTypingIndicator(event.text)
-                is TaskEvent.Progress -> addSystem(event.description)
-                is TaskEvent.LoopStart, is TaskEvent.TokenUpdate, is TaskEvent.Thinking -> Unit
+                is TaskEvent.Response -> {
+                    uiState.isAwaitingReply.value = false
+                    replaceTypingIndicator(event.text)
+                }
+                is TaskEvent.Progress -> {
+                    uiState.isAwaitingReply.value = false
+                    uiState.isTaskRunning.value = true
+                    addSystem(event.description)
+                }
+                is TaskEvent.LoopStart -> {
+                    uiState.isAwaitingReply.value = false
+                    uiState.isTaskRunning.value = true
+                }
+                is TaskEvent.TokenUpdate, is TaskEvent.Thinking -> Unit
             }
         } catch (e: Exception) {
             XLog.w(TAG, "handleTaskEvent error", e)
@@ -239,7 +259,8 @@ class TaskFlowController(
 
     private fun cleanupAfterTask() {
         XLog.i(TAG, "cleanupAfterTask: isProcessing=FALSE")
-        uiState.isProcessing.value = false
+        uiState.isAwaitingReply.value = false
+        uiState.isTaskRunning.value = false
         appViewModel.clearTaskCallback()
         Handler(Looper.getMainLooper()).postDelayed({
             try {

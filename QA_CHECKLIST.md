@@ -454,6 +454,9 @@ When in doubt, rerun the smaller bundle first, then expand only if something dri
 - [ ] **H3. Layout sizes**: all text/buttons normal size (dp not pt)
 - [ ] **H4. Model switcher**: tap model bar → dropdown → switch model → status updates
 - [x] **H4-b. Local backend label is truthful**: Local model falls back GPU→CPU → top-left model status updates to `CPU`, not stale `GPU`
+- [ ] **H4-c. Cloud switch emits one system line**: Cloud tab → switch model from the top-left dropdown → chat shows one `Switched to ...` system message for that switch, not a lower-case + upper-case duplicate pair
+- [ ] **H4-d. Models page shows active + defaults truthfully**: Settings → Models → page clearly shows current `Active model`, `Default local model`, and `Default cloud model`
+- [ ] **H4-e. Built-in local rows respect linked/default model files**: if the default local model points at a usable Gemma file, the matching built-in row must not say `Not downloaded`
 - [ ] **H5. New chat**: tap pencil icon → clears messages → shows welcome screen
 - [ ] **H6. Rename chat**: long-press session in sidebar → rename option → type new name → name updates in sidebar + persists after app restart
 - [ ] **H7. Delete chat**: long-press session in sidebar → delete → session removed from sidebar + file deleted
@@ -641,13 +644,20 @@ Layer 1 broadcast bypasses UI routing. Only Layer 3 catches routing bugs.
 - [ ] **Q1-2. Local→Cloud switch**: tap Cloud button → model status changes to cloud model name → `isLocalModel` becomes false
 - [ ] **Q1-3. No model available**: tap Local with no downloaded model → no crash, stays on current model
 - [ ] **Q1-4. No API key**: tap Cloud with no API key → no crash, stays on current model
+- [ ] **Q1-5. Same-session switch actually takes effect**: in one existing conversation, switch Cloud → Local → Cloud without starting a new chat; each subsequent reply must come from the newly selected side, not the previously loaded model
+- [ ] **Q1-6. Switch state survives relaunch truthfully**: switch to Local, relaunch, confirm top bar + next reply are Local; then switch to Cloud, relaunch, confirm top bar + next reply are Cloud
+- [ ] **Q1-7. System switch messages match reality**: when the active model changes, the latest visible/system-persisted `Switched to ...` message must agree with the model that actually generates the next reply; no stale `Switched to local model` before a Cloud reply, and no missing Cloud switch record before a Cloud reply
+- [ ] **Q1-8. Footer/top-bar consistency after switch**: after switching models in the same conversation, old bubbles may keep their original model footers, but the newest assistant bubble must match the current top-bar model state
 
 ### Q2. Cloud Tab Send Routing
 - [ ] **Q2-1. Cloud chat**: Cloud tab → type "hello" → tap send → AI response in chat bubble (routed via onSendTask)
+- [ ] **Q2-1b. Cloud chat stays out of task-running state**: Cloud tab → type a normal chat message like `hello` → reply appears in chat, but the orange `Task running...` bar never appears unless the backend actually enters task/tool execution
 - [ ] **Q2-2. Cloud task**: Cloud tab → type "how much battery left" → tap send → actual battery info returned
 - [ ] **Q2-3. Cloud no toggle**: Cloud tab → verify NO Chat/Task toggle visible → all input goes to unified pipeline
 - [ ] **Q2-4. Cloud direct-data bridge**: Cloud tab → type `read my clipboard and explain what it says` → backend uses the clipboard tool AND the explanation appears as a visible assistant bubble in the same chatroom
 - [ ] **Q2-5. Cloud notifications bridge**: Cloud tab → type `read my notifications and summarize` → backend uses notifications tool AND the summary appears as a visible assistant bubble in the same chatroom
+- [ ] **Q2-6. Cloud-only capability proof**: in the same conversation, switch to Cloud and ask a task known to exceed Local reliability (for example `copy the latest email subject and Google it` or `open Reddit and search for pokeclaw`) → task completes successfully and the reply bubble is tagged with the Cloud model
+- [ ] **Q2-7. Cloud context handoff proof**: in the same conversation, ask Cloud to summarize something, then say `send that summary by email` → Cloud uses the earlier chat context and the resulting reply/task output stays tagged as Cloud
 
 ### Q3. Local Tab Send Routing
 - [x] **Q3-1. Local chat**: Local tab → Chat mode → type "hello" → tap send → AI response (routed via onSendChat to local LLM)
@@ -655,6 +665,8 @@ Layer 1 broadcast bypasses UI routing. Only Layer 3 catches routing bugs.
 - [ ] **Q3-3. Mode switch**: Local tab → start in Chat → type "hello" → get response → tap Task → type task → executes correctly
 - [ ] **Q3-4. Chat doesn't trigger tasks**: Local tab → Chat mode → type "open YouTube" → should get conversational reply, NOT open YouTube
 - [ ] **Q3-5. Local task bridge**: Local tab → Task mode → type `how much battery left` → task completes AND the result appears as a visible assistant bubble in the same conversation after the task finishes
+- [ ] **Q3-6. Local prompt-only task limit stays honest**: in the same conversation, first create some reusable context, then switch to Local Task mode and ask a vague follow-up like `send that summary by email` → Local must not pretend it used hidden Cloud-like context
+- [ ] **Q3-7. Local-vs-Cloud separation proof**: after a successful Cloud-only task, switch back to Local in the same conversation and ask a simple on-device task (`how much battery left`) → result comes from Local, not from the previously active Cloud model
 
 ### Q4. Quick Task → Send E2E
 - [ ] **Q4-1. Quick task fill + send**: Local tab → tap "🔋 How much battery left?" → verify input fills + Task mode active → tap send → battery info returned
@@ -1043,6 +1055,11 @@ Format: `[date] [status] [test-id] description`
 [2026-04-11] [PASS]    DD3  Cloud task `how much battery left` → `get_device_info(category=battery)` → answered with real battery/charging/temperature state; no generic limitation disclaimer
 [2026-04-11] [PASS]    DD5  Cloud task `what apps do i have` → `get_installed_apps()` → returned the real installed-app list; no generic chatbot fallback
 [2026-04-11] [PASS]    DD7-unit  Conceptual control `what is an Android clipboard` remains a normal chat-style case in unit coverage; the guard no longer falsely forces a clipboard tool just because the word `clipboard` appears
+[2026-04-11] [FIXED]   Q2-r1  Cloud unified-input send no longer reuses task-running chrome for ordinary chat turns; chat waiting state and true task execution state are tracked separately
+[2026-04-11] [PASS]    Q2-1b/Q6-3/T10  Pixel 8 Pro smoke after switching to `gpt-4.1-mini`: top pill shows `● gpt-4.1-mini · Cloud`, Cloud tab remains selected, placeholder stays `Chat or give a task...`, and no orange `Task running...` bar appears for the chat shell
+[2026-04-11] [PASS]    Q1-6/Q6-3/T10  Settings round-trip truth smoke: switch to Cloud, open Settings, press Back, and return to the same conversation → logcat reports `Cloud chat ready: gpt-4.1-mini`, top pill still shows `● gpt-4.1-mini · Cloud`, and the chat shell stays on the Cloud placeholder instead of drifting back to Local
+[2026-04-11] [PASS]    H4-d/H4-e/T2/T10  Models page truth smoke on Pixel 8 Pro: page now shows `Active model`, `Default local model`, and `Default cloud model` separately; the linked default Gemma built-in row no longer claims `Not downloaded`
+[2026-04-11] [PASS]    H4-c  Cloud dropdown switch smoke after install: switching to `GPT-4o` leaves a single `Switched to GPT-4o` system line instead of a lower-case + display-name duplicate pair
 ```
 
 ### Bugs Found During v9 QA

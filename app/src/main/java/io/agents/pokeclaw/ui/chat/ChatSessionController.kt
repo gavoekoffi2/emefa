@@ -28,7 +28,7 @@ import java.util.concurrent.ExecutorService
 data class ChatSessionUiState(
     val messages: SnapshotStateList<ChatMessage>,
     val modelStatus: MutableState<String>,
-    val isProcessing: MutableState<Boolean>,
+    val isAwaitingReply: MutableState<Boolean>,
     val inputEnabled: MutableState<Boolean>,
     val isDownloading: MutableState<Boolean>,
     val downloadProgress: MutableState<Int>,
@@ -57,6 +57,8 @@ class ChatSessionController(
     private var cloudClient: LlmClient? = null
     private var cloudModelName: String? = null
     private val cloudHistory = mutableListOf<dev.langchain4j.data.message.ChatMessage>()
+    private var localUiGeneration: Long = 0
+    private var suppressNextCloudSwitchMessage: Boolean = false
 
     fun isModelReady(): Boolean = isModelReady
 
@@ -64,6 +66,7 @@ class ChatSessionController(
         val resolvedConfig = ModelConfigRepository.snapshot()
 
         if (!resolvedConfig.isLocalActive()) {
+            localUiGeneration++
             val cloudConfig = resolvedConfig.activeCloud
             if (cloudConfig.apiKey.isNotEmpty() && cloudConfig.modelName.isNotEmpty()) {
                 val previousModel = cloudModelName
@@ -83,7 +86,11 @@ class ChatSessionController(
                             "The user has switched from $previousModel to ${cloudConfig.modelName}. Continue the conversation naturally."
                         )
                     )
-                    addSystem("Switched to ${cloudConfig.modelName}")
+                    if (suppressNextCloudSwitchMessage) {
+                        suppressNextCloudSwitchMessage = false
+                    } else {
+                        addSystem("Switched to ${cloudConfig.modelName}")
+                    }
                 }
                 isModelReady = true
                 uiState.modelStatus.value = "● ${cloudConfig.modelName} · Cloud"
@@ -171,14 +178,17 @@ class ChatSessionController(
 
         uiState.modelStatus.value = "Loading..."
         setButtonsEnabled(false)
-        executor.submit { loadModel(modelPath) }
+        val generation = ++localUiGeneration
+        executor.submit { loadModel(modelPath, generation) }
     }
 
     fun onResume() {
+        syncUiToActiveModel()
         val currentModelPath = ModelConfigRepository.snapshot().local.modelPath
         if (currentModelPath.isNotEmpty() && currentModelPath != loadedModelPath) {
             loadModelIfReady()
         } else if (!isModelReady && engine != null && currentModelPath.isNotEmpty()) {
+            val generation = ++localUiGeneration
             executor.submit {
                 try {
                     try {
@@ -191,6 +201,9 @@ class ChatSessionController(
                     conversation = lease.conversation
                     isModelReady = true
                     postToMain {
+                        if (!isLocalUiStillExpected(currentModelPath, generation)) {
+                            return@postToMain
+                        }
                         updateLocalModelStatus(currentModelPath)
                         setButtonsEnabled(true)
                     }
@@ -276,7 +289,7 @@ class ChatSessionController(
 
     fun sendChat(text: String) {
         addUser(text)
-        uiState.isProcessing.value = true
+        uiState.isAwaitingReply.value = true
         uiState.messages.add(ChatMessage(ChatMessage.Role.ASSISTANT, "..."))
 
         executor.submit {
@@ -295,7 +308,7 @@ class ChatSessionController(
                     XLog.d(TAG, "sendChat: cloud response modelName='${llmResponse.modelName}', fallback='$fallbackModelName'")
                     postToMain {
                         replaceTypingIndicator(responseText, modelTag)
-                        uiState.isProcessing.value = false
+                        uiState.isAwaitingReply.value = false
                         uiState.sessionTokens.value += inputTokens + outputTokens
                         uiState.sessionCost.value += ModelPricing.estimateCost(modelTag, inputTokens, outputTokens)
                         onPersistConversation()
@@ -309,7 +322,7 @@ class ChatSessionController(
                     val localModelTag = localModelTag(modelPath)
                     postToMain {
                         replaceTypingIndicator(responseText, localModelTag)
-                        uiState.isProcessing.value = false
+                        uiState.isAwaitingReply.value = false
                         uiState.sessionTokens.value += inputTokensEst + outputTokensEst
                         onPersistConversation()
                     }
@@ -325,7 +338,7 @@ class ChatSessionController(
                         val cpuModelTag = localModelTag(modelPath)
                         postToMain {
                             replaceTypingIndicator(responseText, cpuModelTag)
-                            uiState.isProcessing.value = false
+                            uiState.isAwaitingReply.value = false
                             uiState.sessionTokens.value += inputTokensEst + outputTokensEst
                             updateLocalModelStatus(modelPath)
                             onPersistConversation()
@@ -338,7 +351,7 @@ class ChatSessionController(
                 XLog.e(TAG, "Chat error", e)
                 postToMain {
                     replaceTypingIndicator("Error: ${e.message}")
-                    uiState.isProcessing.value = false
+                    uiState.isAwaitingReply.value = false
                 }
             }
         }
@@ -366,7 +379,9 @@ class ChatSessionController(
             addSystem("Switched to local model")
             loadModelIfReady()
         } else {
+            localUiGeneration++
             ModelConfigRepository.activateCloudSelection(modelId)
+            suppressNextCloudSwitchMessage = true
             loadModelIfReady()
             addSystem("Switched to $displayName")
         }
@@ -441,7 +456,7 @@ class ChatSessionController(
         }
     }
 
-    private fun loadModel(modelPath: String) {
+    private fun loadModel(modelPath: String, generation: Long) {
         try {
             XLog.i(TAG, "loadModel: acquiring shared runtime for $modelPath")
             try {
@@ -459,6 +474,10 @@ class ChatSessionController(
             isModelReady = true
             loadedModelPath = modelPath
             postToMain {
+                if (!isLocalUiStillExpected(modelPath, generation)) {
+                    XLog.i(TAG, "Ignoring stale local UI update for $modelPath (generation=$generation)")
+                    return@postToMain
+                }
                 updateLocalModelStatus(modelPath)
                 setButtonsEnabled(true)
             }
@@ -552,6 +571,10 @@ class ChatSessionController(
     }
 
     private fun addSystem(text: String) {
+        val last = uiState.messages.lastOrNull()
+        if (last?.role == ChatMessage.Role.SYSTEM && last.content.equals(text, ignoreCase = true)) {
+            return
+        }
         uiState.messages.add(ChatMessage(ChatMessage.Role.SYSTEM, text))
     }
 
@@ -564,6 +587,54 @@ class ChatSessionController(
         val modelName = modelInfo?.displayName ?: modelPath.substringAfterLast('/').substringBeforeLast('.')
         val backendLabel = LocalModelRuntime.currentBackendLabel(modelPath) ?: "On-device"
         uiState.modelStatus.value = "● $modelName · $backendLabel"
+    }
+
+    fun syncUiToActiveModel() {
+        val config = ModelConfigRepository.snapshot()
+        if (config.isLocalActive()) {
+            val modelPath = config.local.modelPath
+            if (modelPath.isNullOrBlank()) {
+                uiState.modelStatus.value = "No model selected"
+                setButtonsEnabled(false)
+                return
+            }
+            if (loadedModelPath == modelPath && isModelReady && cloudClient == null) {
+                updateLocalModelStatus(modelPath)
+                setButtonsEnabled(true)
+                return
+            }
+            loadModelIfReady()
+            return
+        }
+
+        val cloud = config.activeCloud
+        if (!cloud.isConfigured) {
+            uiState.modelStatus.value = "No model selected"
+            setButtonsEnabled(false)
+            return
+        }
+        if (conversation != null) {
+            try {
+                conversation?.close()
+            } catch (_: Exception) {
+            }
+            conversation = null
+            isModelReady = false
+        }
+        loadedModelPath = null
+        if (cloudClient == null || cloudModelName != cloud.modelName || !isModelReady) {
+            loadModelIfReady()
+            return
+        }
+        uiState.modelStatus.value = "● ${cloud.modelName} · Cloud"
+        setButtonsEnabled(true)
+    }
+
+    private fun isLocalUiStillExpected(modelPath: String, generation: Long): Boolean {
+        val config = ModelConfigRepository.snapshot()
+        return generation == localUiGeneration &&
+            config.isLocalActive() &&
+            config.local.modelPath == modelPath
     }
 
     private fun localModelTag(modelPath: String): String {

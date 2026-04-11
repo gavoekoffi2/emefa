@@ -53,6 +53,17 @@ object LocalModelManager {
         val statusKind: StatusKind,
     )
 
+    enum class AvailabilitySource {
+        MANAGED_DOWNLOAD,
+        LINKED_FILE,
+        MISSING,
+    }
+
+    data class ModelAvailability(
+        val isAvailable: Boolean,
+        val source: AvailabilitySource,
+    )
+
     enum class StatusKind {
         READY,
         WARNING,
@@ -129,6 +140,41 @@ object LocalModelManager {
         }
     }
 
+    fun configuredBuiltInModel(localConfig: LocalModelConfig): ModelInfo? {
+        return AVAILABLE_MODELS.find { matchesConfiguredModel(it, localConfig) }
+    }
+
+    fun availabilityForModel(
+        context: Context,
+        model: ModelInfo,
+        localConfig: LocalModelConfig? = null
+    ): ModelAvailability {
+        if (isModelDownloaded(context, model)) {
+            return ModelAvailability(
+                isAvailable = true,
+                source = AvailabilitySource.MANAGED_DOWNLOAD,
+            )
+        }
+
+        val config = localConfig ?: return ModelAvailability(
+            isAvailable = false,
+            source = AvailabilitySource.MISSING,
+        )
+
+        val linkedFileExists = config.modelPath.isNotBlank() && File(config.modelPath).exists()
+        if (linkedFileExists && matchesConfiguredModel(model, config)) {
+            return ModelAvailability(
+                isAvailable = true,
+                source = AvailabilitySource.LINKED_FILE,
+            )
+        }
+
+        return ModelAvailability(
+            isAvailable = false,
+            source = AvailabilitySource.MISSING,
+        )
+    }
+
     fun resolveActiveModelState(context: Context, localConfig: LocalModelConfig): ActiveModelState {
         val modelPath = localConfig.modelPath
         if (modelPath.isBlank()) {
@@ -140,14 +186,18 @@ object LocalModelManager {
             )
         }
 
-        val matchedModel = AVAILABLE_MODELS.find { modelPath.endsWith(it.fileName) }
+        val matchedModel = configuredBuiltInModel(localConfig)
         if (matchedModel != null) {
-            val downloaded = isModelDownloaded(context, matchedModel)
+            val availability = availabilityForModel(context, matchedModel, localConfig)
             return ActiveModelState(
                 displayName = matchedModel.displayName,
                 metaText = "${matchedModel.fileName} · On-device",
-                statusText = if (downloaded) "● Ready" else "● Not downloaded",
-                statusKind = if (downloaded) StatusKind.READY else StatusKind.WARNING,
+                statusText = when (availability.source) {
+                    AvailabilitySource.MANAGED_DOWNLOAD -> "● Ready"
+                    AvailabilitySource.LINKED_FILE -> "● Ready"
+                    AvailabilitySource.MISSING -> "● Missing file"
+                },
+                statusKind = if (availability.isAvailable) StatusKind.READY else StatusKind.WARNING,
             )
         }
 
@@ -188,6 +238,40 @@ object LocalModelManager {
     fun getModelPath(context: Context, model: ModelInfo): String? {
         val file = File(getModelDir(context), model.fileName)
         return if (isValidModelFile(file, model)) file.absolutePath else null
+    }
+
+    private fun matchesConfiguredModel(model: ModelInfo, localConfig: LocalModelConfig): Boolean {
+        if (localConfig.modelId.equals(model.id, ignoreCase = true)) return true
+
+        val modelPath = localConfig.modelPath.lowercase()
+        if (modelPath.endsWith(model.fileName.lowercase())) return true
+
+        val display = localConfig.displayName.lowercase()
+        return builtInAliases(model).any { alias ->
+            modelPath.contains(alias) || display.contains(alias)
+        }
+    }
+
+    private fun builtInAliases(model: ModelInfo): List<String> {
+        return when (model.id) {
+            "gemma4-e2b" -> listOf(
+                "gemma4-e2b",
+                "gemma-4-e2b",
+                "gemma 4 e2b",
+                "gemma4_2b",
+                "gemma-4-2b",
+                "gemma 4 2b",
+            )
+            "gemma4-e4b" -> listOf(
+                "gemma4-e4b",
+                "gemma-4-e4b",
+                "gemma 4 e4b",
+                "gemma4_4b",
+                "gemma-4-4b",
+                "gemma 4 4b",
+            )
+            else -> emptyList()
+        }
     }
 
     /**

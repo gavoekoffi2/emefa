@@ -41,8 +41,10 @@ class ComposeChatActivity : ComponentActivity() {
     // Compose state — observed by ChatScreen
     private val _messages = mutableStateListOf<ChatMessage>()
     private val _modelStatus = mutableStateOf("No model loaded")
+    private val _isLocalModelActive = mutableStateOf(ModelConfigRepository.isLocalActive())
     private val _needsPermission = mutableStateOf(false)
-    private val _isProcessing = mutableStateOf(false)   // True ONLY when a chat/task is actively running
+    private val _isAwaitingReply = mutableStateOf(false)
+    private val _isTaskRunning = mutableStateOf(false)
     private val _inputEnabled = mutableStateOf(true)    // False when model not ready (no task running)
     private val _conversations = mutableStateListOf<ChatHistoryManager.ConversationSummary>()
     private val _isDownloading = mutableStateOf(false)
@@ -59,7 +61,7 @@ class ComposeChatActivity : ComponentActivity() {
             uiState = ChatSessionUiState(
                 messages = _messages,
                 modelStatus = _modelStatus,
-                isProcessing = _isProcessing,
+                isAwaitingReply = _isAwaitingReply,
                 inputEnabled = _inputEnabled,
                 isDownloading = _isDownloading,
                 downloadProgress = _downloadProgress,
@@ -80,7 +82,8 @@ class ComposeChatActivity : ComponentActivity() {
             uiState = TaskFlowUiState(
                 messages = _messages,
                 modelStatus = _modelStatus,
-                isProcessing = _isProcessing,
+                isAwaitingReply = _isAwaitingReply,
+                isTaskRunning = _isTaskRunning,
             ),
             onPersistConversation = { saveChat() },
         )
@@ -131,11 +134,12 @@ class ComposeChatActivity : ComponentActivity() {
                 messages = _messages.toList(),
                 modelStatus = _modelStatus.value,
                 needsPermission = _needsPermission.value,
-                isProcessing = _isProcessing.value,
+                isAwaitingReply = _isAwaitingReply.value,
+                isTaskRunning = _isTaskRunning.value,
                 inputEnabled = _inputEnabled.value,
                 isDownloading = _isDownloading.value,
                 downloadProgress = _downloadProgress.value,
-                isLocalModel = ModelConfigRepository.isLocalActive(),
+                isLocalModel = _isLocalModelActive.value,
                 sessionTokens = _sessionTokens.value,
                 sessionCost = _sessionCost.value,
                 onSendChat = { sendChat(it) },
@@ -163,6 +167,7 @@ class ComposeChatActivity : ComponentActivity() {
                 },
                 activeTasks = activeTasks,
                 onStopTask = { contact ->
+                    _isTaskRunning.value = appViewModel.isTaskRunning()
                     Toast.makeText(
                         this,
                         activeTaskShellController.stopTask(contact),
@@ -170,6 +175,8 @@ class ComposeChatActivity : ComponentActivity() {
                     ).show()
                 },
                 onStopAllTasks = {
+                    _isAwaitingReply.value = false
+                    _isTaskRunning.value = false
                     Toast.makeText(
                         this,
                         activeTaskShellController.stopAllTasks(),
@@ -198,6 +205,7 @@ class ComposeChatActivity : ComponentActivity() {
         }
 
         chatSessionController.loadModelIfReady()
+        _isLocalModelActive.value = ModelConfigRepository.isLocalActive()
 
         // Release local LLM conversation before task starts so the agent can use the engine
         // (LiteRT-LM only supports 1 session at a time)
@@ -247,6 +255,8 @@ class ComposeChatActivity : ComponentActivity() {
         super.onResume()
         _needsPermission.value =
             AppCapabilityCoordinator.accessibilityState(this) != ServiceBindingState.READY
+        _isLocalModelActive.value = ModelConfigRepository.isLocalActive()
+        _isTaskRunning.value = appViewModel.isTaskRunning()
         refreshSidebarHistory()
         permHandler.removeCallbacks(permPoller)
         permHandler.postDelayed(permPoller, 1000)
@@ -282,6 +292,7 @@ class ComposeChatActivity : ComponentActivity() {
 
     private fun switchModel(modelId: String, displayName: String) {
         chatSessionController.switchModel(modelId, displayName)
+        _isLocalModelActive.value = ModelConfigRepository.isLocalActive()
         if (modelId != "NONE") {
             syncTaskAgentConfig()
         }
@@ -294,6 +305,8 @@ class ComposeChatActivity : ComponentActivity() {
         _messages.clear()
         _sessionTokens.value = 0
         _sessionCost.value = 0.0
+        _isAwaitingReply.value = false
+        _isTaskRunning.value = false
         chatSessionController.startNewConversationRuntime()
     }
 
@@ -302,6 +315,8 @@ class ComposeChatActivity : ComponentActivity() {
         syncSidebar(session.conversations)
         _messages.clear()
         _messages.addAll(session.messages)
+        _isAwaitingReply.value = false
+        _isTaskRunning.value = false
         chatSessionController.restoreConversationRuntime(session.conversationId, session.messages)
     }
 
@@ -319,6 +334,13 @@ class ComposeChatActivity : ComponentActivity() {
     }
 
     private fun currentConversationModelName(): String {
-        return KVUtils.getLocalModelPath().substringAfterLast('/').substringBeforeLast('.')
+        val config = ModelConfigRepository.snapshot()
+        return if (config.isLocalActive()) {
+            config.local.displayName.ifBlank {
+                KVUtils.getLocalModelPath().substringAfterLast('/').substringBeforeLast('.')
+            }
+        } else {
+            config.activeCloud.modelName
+        }
     }
 }

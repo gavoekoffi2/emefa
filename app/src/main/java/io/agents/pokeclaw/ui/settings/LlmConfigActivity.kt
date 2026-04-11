@@ -68,6 +68,12 @@ class LlmConfigActivity : BaseActivity() {
         val activeModelName = findViewById<TextView>(R.id.tvActiveModelName)
         val activeModelMeta = findViewById<TextView>(R.id.tvActiveModelMeta)
         val activeModelStatus = findViewById<TextView>(R.id.tvActiveModelStatus)
+        val defaultLocalName = findViewById<TextView>(R.id.tvDefaultLocalName)
+        val defaultLocalMeta = findViewById<TextView>(R.id.tvDefaultLocalMeta)
+        val defaultLocalStatus = findViewById<TextView>(R.id.tvDefaultLocalStatus)
+        val defaultCloudName = findViewById<TextView>(R.id.tvDefaultCloudName)
+        val defaultCloudMeta = findViewById<TextView>(R.id.tvDefaultCloudMeta)
+        val defaultCloudStatus = findViewById<TextView>(R.id.tvDefaultCloudStatus)
         val modelList = findViewById<LinearLayout>(R.id.layoutModelList)
         val resolvedConfig = ModelConfigRepository.snapshot()
         val deviceSupport = LocalModelManager.deviceSupport(this)
@@ -76,6 +82,10 @@ class LlmConfigActivity : BaseActivity() {
         // Apply theme to active model card text
         activeModelName.setTextColor(tc.aiText)
         activeModelMeta.setTextColor(Color.parseColor("#8b949e"))
+        defaultLocalName.setTextColor(tc.aiText)
+        defaultLocalMeta.setTextColor(Color.parseColor("#8b949e"))
+        defaultCloudName.setTextColor(tc.aiText)
+        defaultCloudMeta.setTextColor(Color.parseColor("#8b949e"))
 
         // Apply theme to all CardViews in XML layout
         val scrollContent = findViewById<LinearLayout>(R.id.layoutModelList)?.parent as? LinearLayout
@@ -120,18 +130,49 @@ class LlmConfigActivity : BaseActivity() {
                 activeModelStatus.setTextColor(Color.parseColor("#8b949e"))
             }
         }
-        val currentModelId = if (resolvedConfig.activeMode == ActiveModelMode.LOCAL) {
-            resolvedConfig.local.modelId
+
+        val defaultLocalState = LocalModelManager.resolveActiveModelState(this, resolvedConfig.local)
+        defaultLocalName.text = defaultLocalState.displayName
+        defaultLocalMeta.text = defaultLocalState.metaText
+        defaultLocalStatus.text = defaultLocalState.statusText
+        defaultLocalStatus.setTextColor(
+            when (defaultLocalState.statusKind) {
+                LocalModelManager.StatusKind.READY -> getColor(R.color.colorSuccessPrimary)
+                LocalModelManager.StatusKind.WARNING -> getColor(R.color.colorWarningPrimary)
+                LocalModelManager.StatusKind.NEUTRAL -> Color.parseColor("#8b949e")
+            }
+        )
+
+        if (resolvedConfig.defaultCloud.isConfigured) {
+            defaultCloudName.text = resolvedConfig.defaultCloud.modelName
+            defaultCloudMeta.text = "${resolvedConfig.defaultCloud.provider.displayName} · Cloud"
+            defaultCloudStatus.text = "● Ready"
+            defaultCloudStatus.setTextColor(getColor(R.color.colorSuccessPrimary))
         } else {
-            resolvedConfig.activeCloud.modelName
+            defaultCloudName.text = "No default cloud model"
+            defaultCloudMeta.text = "Configure a cloud model below"
+            defaultCloudStatus.text = "● Not configured"
+            defaultCloudStatus.setTextColor(Color.parseColor("#8b949e"))
         }
+
+        val activeLocalModelId = if (resolvedConfig.activeMode == ActiveModelMode.LOCAL) resolvedConfig.local.modelId else ""
+        val defaultLocalModelId = resolvedConfig.local.modelId
+        val configuredBuiltInLocal = LocalModelManager.configuredBuiltInModel(resolvedConfig.local)
 
         // Build model list
         models.forEach { model ->
             val modelEntry = catalog[model.id]
-            val downloaded = modelEntry?.isDownloaded == true
-            val isActive = model.id == currentModelId
+            val availability = LocalModelManager.availabilityForModel(this, model, resolvedConfig.local)
+            val downloaded = availability.isAvailable
+            val isActive = model.id == activeLocalModelId
+            val isDefaultLocal = model.id == defaultLocalModelId
             val supportedOnDevice = modelEntry?.isSupported == true
+            val resolvedLocalPath = when (availability.source) {
+                LocalModelManager.AvailabilitySource.MANAGED_DOWNLOAD -> LocalModelManager.getModelPath(this, model)
+                LocalModelManager.AvailabilitySource.LINKED_FILE ->
+                    if (configuredBuiltInLocal?.id == model.id) resolvedConfig.local.modelPath else null
+                LocalModelManager.AvailabilitySource.MISSING -> null
+            }
 
             val card = CardView(this).apply {
                 layoutParams = LinearLayout.LayoutParams(
@@ -183,6 +224,14 @@ class LlmConfigActivity : BaseActivity() {
                     }
                     row.addView(check)
                 } else {
+                    if (isDefaultLocal) {
+                        row.addView(TextView(this).apply {
+                            text = "✓ Default"
+                            textSize = 12f
+                            setTextColor(getColor(R.color.colorSuccessPrimary))
+                            setPadding(dp(12), dp(6), dp(12), dp(6))
+                        })
+                    }
                     if (supportedOnDevice) {
                         val useBtn = TextView(this).apply {
                             text = "Use"
@@ -190,7 +239,7 @@ class LlmConfigActivity : BaseActivity() {
                             setTextColor(getColor(R.color.colorBrandPrimary))
                             setPadding(dp(12), dp(6), dp(12), dp(6))
                             setOnClickListener {
-                                val path = LocalModelManager.getModelPath(this@LlmConfigActivity, model)
+                                val path = resolvedLocalPath
                                 if (path != null) {
                                     // Save as default local model (independent of cloud config)
                                     // Only switch active provider if currently on local tab
@@ -215,19 +264,20 @@ class LlmConfigActivity : BaseActivity() {
                         })
                     }
 
-                    // Delete button
-                    val delBtn = TextView(this).apply {
-                        text = "🗑"
-                        textSize = 16f
-                        setPadding(dp(8), dp(4), dp(4), dp(4))
-                        alpha = 0.4f
-                        setOnClickListener {
-                            LocalModelManager.deleteModel(this@LlmConfigActivity, model)
-                            Toast.makeText(this@LlmConfigActivity, "Deleted ${model.displayName}", Toast.LENGTH_SHORT).show()
-                            recreate()
+                    if (availability.source == LocalModelManager.AvailabilitySource.MANAGED_DOWNLOAD) {
+                        val delBtn = TextView(this).apply {
+                            text = "🗑"
+                            textSize = 16f
+                            setPadding(dp(8), dp(4), dp(4), dp(4))
+                            alpha = 0.4f
+                            setOnClickListener {
+                                LocalModelManager.deleteModel(this@LlmConfigActivity, model)
+                                Toast.makeText(this@LlmConfigActivity, "Deleted ${model.displayName}", Toast.LENGTH_SHORT).show()
+                                recreate()
+                            }
                         }
+                        row.addView(delBtn)
                     }
-                    row.addView(delBtn)
                 }
             } else {
                 if (supportedOnDevice) {
