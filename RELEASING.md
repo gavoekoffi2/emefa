@@ -84,4 +84,4 @@ That mismatch is already shipped, so Android cannot retroactively upgrade those 
 - show the in-app update prompt
 - explain that Android may require a one-time uninstall + reinstall
 
-Stable signing from `v0.5.1` onward prevents this problem from repeating.
+Stable signing for the public `v0.6.x` line prevents this problem from repeating.
