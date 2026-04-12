@@ -1133,6 +1133,8 @@ Format: `[date] [status] [test-id] description`
 [2026-04-11] [PASS]    RC6-local-e4b-storage  Local E4B direct QA: `How much storage do I have?` completed in 2 rounds, called `get_device_info(category=storage)`, and returned `37.4 GB used of 245.7 GB (15%), 208.3 GB free`
 [2026-04-11] [PASS]    RC6-local-e4b-device  Local E4B direct QA: `What Android version am I running?` completed in 2 rounds, called `get_device_info(category=device)`, and returned `Android 16 (API 36) on a Google Pixel 8 Pro`
 [2026-04-11] [FIXED]   RC6-local-session-race  Local direct QA exposed a real release blocker: while a Local task owned the LiteRT session, the chat shell could still try to reopen the same local model and trigger `A session already exists`. Fixed 2026-04-11: the chat-side loader now stands down whenever a task is running and shows `● Local task using model` instead of racing the task runtime
+[2026-04-12] [PASS]    Q8-3  Cloud relaunch memory continuity on Pixel 8 Pro: in one Cloud chatroom, `Remember token cloudrestart7312 and reply with only OK.` returned `OK`; after full force-stop + relaunch, the same conversation restored and `What token did I ask you to remember? Reply with only the token.` visibly returned `cloudrestart7312`
+[2026-04-12] [PASS]    Q8-4  Local relaunch memory continuity on Pixel 8 Pro: in one Local E4B chatroom, `Remember token localrestart5186 and reply with only OK.` returned `OK`; after full force-stop + relaunch, the same conversation restored under `● Gemma 4 E4B — 3.6GB · CPU` and `What token did I ask you to remember? Reply with only the token.` visibly returned `localrestart5186`
 ```
 
 ### Bugs Found During v9 QA
