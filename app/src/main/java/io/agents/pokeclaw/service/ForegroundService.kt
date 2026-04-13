@@ -10,6 +10,8 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.IBinder
+import android.os.Handler
+import android.os.Looper
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import io.agents.pokeclaw.AppCapabilityCoordinator
@@ -24,6 +26,7 @@ class ForegroundService : Service() {
 
     companion object {
         private const val TAG = "ForegroundService"
+        private const val MONITOR_HEALTH_POLL_MS = 10_000L
         const val CHANNEL_ID = "PokeClaw_foreground_channel"
         const val NOTIFICATION_ID = 1001
         private const val EXTRA_TITLE = "extra_title"
@@ -33,8 +36,17 @@ class ForegroundService : Service() {
         private const val DEFAULT_MONITOR_TITLE = "PokeClaw · Monitoring"
         private const val DEGRADED_MONITOR_TITLE = "PokeClaw · Monitoring paused"
 
+        private enum class ForegroundMode {
+            IDLE,
+            TASK,
+            MONITOR,
+        }
+
         @Volatile
         private var _isRunning = false
+
+        @Volatile
+        private var _mode = ForegroundMode.IDLE
 
         /**
          * Check whether the foreground service is running
@@ -46,6 +58,7 @@ class ForegroundService : Service() {
          * Safe to call from any thread — posts to NotificationManager directly.
          */
         fun updateTaskStatus(context: Context, statusText: String) {
+            _mode = ForegroundMode.TASK
             showNotification(context, DEFAULT_TASK_TITLE, statusText)
         }
 
@@ -59,9 +72,11 @@ class ForegroundService : Service() {
         fun showMonitorStatus(context: Context): Boolean {
             val manager = AutoReplyManager.getInstance()
             if (!manager.isEnabled || manager.monitoredContacts.isEmpty()) {
+                _mode = ForegroundMode.IDLE
                 stop(context)
                 return false
             }
+            _mode = ForegroundMode.MONITOR
             val capabilities = AppCapabilityCoordinator.snapshot(context)
             if (capabilities.notificationAccessState != ServiceBindingState.READY) {
                 return showNotification(
@@ -99,6 +114,7 @@ class ForegroundService : Service() {
             return if (manager.isEnabled && manager.monitoredContacts.isNotEmpty()) {
                 showMonitorStatus(context)
             } else {
+                _mode = ForegroundMode.IDLE
                 stop(context)
                 false
             }
@@ -163,6 +179,7 @@ class ForegroundService : Service() {
         }
 
         fun stop(context: Context) {
+            _mode = ForegroundMode.IDLE
             val intent = Intent(context, ForegroundService::class.java)
             context.stopService(intent)
             runCatching {
@@ -192,15 +209,28 @@ class ForegroundService : Service() {
         }
     }
 
+    private val healthHandler = Handler(Looper.getMainLooper())
+    private val healthRunnable = object : Runnable {
+        override fun run() {
+            if (!_isRunning) return
+            if (_mode == ForegroundMode.MONITOR) {
+                ForegroundService.syncToBackgroundState(applicationContext)
+            }
+            healthHandler.postDelayed(this, MONITOR_HEALTH_POLL_MS)
+        }
+    }
+
     override fun onCreate() {
         super.onCreate()
         _isRunning = true
         createNotificationChannel()
+        healthHandler.post(healthRunnable)
     }
 
     override fun onDestroy() {
         super.onDestroy()
         _isRunning = false
+        healthHandler.removeCallbacksAndMessages(null)
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {

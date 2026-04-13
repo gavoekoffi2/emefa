@@ -58,6 +58,13 @@ public class ClawAccessibilityService extends AccessibilityService {
      */
     public static boolean isEnabledInSettings(Context context) {
         try {
+            int accessibilityEnabled = Settings.Secure.getInt(
+                    context.getContentResolver(),
+                    Settings.Secure.ACCESSIBILITY_ENABLED,
+                    0);
+            if (accessibilityEnabled != 1) {
+                return false;
+            }
             String enabledServices = Settings.Secure.getString(
                     context.getContentResolver(),
                     Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
