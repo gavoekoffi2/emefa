@@ -380,6 +380,17 @@ public class AutoReplyManager {
             return;
         }
 
+        if (!isAccessibilityHealthyForReply()) {
+            failAutoReply(
+                matchedTarget,
+                text,
+                AutoReplyFailureStage.ACCESSIBILITY_UNAVAILABLE,
+                "Accessibility became unhealthy before auto-reply was queued",
+                null
+            );
+            return;
+        }
+
         // If already replying, just flag it — after current reply we'll re-open chat,
         // read the full screen (all messages including new ones), and reply to latest.
         if (!replying.compareAndSet(false, true)) {
@@ -400,6 +411,11 @@ public class AutoReplyManager {
         executor.submit(() -> {
             try {
                 logAutoReplyStep(finalTarget, "start", "incoming='" + incomingMessage + "'");
+                if (!isAccessibilityHealthyForReply()) {
+                    failAutoReply(finalTarget, incomingMessage, AutoReplyFailureStage.ACCESSIBILITY_UNAVAILABLE,
+                        "Accessibility became unhealthy before auto-reply execution", null);
+                    return;
+                }
                 // Open the messaging app and navigate to the contact's chat
                 ClawAccessibilityService svc = ClawAccessibilityService.getConnectedInstance(12000L);
                 if (svc == null) {
