@@ -7,6 +7,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.util.Base64
+import io.agents.pokeclaw.agent.llm.LocalBackendHealth
 import io.agents.pokeclaw.agent.llm.ModelConfigRepository
 import io.agents.pokeclaw.service.AutoReplyManager
 import io.agents.pokeclaw.appViewModel
@@ -37,8 +38,13 @@ class DebugTaskReceiver : BroadcastReceiver() {
             decodeBase64Extra(intent, "params_b64"),
             intent.getStringExtra("params_json")?.trim()
         ).orEmpty()
+        val backendAction = intent.getStringExtra("backend_action")?.trim().orEmpty()
         val simulateMessage = intent.getStringExtra("simulate_message")?.trim().orEmpty()
         val task = intent.getStringExtra("task") ?: "open my camera"
+        if (backendAction.isNotEmpty()) {
+            handleLocalBackendDebug(intent, backendAction)
+            return
+        }
         if (directTool.isNotEmpty()) {
             executeTool(intent, directTool, paramsJson)
             return
@@ -157,6 +163,47 @@ class DebugTaskReceiver : BroadcastReceiver() {
             )
         } catch (e: Exception) {
             XLog.e("DebugTaskReceiver", "Failed to simulate incoming message", e)
+        }
+    }
+
+    private fun handleLocalBackendDebug(intent: Intent, action: String) {
+        try {
+            when (action.lowercase()) {
+                "status" -> {
+                    XLog.i("DebugTaskReceiver", "Local backend status: ${LocalBackendHealth.debugStateSummary()}")
+                }
+                "force_cpu_safe" -> {
+                    val reason = intent.getStringExtra("backend_reason")?.trim().orEmpty().ifEmpty { "debug" }
+                    LocalBackendHealth.debugForceCpuSafe(reason)
+                    XLog.i("DebugTaskReceiver", "Forced CPU-safe mode: ${LocalBackendHealth.debugStateSummary()}")
+                }
+                "clear_cpu_safe" -> {
+                    LocalBackendHealth.debugClearCpuSafeMode()
+                    XLog.i("DebugTaskReceiver", "Cleared CPU-safe mode: ${LocalBackendHealth.debugStateSummary()}")
+                }
+                "mark_pending_gpu_init" -> {
+                    val modelPath = intent.getStringExtra("backend_model_path")?.trim().orEmpty()
+                        .ifEmpty { "/debug/model.litertlm" }
+                    LocalBackendHealth.debugMarkPendingGpuInit(modelPath)
+                    XLog.i("DebugTaskReceiver", "Marked pending GPU init: ${LocalBackendHealth.debugStateSummary()}")
+                }
+                "clear_pending_gpu_init" -> {
+                    LocalBackendHealth.debugClearPendingGpuInit()
+                    XLog.i("DebugTaskReceiver", "Cleared pending GPU init: ${LocalBackendHealth.debugStateSummary()}")
+                }
+                "recover_pending_gpu_crash" -> {
+                    val recovered = LocalBackendHealth.recoverPendingGpuCrashIfNeeded()
+                    XLog.i(
+                        "DebugTaskReceiver",
+                        "Recover pending GPU crash recovered=$recovered: ${LocalBackendHealth.debugStateSummary()}"
+                    )
+                }
+                else -> {
+                    XLog.w("DebugTaskReceiver", "Unknown backend_action=$action")
+                }
+            }
+        } catch (e: Exception) {
+            XLog.e("DebugTaskReceiver", "Failed backend_action=$action", e)
         }
     }
 

@@ -33,6 +33,52 @@ object LocalBackendHealth {
 
     fun cpuSafeReason(): String = KVUtils.getLocalCpuSafeReason()
 
+    fun debugStateSummary(): String {
+        val pendingDevice = KVUtils.getPendingLocalGpuInitDevice().ifBlank { "-" }
+        val pendingModel = KVUtils.getPendingLocalGpuInitModel().ifBlank { "-" }
+        val pendingAt = KVUtils.getPendingLocalGpuInitAt()
+        val cpuSafeDevice = KVUtils.getLocalCpuSafeDevice().ifBlank { "-" }
+        val backendPreference = KVUtils.getLocalBackendPreference().ifBlank { "-" }
+        val reason = cpuSafeReason().ifBlank { "-" }
+        return buildString {
+            append("device=")
+            append(currentDeviceKey())
+            append(", cpuSafe=")
+            append(isCpuSafeModeEnabled())
+            append(", cpuSafeDevice=")
+            append(cpuSafeDevice)
+            append(", backendPreference=")
+            append(backendPreference)
+            append(", reason=")
+            append(reason)
+            append(", pendingDevice=")
+            append(pendingDevice)
+            append(", pendingModel=")
+            append(pendingModel)
+            append(", pendingAt=")
+            append(pendingAt)
+        }
+    }
+
+    fun debugForceCpuSafe(reason: String = "debug") {
+        enableCpuSafeMode(reason)
+    }
+
+    fun debugClearCpuSafeMode() {
+        KVUtils.clearLocalCpuSafeMode()
+        if (KVUtils.getLocalBackendPreference().equals("CPU", ignoreCase = true)) {
+            KVUtils.setLocalBackendPreference("")
+        }
+    }
+
+    fun debugMarkPendingGpuInit(modelPath: String) {
+        markGpuInitStarted(modelPath)
+    }
+
+    fun debugClearPendingGpuInit() {
+        KVUtils.clearPendingLocalGpuInit()
+    }
+
     fun noteRecoverableGpuFailure(modelPath: String, error: Throwable?) {
         val reason = buildReason("gpu_failure", modelPath, error?.message)
         enableCpuSafeMode(reason)
