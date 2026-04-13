@@ -130,7 +130,7 @@ public class SendMessageTool extends BaseTool {
             Thread.sleep(500);
 
             // Step 5: Tap send (by desc) or press Enter as fallback
-            if (!tapSendOrEnter(service)) {
+            if (!tapSendOrEnter(service, message)) {
                 return ToolResult.error("Could not find send button.");
             }
             XLog.i(TAG, "Step 5: Sent!");
@@ -306,7 +306,7 @@ public class SendMessageTool extends BaseTool {
      * 2. If multiple matches, pick the one near the bottom-right (typical send button position)
      * 3. Fallback: press Enter key without leaving the current chat
      */
-    private boolean tapSendOrEnter(ClawAccessibilityService service) throws InterruptedException {
+    private boolean tapSendOrEnter(ClawAccessibilityService service, String expectedMessage) throws InterruptedException {
         AccessibilityNodeInfo root = service.getRootInActiveWindow();
         if (root == null) return false;
 
@@ -315,21 +315,64 @@ public class SendMessageTool extends BaseTool {
         if (sendNode != null) {
             boolean clicked = service.clickNode(sendNode);
             XLog.i(TAG, "tapSendOrEnter: tapped structural send candidate, clicked=" + clicked);
-            if (clicked) return true;
+            if (didMessageLeaveComposer(service, expectedMessage, "candidate")) return true;
         }
 
         // Fallback: press Enter without dismissing the keyboard first.
         // Going "Back" here can blur the input or even leave the chat screen in some apps.
         XLog.i(TAG, "tapSendOrEnter: no send button found, pressing Enter directly");
         try {
-            return service.sendKeyEvent(android.view.KeyEvent.KEYCODE_ENTER);
+            service.sendKeyEvent(android.view.KeyEvent.KEYCODE_ENTER);
+            return didMessageLeaveComposer(service, expectedMessage, "enter");
         } catch (Exception e) {
             XLog.w(TAG, "Enter key fallback failed", e);
         }
         return false;
     }
 
+    private boolean didMessageLeaveComposer(
+            ClawAccessibilityService service,
+            String expectedMessage,
+            String pathLabel
+    ) throws InterruptedException {
+        Thread.sleep(500);
+        AccessibilityNodeInfo root = service.getRootInActiveWindow();
+        if (root == null) {
+            XLog.i(TAG, "tapSendOrEnter: " + pathLabel + " verification root missing; treating as success");
+            return true;
+        }
+
+        AccessibilityNodeInfo composer = findBottomEditText(root);
+        if (composer == null) {
+            XLog.i(TAG, "tapSendOrEnter: " + pathLabel + " verification composer missing; treating as success");
+            return true;
+        }
+
+        CharSequence composerText = composer.getText();
+        String current = composerText != null ? composerText.toString().trim() : "";
+        String expected = expectedMessage != null ? expectedMessage.trim() : "";
+        XLog.i(TAG, "tapSendOrEnter: " + pathLabel + " verification composerText='" + current + "'");
+
+        if (current.isEmpty()) {
+            return true;
+        }
+
+        if (expected.isEmpty()) {
+            return !current.isEmpty();
+        }
+
+        return !current.equals(expected) && !current.contains(expected);
+    }
+
     private Rect findBottomEditTextBounds(AccessibilityNodeInfo root) {
+        AccessibilityNodeInfo bottom = findBottomEditText(root);
+        if (bottom == null) return null;
+        Rect bounds = new Rect();
+        bottom.getBoundsInScreen(bounds);
+        return bounds;
+    }
+
+    private AccessibilityNodeInfo findBottomEditText(AccessibilityNodeInfo root) {
         List<AccessibilityNodeInfo> editTexts = new ArrayList<>();
         collectEditTexts(root, editTexts);
         AccessibilityNodeInfo bottom = null;
@@ -342,10 +385,7 @@ public class SendMessageTool extends BaseTool {
                 bottom = node;
             }
         }
-        if (bottom == null) return null;
-        Rect bounds = new Rect();
-        bottom.getBoundsInScreen(bounds);
-        return bounds;
+        return bottom;
     }
 
 }

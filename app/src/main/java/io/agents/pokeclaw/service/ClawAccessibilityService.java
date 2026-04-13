@@ -323,13 +323,20 @@ public class ClawAccessibilityService extends AccessibilityService {
             return false;
         }
         if (node.isClickable()) {
-            return node.performAction(AccessibilityNodeInfo.ACTION_CLICK);
+            boolean clicked = node.performAction(AccessibilityNodeInfo.ACTION_CLICK);
+            if (clicked) {
+                return true;
+            }
+            XLog.w(TAG, "ACTION_CLICK returned false, falling back to parent/tap");
         }
         // Try clicking the parent if the node itself is not clickable
         AccessibilityNodeInfo parent = node.getParent();
         while (parent != null) {
             if (parent.isClickable()) {
-                return parent.performAction(AccessibilityNodeInfo.ACTION_CLICK);
+                boolean clicked = parent.performAction(AccessibilityNodeInfo.ACTION_CLICK);
+                if (clicked) {
+                    return true;
+                }
             }
             parent = parent.getParent();
         }
