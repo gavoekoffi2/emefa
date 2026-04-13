@@ -101,13 +101,9 @@ public class SendMessageTool extends BaseTool {
             } else {
                 // Navigate to chat list and find contact
                 XLog.i(TAG, "Step 3: Not in chatroom, navigating to " + contact);
-                service.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK);
-                Thread.sleep(500);
-                service.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK);
-                Thread.sleep(1500);
-                service.openApp(packageName);
-                Thread.sleep(2000);
-                waitForActiveWindow(service, packageName, 5000);
+                if (!ContactListUiUtils.prepareForContactLookup(service, packageName, 4, 1200)) {
+                    return ToolResult.error("Could not reach a searchable " + app + " chat list.");
+                }
 
                 if (!findAndTapContact(service, contact)) {
                     return ToolResult.error("Could not find '" + contact + "' in " + app + " chat list.");

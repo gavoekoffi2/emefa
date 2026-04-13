@@ -367,12 +367,7 @@ public class AutoReplyManager {
                     if (!inChat) {
                         // Not in chat — go back to chat list, find contact, tap
                         logAutoReplyStep(finalTarget, "navigate-chat", "not already in chat, reopening chat list");
-                        svc.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK);
-                        Thread.sleep(1000);
-                        svc.openApp(packageName);
-                        Thread.sleep(2000);
-                        root = svc.getRootInActiveWindow();
-                        if (root != null) {
+                        if (ContactListUiUtils.prepareForContactLookup(svc, packageName, 4, 1200)) {
                             boolean clicked = ContactListUiUtils.searchOrScrollAndFindAndClick(svc, finalContact, normalizedAliases, digitAliases, 12, 800);
                             if (clicked) {
                                 XLog.i(TAG, "Tapped contact: " + finalContact);
@@ -384,6 +379,10 @@ public class AutoReplyManager {
                                     "Could not find " + finalContact + " in chat list", null);
                                 return;
                             }
+                        } else {
+                            failAutoReply(finalTarget, incomingMessage, AutoReplyFailureStage.CHAT_NAVIGATION_FAILED,
+                                "Could not return to a searchable chat list", null);
+                            return;
                         }
                     } else {
                         XLog.i(TAG, "Already in " + finalContact + "'s chat");

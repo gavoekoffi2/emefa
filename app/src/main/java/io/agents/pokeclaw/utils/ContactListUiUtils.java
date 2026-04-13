@@ -28,6 +28,42 @@ public final class ContactListUiUtils {
 
     private ContactListUiUtils() {}
 
+    public static boolean prepareForContactLookup(
+        ClawAccessibilityService service,
+        String packageName,
+        int maxBacks,
+        long settleMs
+    ) throws InterruptedException {
+        int attempts = Math.min(Math.max(maxBacks, 1), 6);
+        for (int attempt = 0; attempt <= attempts; attempt++) {
+            AccessibilityNodeInfo root = service.getRootInActiveWindow();
+            if (isContactLookupReady(root)) {
+                XLog.i(TAG, "prepareForContactLookup: ready on attempt=" + attempt);
+                return true;
+            }
+
+            if (attempt == attempts) {
+                break;
+            }
+
+            CharSequence activePackage = root != null ? root.getPackageName() : null;
+            if (activePackage == null || !activePackage.toString().equals(packageName)) {
+                XLog.i(TAG, "prepareForContactLookup: app not active, reopening " + packageName);
+                service.openApp(packageName);
+            } else {
+                XLog.i(TAG, "prepareForContactLookup: screen not ready, pressing back");
+                service.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK);
+            }
+
+            Thread.sleep(Math.max(settleMs, 700L));
+        }
+
+        AccessibilityNodeInfo root = service.getRootInActiveWindow();
+        boolean ready = isContactLookupReady(root);
+        XLog.i(TAG, "prepareForContactLookup: final ready=" + ready);
+        return ready;
+    }
+
     public static boolean scrollAndFindAndClick(
         ClawAccessibilityService service,
         LinkedHashSet<String> normalizedAliases,
@@ -246,11 +282,57 @@ public final class ContactListUiUtils {
         return candidate;
     }
 
+    public static boolean isContactLookupReady(AccessibilityNodeInfo root) {
+        if (root == null) return false;
+
+        if (UiActionMatchUtils.findBestSearchField(root) != null) return true;
+        if (UiActionMatchUtils.findBestSearchAction(root) != null) return true;
+
+        int[] metrics = new int[3];
+        collectVisibleListSignals(root, metrics);
+        int visibleTextRows = metrics[0];
+        int clickableRows = metrics[1];
+        int scrollableContainers = metrics[2];
+
+        return scrollableContainers > 0 && visibleTextRows >= 3 && clickableRows >= 2;
+    }
+
     private static String safeScreenSnapshot(ClawAccessibilityService service) {
         try {
             return service.getScreenTree();
         } catch (Exception e) {
             return null;
+        }
+    }
+
+    private static void collectVisibleListSignals(AccessibilityNodeInfo node, int[] metrics) {
+        if (node == null) return;
+
+        if (node.isVisibleToUser()) {
+            CharSequence text = node.getText();
+            CharSequence desc = node.getContentDescription();
+            String className = node.getClassName() != null ? node.getClassName().toString() : "";
+            boolean rowLike = !node.isEditable()
+                && !className.contains("EditText")
+                && !className.contains("Toolbar")
+                && !className.contains("ActionBar");
+
+            if (rowLike && ((text != null && text.length() > 0) || (desc != null && desc.length() > 0))) {
+                metrics[0]++;
+                if (node.isClickable()) {
+                    metrics[1]++;
+                }
+            }
+            if (node.isScrollable()) {
+                metrics[2]++;
+            }
+        }
+
+        for (int i = 0; i < node.getChildCount(); i++) {
+            AccessibilityNodeInfo child = node.getChild(i);
+            if (child != null) {
+                collectVisibleListSignals(child, metrics);
+            }
         }
     }
 }

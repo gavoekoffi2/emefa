@@ -61,7 +61,7 @@ public final class UiActionMatchUtils {
 
         Candidate best = new Candidate();
         collectSearchFieldCandidates(root, screenBounds, best);
-        return best.score >= 55 ? best.node : null;
+        return best.score >= 40 ? best.node : null;
     }
 
     private static void collectSendCandidates(
@@ -295,8 +295,14 @@ public final class UiActionMatchUtils {
         if (!screenBounds.isEmpty() && bounds.width() >= (int) (screenBounds.width() * 0.25f)) {
             score += 15;
         }
+        if (!screenBounds.isEmpty() && bounds.width() >= (int) (screenBounds.width() * 0.5f)) {
+            score += 10;
+        }
         if (!screenBounds.isEmpty() && bounds.top <= screenBounds.top + (int) (screenBounds.height() * 0.22f)) {
             score += 10;
+        }
+        if (!screenBounds.isEmpty() && bounds.left <= screenBounds.left + (int) (screenBounds.width() * 0.2f)) {
+            score += 5;
         }
         if (containsSearchIdHint(viewId)) score += 120;
         if (containsSearchTextHint(desc) || containsSearchTextHint(text) || containsSearchTextHint(hint)) {

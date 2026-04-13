@@ -6,11 +6,13 @@ package io.agents.pokeclaw.debug
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.util.Base64
 import io.agents.pokeclaw.agent.llm.ModelConfigRepository
 import io.agents.pokeclaw.appViewModel
-import io.agents.pokeclaw.channel.Channel
+import io.agents.pokeclaw.tool.ToolRegistry
 import io.agents.pokeclaw.utils.KVUtils
 import io.agents.pokeclaw.utils.XLog
+import org.json.JSONObject
 
 /**
  * Debug-only broadcast receiver for triggering tasks via ADB without UI interaction.
@@ -29,7 +31,17 @@ import io.agents.pokeclaw.utils.XLog
 class DebugTaskReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (!io.agents.pokeclaw.BuildConfig.DEBUG) return
+        val directTool = intent.getStringExtra("tool")?.trim().orEmpty()
+        val paramsJson = firstNonBlank(
+            decodeBase64Extra(intent, "params_b64"),
+            intent.getStringExtra("params_json")?.trim()
+        ).orEmpty()
         val task = intent.getStringExtra("task") ?: "open my camera"
+        if (directTool.isNotEmpty()) {
+            executeTool(intent, directTool, paramsJson)
+            return
+        }
+
         XLog.i("DebugTaskReceiver", "Received debug task: $task")
 
         // Handle config command
@@ -80,5 +92,59 @@ class DebugTaskReceiver : BroadcastReceiver() {
         } catch (e: Exception) {
             XLog.e("DebugTaskReceiver", "Failed to start task", e)
         }
+    }
+
+    private fun executeTool(intent: Intent, toolName: String, paramsJson: String) {
+        try {
+            val params = mutableMapOf<String, Any>()
+            if (paramsJson.isNotEmpty()) {
+                val json = JSONObject(paramsJson)
+                json.keys().forEach { key ->
+                    val value = json.get(key)
+                    when (value) {
+                        JSONObject.NULL -> {}
+                        is Int, is Long, is Double, is Boolean -> params[key] = value
+                        else -> params[key] = value.toString()
+                    }
+                }
+            }
+            intent.extras?.keySet()
+                ?.filter { it.startsWith("param_") }
+                ?.forEach { key ->
+                    val paramName = key.removePrefix("param_")
+                    val value = intent.extras?.get(key)
+                    if (!paramName.isNullOrEmpty() && value != null) {
+                        params[paramName] = value.toString()
+                    }
+                }
+
+            XLog.i("DebugTaskReceiver", "Executing debug tool: $toolName params=$params")
+            val result = ToolRegistry.getInstance().executeTool(toolName, params)
+            if (result.isSuccess) {
+                XLog.i("DebugTaskReceiver", "Debug tool success: $toolName -> ${result.data}")
+            } else {
+                XLog.w("DebugTaskReceiver", "Debug tool failed: $toolName -> ${result.error}")
+            }
+        } catch (e: Exception) {
+            XLog.e("DebugTaskReceiver", "Failed to execute debug tool", e)
+        }
+    }
+
+    private fun decodeBase64Extra(intent: Intent, key: String): String? {
+        val encoded = intent.getStringExtra(key)
+        if (encoded.isNullOrBlank()) return null
+        return try {
+            String(Base64.decode(encoded, Base64.DEFAULT)).trim()
+        } catch (e: IllegalArgumentException) {
+            XLog.w("DebugTaskReceiver", "Invalid base64 extra for $key", e)
+            null
+        }
+    }
+
+    private fun firstNonBlank(vararg values: String?): String? {
+        for (value in values) {
+            if (!value.isNullOrBlank()) return value.trim()
+        }
+        return null
     }
 }
