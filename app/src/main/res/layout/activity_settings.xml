@@ -53,6 +53,24 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content" />
 
+            <!-- Assistants EMEFA -->
+            <ai.progenius.emefa.widget.MenuGroup
+                android:id="@+id/assistantsGroup"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+
+            <!-- Paiements MoneyFusion -->
+            <ai.progenius.emefa.widget.MenuGroup
+                android:id="@+id/paymentsGroup"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+
+            <!-- Base de Connaissance -->
+            <ai.progenius.emefa.widget.MenuGroup
+                android:id="@+id/knowledgeGroup"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+
             <!-- About -->
             <ai.progenius.emefa.widget.MenuGroup
                 android:id="@+id/aboutGroup"

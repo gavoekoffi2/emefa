@@ -90,6 +90,19 @@
             android:excludeFromRecents="true"
             android:theme="@style/Theme.Transparent" />
 
+        <activity
+            android:name=".knowledge.KnowledgeBaseActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+        <activity
+            android:name=".payment.MoneyFusionActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+        <activity
+            android:name=".skills.AssistantsActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+
         <receiver
             android:name=".debug.DebugTaskReceiver"
             android:exported="true">

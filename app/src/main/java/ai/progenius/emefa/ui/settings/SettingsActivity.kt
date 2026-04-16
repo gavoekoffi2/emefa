@@ -134,7 +134,8 @@ class SettingsActivity : BaseActivity() {
     private fun applyThemeToGroups(tc: ai.progenius.emefa.ui.chat.ThemeManager.ChatColors) {
         val groups = listOf(
             R.id.permissionsGroup, R.id.channelGroup, R.id.modelGroup,
-            R.id.appearanceGroup, R.id.toolsGroup, R.id.remoteGroup, R.id.aboutGroup
+            R.id.appearanceGroup, R.id.toolsGroup, R.id.remoteGroup,
+            R.id.assistantsGroup, R.id.paymentsGroup, R.id.knowledgeGroup, R.id.aboutGroup
         )
         for (id in groups) {
             val g = findViewById<MenuGroup>(id) ?: continue
@@ -369,6 +370,59 @@ class SettingsActivity : BaseActivity() {
             showDivider = false
         ).apply {
             setTrailingText("Coming soon")
+        }
+
+        // Assistants EMEFA
+        val assistantsGroup = findViewById<MenuGroup>(R.id.assistantsGroup)
+        assistantsGroup.setTitle("🤖 Assistants")
+
+        assistantsGroup.addMenuItem(
+            leadingIcon = android.R.drawable.ic_menu_manage,
+            title = "Choisir un Assistant",
+            onClick = {
+                ai.progenius.emefa.skills.AssistantsActivity.start(this)
+            },
+            showDivider = true
+        ).apply {
+            val active = ai.progenius.emefa.skills.SkillsManager.getActiveAssistant()
+            setTrailingText("${active.icon} ${active.name}")
+        }
+
+        assistantsGroup.addMenuItem(
+            leadingIcon = android.R.drawable.ic_menu_agenda,
+            title = "Base de Connaissance",
+            onClick = {
+                ai.progenius.emefa.knowledge.KnowledgeBaseActivity.start(this)
+            },
+            showDivider = false
+        ).apply {
+            val hasKnowledge = ai.progenius.emefa.knowledge.KnowledgeBaseManager.hasKnowledge()
+            setTrailingText(if (hasKnowledge) "✅ Configurée" else "Non configurée")
+        }
+
+        // Paiements MoneyFusion
+        val paymentsGroup = findViewById<MenuGroup>(R.id.paymentsGroup)
+        paymentsGroup.setTitle("💳 Paiements Africains")
+
+        paymentsGroup.addMenuItem(
+            leadingIcon = android.R.drawable.ic_menu_send,
+            title = "MoneyFusion Pay",
+            onClick = {
+                ai.progenius.emefa.payment.MoneyFusionActivity.start(this)
+            },
+            showDivider = true
+        ).apply {
+            val configured = ai.progenius.emefa.utils.KVUtils.getString("moneyfusion_token", "").isNotEmpty()
+            setTrailingText(if (configured) "✅ Configuré" else "Configurer")
+        }
+
+        paymentsGroup.addMenuItem(
+            leadingIcon = android.R.drawable.ic_menu_info_details,
+            title = "Orange Money, Wave, MTN MoMo",
+            onClick = { },
+            showDivider = false
+        ).apply {
+            setTrailingText("Via MoneyFusion")
         }
 
           // About

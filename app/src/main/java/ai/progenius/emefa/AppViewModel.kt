@@ -89,11 +89,22 @@ class AppViewModel : ViewModel() {
         taskOrchestrator.initAgent()
     }
 
-    fun getAgentConfig(): AgentConfig =
-        ModelConfigRepository.snapshot().toAgentConfig(
+    fun getAgentConfig(): AgentConfig {
+        val baseConfig = ModelConfigRepository.snapshot().toAgentConfig(
             temperature = 0.1,
             maxIterations = 60
         )
+        // Injecter le system prompt de l'assistant actif + base de connaissance personnalisée
+        val activeAssistant = ai.progenius.emefa.skills.SkillsManager.getActiveAssistant()
+        val assistantPrompt = ai.progenius.emefa.skills.SkillsManager.buildSystemPrompt(activeAssistant)
+        val knowledgeBlock = ai.progenius.emefa.knowledge.KnowledgeBaseManager.buildKnowledgeBlock()
+        val fullSystemPrompt = if (knowledgeBlock.isNotEmpty()) {
+            assistantPrompt + knowledgeBlock
+        } else {
+            assistantPrompt
+        }
+        return baseConfig.copy(systemPrompt = fullSystemPrompt)
+    }
 
     fun updateAgentConfig(): Boolean = taskOrchestrator.updateAgentConfig()
 
