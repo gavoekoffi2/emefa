@@ -1,4 +1,4 @@
-# PokeClaw — Project Rules
+# EMEFA — Project Rules
 
 ## Project Files
 
@@ -107,4 +107,4 @@ Every code path must be traceable through logcat alone. If a bug happens and the
 
 ### The rule
 
-When reading logcat for any user flow, you should be able to reconstruct exactly what happened, what decisions were made, and where it went wrong — without reading the source code. One session of `adb logcat --pid=$(pidof io.agents.pokeclaw)` should tell the full story.
+When reading logcat for any user flow, you should be able to reconstruct exactly what happened, what decisions were made, and where it went wrong — without reading the source code. One session of `adb logcat --pid=$(pidof ai.progenius.emefa)` should tell the full story.

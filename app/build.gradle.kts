@@ -24,7 +24,7 @@ fun readLocalOrEnvInt(key: String, defaultValue: Int): Int {
 }
 
 android {
-    namespace = "io.agents.pokeclaw"
+    namespace = "ai.progenius.emefa"
     compileSdk {
         version = release(36) {
             minorApiLevel = 1
@@ -51,13 +51,13 @@ android {
     }
 
     defaultConfig {
-        applicationId = "io.agents.pokeclaw"
+        applicationId = "ai.progenius.emefa"
         minSdk = 28
         targetSdk = 36
         versionCode = readLocalOrEnvInt("POKECLAW_VERSION_CODE", 20)
         versionName = readLocalOrEnvString("POKECLAW_VERSION_NAME", "0.6.5")
         buildConfigField("String", "VERSION_INFO", getVersionGit())
-        buildConfigField("String", "APP_ORIGIN", "\"PokeClaw by agents.io | github.com/agents-io/PokeClaw\"")
+        buildConfigField("String", "APP_ORIGIN", "\"EMEFA by progenius.ai | github.com/progenius-ai/EMEFA\"")
         buildConfigField("String", "BUILD_FINGERPRINT", "\"${getBuildFingerprint()}\"")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -193,7 +193,7 @@ androidComponents {
         variant.outputs.forEach { output ->
             if (output is com.android.build.api.variant.impl.VariantOutputImpl) {
                 val versionName = android.defaultConfig.versionName ?: "0.0.0"
-                val fileName = "PokeClaw_v${versionName}_${getDateTime()}.apk"
+                val fileName = "EMEFA_v${versionName}_${getDateTime()}.apk"
                 println("output file name: $fileName")
                 output.outputFileName.set(fileName)
             }

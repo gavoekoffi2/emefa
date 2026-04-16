@@ -1,4 +1,4 @@
-package io.agents.pokeclaw.ui.chat
+package ai.progenius.emefa.ui.chat
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull

@@ -7,20 +7,20 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/agents-io/PokeClaw/stargazers"><img src="https://img.shields.io/github/stars/agents-io/PokeClaw?style=social" alt="Stars" /></a>
-  <a href="https://github.com/agents-io/PokeClaw/network/members"><img src="https://img.shields.io/github/forks/agents-io/PokeClaw?style=social" alt="Forks" /></a>
-  <a href="https://github.com/agents-io/PokeClaw/issues?q=is%3Aissue+is%3Aclosed"><img src="https://img.shields.io/github/issues-closed/agents-io/PokeClaw?style=social" alt="Closed Issues" /></a>
+  <a href="https://github.com/progenius-ai/EMEFA/stargazers"><img src="https://img.shields.io/github/stars/progenius-ai/EMEFA?style=social" alt="Stars" /></a>
+  <a href="https://github.com/progenius-ai/EMEFA/network/members"><img src="https://img.shields.io/github/forks/progenius-ai/EMEFA?style=social" alt="Forks" /></a>
+  <a href="https://github.com/progenius-ai/EMEFA/issues?q=is%3Aissue+is%3Aclosed"><img src="https://img.shields.io/github/issues-closed/progenius-ai/EMEFA?style=social" alt="Closed Issues" /></a>
   <img src="https://img.shields.io/badge/Android-9%2B-3DDC84?logo=android&logoColor=white" alt="Android 9+" />
-  <a href="https://github.com/agents-io/PokeClaw/releases/latest"><img src="https://img.shields.io/github/v/release/agents-io/PokeClaw" alt="Latest Release" /></a>
+  <a href="https://github.com/progenius-ai/EMEFA/releases/latest"><img src="https://img.shields.io/github/v/release/progenius-ai/EMEFA" alt="Latest Release" /></a>
 </p>
 
 <p align="center">
-  🌐 <a href="https://agents-io.github.io/PokeClaw/">Landing Page</a> — available in English · हिन्दी · 日本語 · Deutsch · 繁中
+  🌐 <a href="https://progenius-ai.github.io/EMEFA/">Landing Page</a> — available in English · हिन्दी · 日本語 · Deutsch · 繁中
 </p>
 
-# PokeClaw (PocketClaw) — On-Device AI Phone Agent
+# EMEFA (PocketClaw) — On-Device AI Phone Agent
 
-**PokeClaw**, also known as **PocketClaw**, is an open-source Android app for AI phone automation.
+**EMEFA**, also known as **PocketClaw**, is an open-source Android app for AI phone automation.
 
 It can run Gemma 4 on-device for local, private phone control, and it also supports optional cloud models when you want stronger reasoning for harder tasks.
 
@@ -34,7 +34,7 @@ In Local mode, model execution stays inside your device. No account or API key i
 Everyone else:  Phone → Internet → Cloud API → Internet → Phone
                        💳Credit card needed, API key required. Monthly bill attached.
 
-PokeClaw local: Phone → LLM → Phone
+EMEFA local: Phone → LLM → Phone
                        Local-first when you want it. Optional cloud when you need it.
 ```
 **AI can control your phone, with local-first execution and optional cloud help.**
@@ -50,7 +50,7 @@ https://github.com/user-attachments/assets/5a43d4d5-458a-4eea-a0a5-58d113255741
 
 https://github.com/user-attachments/assets/5c2966c5-04e6-4b22-8d66-11915ae62096
 
-> **☝️ Auto-reply demo:** PokeClaw monitors messages from Mom, reads what she said, and replies based on context using the on-device LLM. [Watch in higher resolution on YouTube](https://youtube.com/shorts/Vxpf474chm0)
+> **☝️ Auto-reply demo:** EMEFA monitors messages from Mom, reads what she said, and replies based on context using the on-device LLM. [Watch in higher resolution on YouTube](https://youtube.com/shorts/Vxpf474chm0)
 
 > **☝️ Context demo:** Mom asks "what did I tell you to bring?" — the AI opens the chat, reads the full conversation on screen, sees the earlier message about wine, and replies correctly. This is the difference between context-aware and context-free replies.
 
@@ -74,17 +74,17 @@ https://github.com/user-attachments/assets/89999dd8-a1be-49ad-9419-60c2b38f6374
 
 ## The Story
 
-I'm building this solo. When Gemma 4 landed with native tool calling on LiteRT-LM, I wanted to know whether a phone could become a real on-device agent instead of just another chatbot. PokeClaw is the result.
+I'm building this solo. When Gemma 4 landed with native tool calling on LiteRT-LM, I wanted to know whether a phone could become a real on-device agent instead of just another chatbot. EMEFA is the result.
 
 The interesting part is not just chatting with a local model. The interesting part is getting a local model to read the screen, choose tools, operate apps, keep task state, and finish real phone workflows. That is exactly what this project is built for.
 
-PokeClaw already supports fully on-device automation with Gemma 4 and optional cloud models for stronger task execution. The current focus is broader device support, more generic skills, more local model options, and a cleaner public release path.
+EMEFA already supports fully on-device automation with Gemma 4 and optional cloud models for stronger task execution. The current focus is broader device support, more generic skills, more local model options, and a cleaner public release path.
 
-**If you hit something interesting, [open an issue](https://github.com/agents-io/PokeClaw/issues).** Real device reports are how this gets better fast.
+**If you hit something interesting, [open an issue](https://github.com/progenius-ai/EMEFA/issues).** Real device reports are how this gets better fast.
 
 ## Product Direction
 
-PokeClaw is not just a chat app with a few phone-control tricks glued on top.
+EMEFA is not just a chat app with a few phone-control tricks glued on top.
 
 At its core, it is becoming a **mobile agent harness**:
 
@@ -104,7 +104,7 @@ That is also why the project invests so heavily in:
 
 ## See the UI
 
-👉 **[Try the interactive demo on our landing page](https://agents-io.github.io/PokeClaw/)** — click through every screen without installing anything.
+👉 **[Try the interactive demo on our landing page](https://progenius-ai.github.io/EMEFA/)** — click through every screen without installing anything.
 
 ## What it does
 
@@ -129,11 +129,11 @@ These are tasks we have already run end-to-end during on-device QA.
 
 ### Cloud mode
 
-- Send a WhatsApp message and auto-return to the same PokeClaw conversation
+- Send a WhatsApp message and auto-return to the same EMEFA conversation
 - Search inside YouTube in the real app
 - Check what is trending on Twitter / X and summarize it
 - Install or open Telegram from Play Store
-- Open Reddit and search for `pokeclaw`
+- Open Reddit and search for `emefa`
 - Copy the latest email subject and Google it
 - Draft an email saying you will be late
 - Preserve task state and session history across cross-app execution and return
@@ -177,7 +177,7 @@ For the current `local-core` quick-task bundle on a Pixel 8 Pro, Gemma 4 E2B pas
 
 ## How it works
 
-PokeClaw gives a small on-device LLM a set of tools (tap, swipe, type, open app, send message, enable auto-reply, etc.) and lets it decide what to do. The LLM sees a text representation of the current screen, picks an action, sees the result, picks the next action, until the task is done.
+EMEFA gives a small on-device LLM a set of tools (tap, swipe, type, open app, send message, enable auto-reply, etc.) and lets it decide what to do. The LLM sees a text representation of the current screen, picks an action, sees the result, picks the next action, until the task is done.
 
 Local execution runs via [LiteRT-LM](https://ai.google.dev/edge/litert/llm/overview) with native tool calling. In Local mode, the model runs on-device.
 
@@ -200,7 +200,7 @@ These tools are generic — they work with any app, any contact, any language. T
 
 ## Tools + Skills
 
-Small on-device models get dramatically better when you give them a strong playbook. So we give PokeClaw reusable skills on top of generic tools.
+Small on-device models get dramatically better when you give them a strong playbook. So we give EMEFA reusable skills on top of generic tools.
 
 The auto-reply feature is a good example. It doesn't work by magic — there's a predefined workflow behind it: open the chat → read all visible messages on screen → generate a context-aware reply → send it → go back to home. The model follows this recipe step by step. Every tool in that chain is generic: `open_app` works with any app, `read_screen` works on any screen, `send_message` works with any contact. The workflow just tells the model which tools to use and in what order.
 
@@ -221,7 +221,7 @@ As on-device models get smarter, more of this can become free-form. Right now, s
 
 ## Download
 
-[**Download APK**](https://github.com/agents-io/PokeClaw/releases/latest)
+[**Download APK**](https://github.com/progenius-ai/EMEFA/releases/latest)
 
 > Note: If you are updating from an older public debug build and Android says the package is incompatible, uninstall the old build once and then install the latest APK fresh. Older public debug builds still receive the in-app update prompt, but they need a one-time reinstall before joining the stable-signed `0.6.x` line.
 
@@ -250,12 +250,12 @@ Local mode needs no account and no API key. Cloud mode is optional.
 
 ## Roadmap
 
-This is the current direction for PokeClaw based on real device testing, open issues, and the most common feature requests.
+This is the current direction for EMEFA based on real device testing, open issues, and the most common feature requests.
 
 ### Near-term
 
 - **Stabler public releases and upgrades.** The release/signing path is being locked down so future public APKs upgrade cleanly instead of falling back to uninstall/reinstall behavior from the older debug-signed builds.
-- **Missed-call auto follow-up.** A high-priority use case is: someone calls, you miss it, and PokeClaw automatically sends a follow-up message to that caller and keeps the status visible in the same chatroom. The preferred first path is SMS/API-first. WhatsApp follow-up is only worth adding if there is a reliable non-UI route; otherwise it should stay an explicit fallback path, not the core design.
+- **Missed-call auto follow-up.** A high-priority use case is: someone calls, you miss it, and EMEFA automatically sends a follow-up message to that caller and keeps the status visible in the same chatroom. The preferred first path is SMS/API-first. WhatsApp follow-up is only worth adding if there is a reliable non-UI route; otherwise it should stay an explicit fallback path, not the core design.
 - **Lower-RAM local model options.** Right now the built-in local model choices are still too heavy for a lot of mid-range phones. Smaller on-device models are high priority.
 - **More small local models for real device coverage.** 1B–1.5B class models for lower-end phones are on the roadmap so more devices can at least run a usable local agent instead of being locked out by RAM limits.
 - **More reliable local model downloads.** Resume/retry behavior, partial download cleanup, and corrupted-model detection are all being hardened so downloads survive weak connections and screen-off/resume cases better.
@@ -265,14 +265,14 @@ This is the current direction for PokeClaw based on real device testing, open is
 ### In progress
 
 - **Import your own local `.litertlm` models.** User-accessible local model import is on the roadmap so you can bring your own LiteRT model instead of being locked to the built-in download list.
-- **Custom local model sources.** We want PokeClaw to go beyond a fixed built-in catalog and support user-defined model sources, including direct downloads from Hugging Face or other hosted URLs.
-- **Google AI Core / system local AI integration.** We are tracking Android's newer on-device AI stack so PokeClaw can eventually use official system-level local model APIs where they make sense, instead of relying on a single runtime path forever.
+- **Custom local model sources.** We want EMEFA to go beyond a fixed built-in catalog and support user-defined model sources, including direct downloads from Hugging Face or other hosted URLs.
+- **Google AI Core / system local AI integration.** We are tracking Android's newer on-device AI stack so EMEFA can eventually use official system-level local model APIs where they make sense, instead of relying on a single runtime path forever.
 - **More built-in workflows.** More quick-task / skill coverage is planned beyond the first WhatsApp-centric workflows.
 - **Remote control / remote conversation flows.** Controlling a phone from another device is a real request and is on the longer roadmap, but it is not the current top priority compared with local reliability and device coverage.
 
 ### Known platform constraints
 
-- **Edge Gallery model detection is not fully under our control.** Android hides other apps' `Android/data/...` sandboxes from normal file-pickers, so PokeClaw cannot generically "see" Edge Gallery's downloaded models unless they are exported into a user-accessible location first.
+- **Edge Gallery model detection is not fully under our control.** Android hides other apps' `Android/data/...` sandboxes from normal file-pickers, so EMEFA cannot generically "see" Edge Gallery's downloaded models unless they are exported into a user-accessible location first.
 - **Sideload + accessibility apps may trigger OEM security warnings.** Samsung / Play Protect warnings are being addressed through a cleaner release/signing path, but sideload trust prompts are partly controlled by the platform and OEM policy.
 
 ### Where feature requests go
@@ -290,11 +290,11 @@ If you want something added, please open an issue. The roadmap above is intentio
 
 ## Help Wanted
 
-PokeClaw is moving fast, and the roadmap is being shaped directly by real device reports, feature requests, and QA results. If you want to help push local phone agents forward:
+EMEFA is moving fast, and the roadmap is being shaped directly by real device reports, feature requests, and QA results. If you want to help push local phone agents forward:
 
-- ⭐ **[Star this repo](https://github.com/agents-io/PokeClaw)** if you think local AI phone control matters
-- 🐛 **[Open an issue](https://github.com/agents-io/PokeClaw/issues)** when you hit a bug or want a feature
-- 🍴 **[Fork it](https://github.com/agents-io/PokeClaw/fork)** and build on it
+- ⭐ **[Star this repo](https://github.com/progenius-ai/EMEFA)** if you think local AI phone control matters
+- 🐛 **[Open an issue](https://github.com/progenius-ai/EMEFA/issues)** when you hit a bug or want a feature
+- 🍴 **[Fork it](https://github.com/progenius-ai/EMEFA/fork)** and build on it
 
 Every star helps more people find the project. Every issue helps shape the next release.
 
@@ -354,7 +354,7 @@ Every star helps more people find the project. Every issue helps shape the next 
 - **Java skill routing.** Monitor and send-message tasks bypass the LLM entirely. Instant activation, zero warmup.
 - **Progress bar on skill activation.** Card fills up and turns orange when active. You know exactly when monitoring starts.
 - **Custom tasks disabled for on-device models.** Gemma is not smart enough to route free-form tasks to the right skill. Switch to a cloud LLM in Settings to unlock the text input.
-- **Tasks stay in-app.** Starting a task no longer jumps to the home screen. You see progress in PokeClaw, then it goes to background when ready.
+- **Tasks stay in-app.** Starting a task no longer jumps to the home screen. You see progress in EMEFA, then it goes to background when ready.
 
 ### v0.2.0 (2026-04-06)
 - **Auto-reply now reads conversation context.** Before replying, the AI opens the chatroom and reads all visible messages on screen. It no longer forgets what was said 3 messages ago.
@@ -367,7 +367,7 @@ Every star helps more people find the project. Every issue helps shape the next 
 
 ## Acknowledgments
 
-PokeClaw exists because of [Gemma 4](https://blog.google/innovation-and-ai/technology/developers-tools/gemma-4/) by [Google DeepMind](https://github.com/google-deepmind). Thank you to [Clément Farabet](https://github.com/clementfarabet), [Olivier Lacombe](https://github.com/olivierlacombe), and the entire Gemma team for shipping an open model with native tool calling under Apache 2.0. You made it possible for a solo developer to build a working phone agent in two nights. The [LiteRT-LM](https://ai.google.dev/edge/litert/llm/overview) runtime is what makes on-device inference practical.
+EMEFA exists because of [Gemma 4](https://blog.google/innovation-and-ai/technology/developers-tools/gemma-4/) by [Google DeepMind](https://github.com/google-deepmind). Thank you to [Clément Farabet](https://github.com/clementfarabet), [Olivier Lacombe](https://github.com/olivierlacombe), and the entire Gemma team for shipping an open model with native tool calling under Apache 2.0. You made it possible for a solo developer to build a working phone agent in two nights. The [LiteRT-LM](https://ai.google.dev/edge/litert/llm/overview) runtime is what makes on-device inference practical.
 
 Also inspired by the [OpenClaw](https://github.com/openclaw/openclaw) community 🦞 for proving that AI agents that actually do things are what people want.
 
@@ -375,7 +375,7 @@ And thank you to [Claude Code](https://claude.ai/code) by Anthropic. I'm a CS dr
 
 ## Trademark
 
-PokeClaw is a trademark of Nicole / agents.io. The name "PokeClaw" and the PokeClaw logo may not be used to endorse or promote products derived from this software without prior written permission. Forks must be renamed before distribution.
+EMEFA is a trademark of Nicole / progenius.ai. The name "EMEFA" and the EMEFA logo may not be used to endorse or promote products derived from this software without prior written permission. Forks must be renamed before distribution.
 
 ## License
 

@@ -1,4 +1,4 @@
-name: Build Debug APK
+name: 🔨 Build EMEFA APK
 
 on:
   push:
@@ -31,14 +31,15 @@ jobs:
           key: gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
           restore-keys: gradle-
 
-      - name: Build debug APK
+      - name: 🔨 Build APK Debug
         run: ./gradlew assembleDebug
 
-      - name: Upload APK
+      - name: 📦 Upload APK Debug
         uses: actions/upload-artifact@v4
         with:
-          name: debug-apk
+          name: EMEFA-Debug-APK
           path: app/build/outputs/apk/debug/*.apk
+          retention-days: 14
 
   release-apk:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
@@ -63,12 +64,30 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "date=$(date +%Y%m%d)" >> "$GITHUB_OUTPUT"
 
-      - name: Create GitHub Release
+      - name: 🎉 Créer Release GitHub
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.version.outputs.version }}-${{ steps.version.outputs.date }}
-          name: Debug Build v${{ steps.version.outputs.version }}
+          name: 🤖 EMEFA v${{ steps.version.outputs.version }} — Assistante IA Africaine
           files: apk/*.apk
           draft: false
           prerelease: true
-          generate_release_notes: true
+          body: |
+            ## 🤖 EMEFA v${{ steps.version.outputs.version }}
+            **Assistante Virtuelle IA Africaine par Pro Genius AI**
+            
+            ### 📱 Installation
+            1. Téléchargez l'APK ci-dessous
+            2. Activez **"Sources inconnues"** dans Paramètres → Sécurité
+            3. Installez et lancez EMEFA
+            4. Configurez votre modèle IA dans les paramètres
+            
+            ### ✨ Fonctionnalités
+            - 🌍 Interface Français / Anglais
+            - 💰 Mobile Money (Wave, Orange Money, MTN MoMo)
+            - 📱 Intégration WhatsApp Business
+            - 🗣️ Traduction langues africaines
+            - 🎨 Design Pro Genius AI (Orange + Bleu)
+            
+            ---
+            *Développé avec ❤️ par Pro Genius AI*

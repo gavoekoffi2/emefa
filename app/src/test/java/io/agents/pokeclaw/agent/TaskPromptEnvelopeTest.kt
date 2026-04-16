@@ -1,4 +1,4 @@
-package io.agents.pokeclaw.agent
+package ai.progenius.emefa.agent
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

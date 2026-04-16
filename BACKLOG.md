@@ -1,4 +1,4 @@
-# PokeClaw Backlog
+# EMEFA Backlog
 
 Items go in, get prioritized, get done, get crossed out. Simple.
 
@@ -8,19 +8,19 @@ Priority: `P0` = blocks users, fix now. `P1` = next up. `P2` = when we get to it
 
 ## Bugs
 
-- [ ] **P0** Release publishing: install stable signing secrets on `agents-io/PokeClaw` so tag-based GitHub releases can ship a signed `release` APK instead of failing closed
+- [ ] **P0** Release publishing: install stable signing secrets on `progenius-ai/EMEFA` so tag-based GitHub releases can ship a signed `release` APK instead of failing closed
 - [ ] **P1** Historical upgrade gap: users on the older public debug signing path still need a one-time uninstall + reinstall because the original public signing key is already lost
 - [ ] **P2** K3-a: Auto-return fires on every service connect, not just user-initiated permission enable
-- [ ] **P2** B2-a: No auto-return to PokeClaw after task completes in another app (e.g., stuck in YouTube)
+- [ ] **P2** B2-a: No auto-return to EMEFA after task completes in another app (e.g., stuck in YouTube)
 - [ ] **P1** Investigate MediaTek/Samsung local-engine bring-up failures that still report OpenCL/LiteRT engine creation errors on some devices even after GPU→CPU fallback
 - [ ] **P2** Settings screen: active model row breaks layout when the model name is long; keep the label/value aligned and truncate or wrap cleanly without shoving the left label into a narrow column
 
 ## Features
 
-- [ ] **P0** Missed-call auto follow-up: when a call is missed, let PokeClaw detect the missed-call event, send a follow-up message to that caller automatically, and keep the status visible in the same chatroom instead of as a hidden background-only action. Prefer SMS / true Android API paths first; do not make accessibility-driven WhatsApp automation the default design.
+- [ ] **P0** Missed-call auto follow-up: when a call is missed, let EMEFA detect the missed-call event, send a follow-up message to that caller automatically, and keep the status visible in the same chatroom instead of as a hidden background-only action. Prefer SMS / true Android API paths first; do not make accessibility-driven WhatsApp automation the default design.
 - [ ] **P1** Local model import UX: keep shared-storage `.litertlm` import easy and explain clearly why other apps' `Android/data/...` sandboxes (for example Edge Gallery) are not directly readable
 - [ ] **P1** More small local model options: add 1B / 1.5B-class local models so lower-RAM phones can still run a useful on-device agent
-- [ ] **P1** Custom local model sources: let users point PokeClaw at user-defined model URLs / hosted downloads instead of only the built-in catalog
+- [ ] **P1** Custom local model sources: let users point EMEFA at user-defined model URLs / hosted downloads instead of only the built-in catalog
 - [ ] **P2** Google AI Core integration research: evaluate Android's official on-device AI / system model APIs as an optional local runtime path
 - [ ] **P1** Structured monitor identifiers: let monitor setup keep a user-facing nickname while using a more stable identifier where possible (phone number / app-stable id / aliases) so WhatsApp/Telegram display-name drift stops breaking setup
 - [ ] **P2** Chat keyboard dismissal polish: tapping non-button chatroom space should reliably clear focus and hide IME in both empty and non-empty conversations
@@ -31,12 +31,12 @@ Priority: `P0` = blocks users, fix now. `P1` = next up. `P2` = when we get to it
 - [x] ~~**P2** Monitor stays in app~~ — done 2026-04-08, removed GLOBAL_ACTION_HOME
 - [ ] **P2** Unified task registry: monitor + agent tasks tracked in same system (top bar, floating button, etc.)
 - [ ] **P3** Rename chat session (H6): pencil icon in sidebar → InputDialog → update title in DB + markdown
-- [ ] **P3** Floating button: use PokeClaw icon instead of "AI" text
+- [ ] **P3** Floating button: use EMEFA icon instead of "AI" text
 - [ ] **P3** ChatViewModel extraction: move business logic out of ComposeChatActivity god class
 
 ## QA Gaps
 
-- [ ] **P0** Missed-call follow-up E2E: missed-call notification / phone-state trigger reaches PokeClaw, follow-up message is sent to the caller, and the result/status is visible in the same chatroom
+- [ ] **P0** Missed-call follow-up E2E: missed-call notification / phone-state trigger reaches EMEFA, follow-up message is sent to the caller, and the result/status is visible in the same chatroom
 - [ ] **P1** C2: Auto-reply trigger E2E — needs 2nd device to send WhatsApp message to Girlfriend
 - [ ] **P1** Release QA: verify locally signed `0.5.1+` public APK can upgrade in-place over the next signed public build once the stable key is installed in GitHub Actions
 - [x] ~~**P1** M1-M12 QA: Cloud LLM complex tasks~~ — done 2026-04-08, 10/12 PASS

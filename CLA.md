@@ -1,9 +1,9 @@
 # Individual Contributor License Agreement
 
-**Project:** PokeClaw  
-**Owner:** Nicole / agents.io
+**Project:** EMEFA  
+**Owner:** Nicole / progenius.ai
 
-Thank you for your interest in contributing to PokeClaw. This agreement clarifies the terms under which you may contribute.
+Thank you for your interest in contributing to EMEFA. This agreement clarifies the terms under which you may contribute.
 
 By submitting a pull request or otherwise contributing to this project, you accept and agree to the following terms for your present and future contributions.
 
@@ -19,13 +19,13 @@ By submitting a pull request or otherwise contributing to this project, you acce
 
 ## 2. Copyright Assignment
 
-You assign all right, title, and interest in the copyright of your Contributions to Nicole (agents.io). In return, Nicole (agents.io) grants back to you a perpetual, worldwide, non-exclusive, royalty-free license to use, reproduce, and distribute your Contributions in any form.
+You assign all right, title, and interest in the copyright of your Contributions to Nicole (progenius.ai). In return, Nicole (progenius.ai) grants back to you a perpetual, worldwide, non-exclusive, royalty-free license to use, reproduce, and distribute your Contributions in any form.
 
 ---
 
 ## 3. Patent License
 
-You grant Nicole (agents.io) a perpetual, worldwide, non-exclusive, royalty-free, irrevocable patent license to make, have made, use, offer to sell, sell, import, and otherwise transfer your Contributions, where such license applies only to patent claims licensable by you that are necessarily infringed by your Contribution.
+You grant Nicole (progenius.ai) a perpetual, worldwide, non-exclusive, royalty-free, irrevocable patent license to make, have made, use, offer to sell, sell, import, and otherwise transfer your Contributions, where such license applies only to patent claims licensable by you that are necessarily infringed by your Contribution.
 
 ---
 

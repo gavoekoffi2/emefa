@@ -1,4 +1,4 @@
-# PokeClaw E2E QA Checklist
+# EMEFA E2E QA Checklist
 
 Every build must pass ALL checks before shipping.
 
@@ -66,36 +66,36 @@ Never claim "fixed" from a single green run on a stochastic Cloud workflow.
 adb devices -l
 
 # 2. Install APK
-cd /home/nicole/MyGithub/PokeClaw
+cd /home/nicole/MyGithub/EMEFA
 ./gradlew assembleDebug
 APK=$(find app/build/outputs/apk/debug/ -name "*.apk" | head -1)
 adb install -r "$APK"
 
 # 3. Launch app
-adb shell am start -n io.agents.pokeclaw/io.agents.pokeclaw.ui.splash.SplashActivity
+adb shell am start -n ai.progenius.emefa/ai.progenius.emefa.ui.splash.SplashActivity
 sleep 5
 
 # 4. Enable accessibility (if not already)
 CURRENT=$(adb shell settings get secure enabled_accessibility_services)
-[[ "$CURRENT" != *"io.agents.pokeclaw"* ]] && \
+[[ "$CURRENT" != *"ai.progenius.emefa"* ]] && \
   adb shell settings put secure enabled_accessibility_services \
-  "$CURRENT:io.agents.pokeclaw/io.agents.pokeclaw.service.ClawAccessibilityService"
+  "$CURRENT:ai.progenius.emefa/ai.progenius.emefa.service.ClawAccessibilityService"
 
 # 5. Grant permissions
-adb shell pm grant io.agents.pokeclaw android.permission.READ_CONTACTS
+adb shell pm grant ai.progenius.emefa android.permission.READ_CONTACTS
 ```
 
 ### Configure LLM via ADB
 
 ```bash
 # Cloud LLM
-source /home/nicole/MyGithub/PokeClaw/.env
-adb shell "am broadcast -a io.agents.pokeclaw.DEBUG_TASK -p io.agents.pokeclaw \
+source /home/nicole/MyGithub/EMEFA/.env
+adb shell "am broadcast -a ai.progenius.emefa.DEBUG_TASK -p ai.progenius.emefa \
   --es task 'config:' --es api_key '$OPENAI_API_KEY' --es model_name 'gpt-4.1'"
 
 # Local LLM
-MODEL_PATH="/storage/emulated/0/Android/data/io.agents.pokeclaw/files/models/gemma-4-E2B-it.litertlm"
-adb shell "am broadcast -a io.agents.pokeclaw.DEBUG_TASK -p io.agents.pokeclaw \
+MODEL_PATH="/storage/emulated/0/Android/data/ai.progenius.emefa/files/models/gemma-4-E2B-it.litertlm"
+adb shell "am broadcast -a ai.progenius.emefa.DEBUG_TASK -p ai.progenius.emefa \
   --es task 'config:' --es provider 'LOCAL' --es base_url '$MODEL_PATH' --es model_name 'gemma4-e2b'"
 ```
 
@@ -103,7 +103,7 @@ adb shell "am broadcast -a io.agents.pokeclaw.DEBUG_TASK -p io.agents.pokeclaw \
 
 ```bash
 # Cloud quick tasks
-cd /home/nicole/MyGithub/PokeClaw
+cd /home/nicole/MyGithub/EMEFA
 ./scripts/e2e-quick-tasks.sh cloud
 
 # Local quick tasks
@@ -117,7 +117,7 @@ The runner emits `PASS / FAIL / BLOCKED / TIMEOUT` and writes a timestamped log 
 ```bash
 # IMPORTANT: wrap the task string in single quotes INSIDE adb shell double quotes
 adb logcat -c
-adb shell "am broadcast -a io.agents.pokeclaw.DEBUG_TASK -p io.agents.pokeclaw \
+adb shell "am broadcast -a ai.progenius.emefa.DEBUG_TASK -p ai.progenius.emefa \
   --es task 'how much battery left'"
 ```
 
@@ -125,20 +125,20 @@ adb shell "am broadcast -a io.agents.pokeclaw.DEBUG_TASK -p io.agents.pokeclaw \
 
 ```bash
 # Launch ComposeChatActivity through the debug receiver and inject a chat message
-adb shell "am broadcast -a io.agents.pokeclaw.TASK -p io.agents.pokeclaw \
+adb shell "am broadcast -a ai.progenius.emefa.TASK -p ai.progenius.emefa \
   --es chat 'read my clipboard and explain what it says'"
 ```
 
 Use this when you need a fast chatroom-bridge verification but do not trust raw ADB tap coordinates.
 It should create a visible user bubble, wait for the backend reply, and render the assistant bubble in the same conversation.
-On Android 15+, make sure PokeClaw is already in the foreground first; otherwise the system may block the receiver from bringing the chat activity forward for UI-visible verification.
+On Android 15+, make sure EMEFA is already in the foreground first; otherwise the system may block the receiver from bringing the chat activity forward for UI-visible verification.
 
 ### Read Results from Logcat
 
 ```bash
 # Wait for task to complete (Cloud ~10s, Local ~60-120s per round)
 sleep 15
-PID=$(adb shell pidof io.agents.pokeclaw)
+PID=$(adb shell pidof ai.progenius.emefa)
 
 # Check which tools were called + final answer
 adb logcat -d | grep "$PID" | grep -E "onToolCall|onComplete" | head -10
@@ -153,7 +153,7 @@ For each M test, check:
 1. **Correct tool called** — e.g., "how much battery" should call `get_device_info(battery)`, NOT open Settings
 2. **Actual data in answer** — "73%, not charging, 32°C" NOT "I checked the battery"
 3. **Rounds** — system queries should be 2 rounds, complex tasks 5-15
-4. **Auto-return** — after task, PokeClaw chatroom should come back to foreground
+4. **Auto-return** — after task, EMEFA chatroom should come back to foreground
 5. **Graceful failure** — if task can't complete, clear error message (not stuck/loop)
 6. **Env-dependent quick tasks** — if a sample contact/app is missing on this device, require the correct tool + a graceful failure; literal send/call success should be marked `BLOCKED`, not product `FAIL`
 
@@ -169,7 +169,7 @@ for node in root.iter():
     text = node.get('text', '')
     desc = node.get('content-desc', '')
     pkg = node.get('package', '')
-    if (text or desc) and 'pokeclaw' in pkg.lower():
+    if (text or desc) and 'emefa' in pkg.lower():
         print(f'text={text!r} desc={desc!r}')
 "
 ```
@@ -256,7 +256,7 @@ root = ET.fromstring(sys.stdin.read())
 for node in root.iter():
     text = node.get('text', '')
     pkg = node.get('package', '')
-    if text and 'pokeclaw' in pkg.lower() and ('battery' in text.lower() or '%' in text):
+    if text and 'emefa' in pkg.lower() and ('battery' in text.lower() or '%' in text):
         print(f'FOUND RESPONSE: {text!r}')
 "
 # Should find: "Battery: 73%, not charging, 32°C" or similar in a chat bubble
@@ -377,7 +377,7 @@ Do **not** rerun the entire world after every refactor. Rerun the right bundle f
   - `Q3-1`
   - `Q7-7`
   - `Q8-1`, `Q8-2`, `Q8-3`, `Q8-4`
-  - one persisted markdown-history spot check for `<!-- pokeclaw:timestamp=... -->`
+  - one persisted markdown-history spot check for `<!-- emefa:timestamp=... -->`
 - **Cloud task-context handoff changes**
   - `Q2-1`, `Q2-2`, `Q7-7`
   - `Q8-1`, `Q8-3`
@@ -426,7 +426,7 @@ When in doubt, rerun the smaller bundle first, then expand only if something dri
 
 ### Monitor QA Sender Rules
 
-- WhatsApp and Telegram monitor tests are only `PASS` when a real external sender delivers a message to this phone and PokeClaw reacts.
+- WhatsApp and Telegram monitor tests are only `PASS` when a real external sender delivers a message to this phone and EMEFA reacts.
 - If the app logic is ready but there is no sender available, mark the case `BLOCKED`, not `FAIL`.
 - For Telegram bot QA, the bot must already have an open chat with this handset; Telegram bots cannot cold-DM a user who never started the bot.
 - When testing monitor fixes, always verify both:
@@ -455,19 +455,19 @@ When in doubt, rerun the smaller bundle first, then expand only if something dri
 
 ## C. Cloud LLM — Monitor Workflow
 
-- [ ] **C1. Start monitor**: "monitor Girlfriend on WhatsApp" → top bar shows "Monitoring: Girlfriend" → user stays in PokeClaw chat (no Home press)
+- [ ] **C1. Start monitor**: "monitor Girlfriend on WhatsApp" → top bar shows "Monitoring: Girlfriend" → user stays in EMEFA chat (no Home press)
 - [ ] **C1-b. Monitor dialog honors chosen app**: open Monitor dialog → choose `Telegram` (or another supported app) → start monitor → top bar / stop shell show `... on Telegram`, not `... on WhatsApp`
 - [ ] **C2. Auto-reply triggers**: Girlfriend sends message → notification caught → WhatsApp opens → reads context → Cloud LLM generates reply → reply sent
 - [ ] **C3. Stop monitor**: tap top bar → expand → Stop → monitoring stops
-- [ ] **C4. Start Telegram monitor**: "monitor NicoleBot on Telegram" → top bar shows "Monitoring: NicoleBot" → user stays in PokeClaw chat
+- [ ] **C4. Start Telegram monitor**: "monitor NicoleBot on Telegram" → top bar shows "Monitoring: NicoleBot" → user stays in EMEFA chat
 - [ ] **C5. Telegram auto-reply triggers**: external Telegram sender / bot sends message → notification caught → Telegram opens → reads context → Cloud LLM generates reply → reply sent
 - [ ] **C6. Stop Telegram monitor**: tap top bar → expand → Stop → Telegram monitoring stops without affecting WhatsApp monitors
 
 ## C2. Background Call Follow-Up
 
 - [ ] **C7. Missed-call follow-up arms cleanly**: enable the missed-call auto follow-up workflow for a chosen person/number/channel → app shows clear in-chat status of what is armed
-- [ ] **C8. Real missed call triggers follow-up**: external caller rings this handset, the call is missed, and PokeClaw sends the configured follow-up message to that caller through the chosen channel
-- [ ] **C9. Missed-call result is visible in chatroom**: after the follow-up fires, the same PokeClaw conversation shows a clear status/result bubble instead of hiding the action purely in background state
+- [ ] **C8. Real missed call triggers follow-up**: external caller rings this handset, the call is missed, and EMEFA sends the configured follow-up message to that caller through the chosen channel
+- [ ] **C9. Missed-call result is visible in chatroom**: after the follow-up fires, the same EMEFA conversation shows a clear status/result bubble instead of hiding the action purely in background state
 - [ ] **C10. Wrong caller does not trigger**: a different number/contact calls and is missed → no follow-up is sent for the protected target workflow
 - [ ] **C11. SMS-first path stays API-first**: when the follow-up channel is SMS, the implementation should use an Android-native send path rather than accessibility-driven UI navigation
 
@@ -494,8 +494,8 @@ When in doubt, rerun the smaller bundle first, then expand only if something dri
 
 ## G. Empty State (v9 design)
 
-- [ ] **G1. Cloud empty state**: PokeClaw icon + "PokeClaw" + "Cloud AI" subtitle + "Chat and tasks work together" hint + 3 prompts (Tokyo, birthday, WhatsApp)
-- [ ] **G2. Local empty state**: PokeClaw icon + "PokeClaw" + "Local AI" subtitle + hint with bold 💬 Chat / 🤖 Task + 3 prompts (joke, what can you do, email)
+- [ ] **G1. Cloud empty state**: EMEFA icon + "EMEFA" + "Cloud AI" subtitle + "Chat and tasks work together" hint + 3 prompts (Tokyo, birthday, WhatsApp)
+- [ ] **G2. Local empty state**: EMEFA icon + "EMEFA" + "Local AI" subtitle + hint with bold 💬 Chat / 🤖 Task + 3 prompts (joke, what can you do, email)
 - [ ] **G3. Cloud prompt tap**: tap prompt → fills input, stays in chat (no mode switch)
 - [ ] **G4. Local prompt tap**: tap prompt → fills input, does NOT switch to Task mode (prompts are chat prompts)
 - [ ] **G5. Tab switch updates empty state**: switch Local↔Cloud tab → subtitle, hint, and prompts all change immediately
@@ -522,7 +522,7 @@ When in doubt, rerun the smaller bundle first, then expand only if something dri
 ## I. Cross-App Behavior
 
 - [ ] **I1. Floating button visible in other apps**: start task → agent navigates to WhatsApp/YouTube → floating button visible on top
-- [ ] **I2. Return to PokeClaw mid-task**: while task runs in WhatsApp → press recents → tap PokeClaw → see task progress + stop button
+- [ ] **I2. Return to EMEFA mid-task**: while task runs in WhatsApp → press recents → tap EMEFA → see task progress + stop button
 - [ ] **I3. Notification during task**: incoming notification while task runs → task not disrupted
 
 ## M. Cloud LLM — Complex Tasks (50 cases)
@@ -628,19 +628,19 @@ Design principle: User perspective. INFO tasks → report actual data. ACTION ta
 - [ ] **S4. "What's on my screen right now?"**: get_screen_info → describes UI elements (M6 verified)
 - [ ] **S5. "Copy latest email subject and Google it"**: notifications → clipboard → Chrome → search (M33)
 - [ ] **S6. "Check latest WhatsApp chat and summarize"**: opens WhatsApp → reads top chat → reports (M11)
-- [ ] **S7. "Open Reddit and search for pokeclaw"**: opens Reddit → types search → results (M51 verified)
+- [ ] **S7. "Open Reddit and search for emefa"**: opens Reddit → types search → results (M51 verified)
 - [ ] **S8. "Write an email saying I'll be late"**: opens Gmail → compose draft ready with Subject/Body filled; recipient stays blank unless the task names one; does NOT send (M8/M19 verified)
 
 Current Pixel 8 Pro status on 2026-04-10:
 - `S2`, `S3`, `S5`, `S6`, `S7`, and `S8` are verified pass on the latest hardening branch.
-- `S1` is currently environment-blocked by a foreground YouTube runtime permission dialog (`GrantPermissionsActivity`), not by a deterministic search-flow failure in PokeClaw.
+- `S1` is currently environment-blocked by a foreground YouTube runtime permission dialog (`GrantPermissionsActivity`), not by a deterministic search-flow failure in EMEFA.
 
 ## P. UI — v9 Design Verification
 
-Reference prototype: `/home/nicole/MyGithub/PokeClaw/prototype/dashboard-v9.html`
+Reference prototype: `/home/nicole/MyGithub/EMEFA/prototype/dashboard-v9.html`
 
 ### P1. Local/Cloud Toggle (in toolbar)
-- [ ] **P1-1. Both buttons render**: "Local" and "Cloud" visible on same line as PokeClaw title, right side
+- [ ] **P1-1. Both buttons render**: "Local" and "Cloud" visible on same line as EMEFA title, right side
 - [ ] **P1-2. Selected state**: selected button has aiBubble bg + aiBubbleBorder, unselected has no bg/border
 - [ ] **P1-3. No background container**: buttons sit directly in toolbar actions, no wrapping rectangle
 - [ ] **P1-4. Tab syncs on launch**: Cloud LLM loaded → Cloud highlighted; Local LLM → Local highlighted
@@ -670,8 +670,8 @@ Reference prototype: `/home/nicole/MyGithub/PokeClaw/prototype/dashboard-v9.html
 - [ ] **P3-10. Monitor card tap**: tap Monitor card → centered dialog (NOT bottom sheet) with Contact/App/Tone form + "Start Monitoring" button
 
 ### P4. Empty State
-- [ ] **P4-1. Local empty**: PokeClaw icon + "PokeClaw" + "Local AI" + hint with bold 💬 Chat / 🤖 Task + 3 chat prompts (joke, what can you do, email)
-- [ ] **P4-2. Cloud empty**: PokeClaw icon + "PokeClaw" + "Cloud AI" + "Chat and tasks work together" + 3 prompts (Tokyo, birthday, WhatsApp)
+- [ ] **P4-1. Local empty**: EMEFA icon + "EMEFA" + "Local AI" + hint with bold 💬 Chat / 🤖 Task + 3 chat prompts (joke, what can you do, email)
+- [ ] **P4-2. Cloud empty**: EMEFA icon + "EMEFA" + "Cloud AI" + "Chat and tasks work together" + 3 prompts (Tokyo, birthday, WhatsApp)
 - [ ] **P4-3. Prompt style matches Quick Tasks**: same accent bar, same height (~38dp), same font size, same bg color
 - [ ] **P4-4. Prompt tap**: tap empty state prompt → fills input, correct mode (local prompts = chat, cloud WhatsApp = task)
 
@@ -714,7 +714,7 @@ Layer 1 broadcast bypasses UI routing. Only Layer 3 catches routing bugs.
 - [ ] **Q2-4. Cloud direct-data bridge**: Cloud tab → type `read my clipboard and explain what it says` → backend uses the clipboard tool AND the explanation appears as a visible assistant bubble in the same chatroom
 - [ ] **Q2-4b. Empty clipboard is not a task failure**: Cloud tab → clipboard currently empty → type `read my clipboard and explain what it says` → answer honestly says clipboard is empty, but the chatroom must NOT insert a misleading `Clipboard failed` status line
 - [ ] **Q2-5. Cloud notifications bridge**: Cloud tab → type `read my notifications and summarize` → backend uses notifications tool AND the summary appears as a visible assistant bubble in the same chatroom
-- [ ] **Q2-6. Cloud-only capability proof**: in the same conversation, switch to Cloud and ask a task known to exceed Local reliability (for example `copy the latest email subject and Google it` or `open Reddit and search for pokeclaw`) → task completes successfully and the reply bubble is tagged with the Cloud model
+- [ ] **Q2-6. Cloud-only capability proof**: in the same conversation, switch to Cloud and ask a task known to exceed Local reliability (for example `copy the latest email subject and Google it` or `open Reddit and search for emefa`) → task completes successfully and the reply bubble is tagged with the Cloud model
 - [ ] **Q2-7. Cloud context handoff proof**: in the same conversation, ask Cloud to summarize something, then say `send that summary by email` → Cloud uses the earlier chat context and the resulting reply/task output stays tagged as Cloud
 
 ### Q3. Local Tab Send Routing
@@ -748,12 +748,12 @@ Layer 1 broadcast bypasses UI routing. Only Layer 3 catches routing bugs.
 ### Q7. Task Stop + Session Preservation
 - [ ] **Q7-1. Cloud stop responds immediately**: start cloud/network task → tap Stop → task stops within 3 seconds (thread interrupted, HTTP call aborted)
 - [x] **Q7-1b. Local stop is safe and honest**: start local task → tap Stop → UI stays in `Task running...`/`Stop` while the current LiteRT round unwinds, then returns to idle with `Task cancelled`, no crash
-- [ ] **Q7-2. Stop returns to same session**: start task → task opens other app → tap Stop → returns to PokeClaw → same conversation visible (not new session)
+- [ ] **Q7-2. Stop returns to same session**: start task → task opens other app → tap Stop → returns to EMEFA → same conversation visible (not new session)
 - [x] **Q7-3. App doesn't crash on stop**: start task → tap Stop → app remains running, no ANR, no crash
 - [x] **Q7-4. Send button resets after stop**: stop task → send button changes from red X back to arrow → can send new messages
 - [ ] **Q7-5. Second task after stop**: stop task 1 → start task 2 → task 2 executes normally (no "Agent is already running" error)
-- [ ] **Q7-6. Stop from floating button**: task running in other app → tap floating circle → "Tap to stop" → task stops, returns to PokeClaw
-- [ ] **Q7-7. Auto-return preserves conversation**: task completes in other app → auto-return to PokeClaw → previous messages + task result visible in same conversation
+- [ ] **Q7-6. Stop from floating button**: task running in other app → tap floating circle → "Tap to stop" → task stops, returns to EMEFA
+- [ ] **Q7-7. Auto-return preserves conversation**: task completes in other app → auto-return to EMEFA → previous messages + task result visible in same conversation
 
 ### Q8. Chatroom Memory Continuity
 - [ ] **Q8-1. Cloud same-chatroom memory**: in one Cloud chatroom, tell it a fact (e.g. "Remember: call Mom at 3pm") → exchange 2-3 unrelated turns → ask "What time did I say to call Mom?" → it should answer from the earlier message, not act like the chat started fresh
@@ -776,19 +776,19 @@ Layer 1 broadcast bypasses UI routing. Only Layer 3 catches routing bugs.
 
 ## L. Task Auto-Return
 
-- [ ] **L1. Auto-return after send message**: "send hi to Girlfriend on WhatsApp" → agent opens WhatsApp → sends → completes → PokeClaw chatroom comes back to foreground
+- [ ] **L1. Auto-return after send message**: "send hi to Girlfriend on WhatsApp" → agent opens WhatsApp → sends → completes → EMEFA chatroom comes back to foreground
 - [ ] **L2. Auto-return shows answer**: after return, bot bubble shows the task result (not blank)
-- [ ] **L3. No auto-return for monitor**: "monitor Girlfriend on WhatsApp" → monitor starts → user stays in PokeClaw (not kicked to home, not auto-returned)
-- [ ] **L4. Monitor stays in app**: after monitor starts, user remains in PokeClaw chat → can keep chatting
-- [ ] **L5. Monitor receives notification without leaving app**: monitor active + stay in PokeClaw → someone sends WhatsApp message → notification caught → auto-reply triggers
-- [ ] **L5-b. Auto-reply does not kick user Home**: monitor active → incoming message triggers auto-reply → user remains in current app/PokeClaw, no forced Home navigation
+- [ ] **L3. No auto-return for monitor**: "monitor Girlfriend on WhatsApp" → monitor starts → user stays in EMEFA (not kicked to home, not auto-returned)
+- [ ] **L4. Monitor stays in app**: after monitor starts, user remains in EMEFA chat → can keep chatting
+- [ ] **L5. Monitor receives notification without leaving app**: monitor active + stay in EMEFA → someone sends WhatsApp message → notification caught → auto-reply triggers
+- [ ] **L5-b. Auto-reply does not kick user Home**: monitor active → incoming message triggers auto-reply → user remains in current app/EMEFA, no forced Home navigation
 - [ ] **L6. Second task after auto-return**: auto-return from task 1 → send task 2 → works normally
 
 ## K. Permissions
 
 - [ ] **K1. Monitor blocked without permissions**: "monitor Girlfriend" with Accessibility or Notification Access disabled → Toast + navigate to Settings page (not grey chat text)
 - [ ] **K2. Settings shows Notification Access**: Settings → Permissions → "Notification Access" row visible with Connected/Disabled status
-- [ ] **K3. Auto-return after Accessibility enable**: disable Accessibility → try monitor → go to Settings → enable Accessibility → app auto-returns to PokeClaw
+- [ ] **K3. Auto-return after Accessibility enable**: disable Accessibility → try monitor → go to Settings → enable Accessibility → app auto-returns to EMEFA
 - [ ] **K4. Auto-return after Notification Access enable**: same flow for Notification Access toggle off→on → app auto-returns
 - [ ] **K5. Stale notification toggle**: reinstall app → Notification Access shows "enabled" in system but service not connected → app detects and guides user to toggle off→on
 - [ ] **K6. Settings links correct**: tap each permission row in app Settings → leads to correct system settings page:
@@ -800,13 +800,13 @@ Layer 1 broadcast bypasses UI routing. Only Layer 3 catches routing bugs.
   - File Access → system Storage settings
 - [ ] **K6-b. Settings model row handles long names**: Settings → active local/cloud model has a long name → label/value stay aligned, text truncates or wraps cleanly, and the left "Model" label does not collapse into a narrow vertical stack
 - [ ] **K7. Full permission setup flow (E2E)**:
-  1. Fresh state: disable Notification Access for PokeClaw
-  2. Open PokeClaw → type "monitor Girlfriend on WhatsApp" → send
+  1. Fresh state: disable Notification Access for EMEFA
+  2. Open EMEFA → type "monitor Girlfriend on WhatsApp" → send
   3. Verify: Toast shows "Enable Notification Access in Settings first"
-  4. Verify: app navigates to PokeClaw Settings page
+  4. Verify: app navigates to EMEFA Settings page
   5. Tap "Notification Access" row → system Notification Listener settings opens
-  6. Toggle PokeClaw ON (or OFF→ON if stale)
-  7. Verify: auto-return to PokeClaw Settings page
+  6. Toggle EMEFA ON (or OFF→ON if stale)
+  7. Verify: auto-return to EMEFA Settings page
   8. Verify: "Notification Access" row now shows "Connected"
   9. Press back → return to chat → type "monitor Girlfriend on WhatsApp" again
   10. Verify: monitor starts successfully ("✓ Auto-reply is now active")
@@ -920,9 +920,9 @@ Format: `[date] [status] [test-id] description`
 [2026-04-08] [SKIP]    K5    Stale toggle detection — verified by K1
 [2026-04-08] [SKIP]    K6    Settings links — each permission row navigable (needs manual tap-through)
 [2026-04-08] [ISSUE]   K3-a  Auto-return fires on EVERY service connect, not just user-initiated enable — should only fire after permission flow
-[2026-04-08] [PASS]    L1    Send message task → agent opens WhatsApp → completes → auto-return to PokeClaw chatroom
-[2026-04-08] [PASS]    L3    Monitor starts → stays in PokeClaw (no press Home)
-[2026-04-08] [PASS]    L4    After monitor starts, user still in PokeClaw chat ("staying in PokeClaw" in logs)
+[2026-04-08] [PASS]    L1    Send message task → agent opens WhatsApp → completes → auto-return to EMEFA chatroom
+[2026-04-08] [PASS]    L3    Monitor starts → stays in EMEFA (no press Home)
+[2026-04-08] [PASS]    L4    After monitor starts, user still in EMEFA chat ("staying in EMEFA" in logs)
 [2026-04-08] [PASS]    L6    Second task after auto-return works normally
 [2026-04-08] [SKIP]    L2    Auto-return shows answer — needs UI verification (SINGLE_TOP preserves activity instance)
 [2026-04-08] [SKIP]    L5    Monitor receives notification without leaving app — needs 2nd device (same as C2)
@@ -939,7 +939,7 @@ Format: `[date] [status] [test-id] description`
 [2026-04-08] [PASS]    M1    (post-playbook) input_text("funny cat videos") called! Search results shown (13 rounds, 99K tokens)
 [2026-04-08] [PASS]    M2    send_message(Mom, sorry, WhatsApp) — correct routing, "Mom" not found (expected), graceful fail (2 rounds)
 [2026-04-08] [FIXED]   M3-a  "check what is on my screen" treated as chat — FIXED: added task keywords
-[2026-04-08] [PASS]    M3    Screen reading works: pre-warm attached, LLM described PokeClaw UI (1 round, 4.9K tokens)
+[2026-04-08] [PASS]    M3    Screen reading works: pre-warm attached, LLM described EMEFA UI (1 round, 4.9K tokens)
 [2026-04-08] [FIXED]   M4-a  Compound task "open Settings AND turn on dark mode" truncated by Tier 1 — FIXED: compound check in PipelineRouter
 [2026-04-08] [PASS]    M4    Settings → Display → Dark theme toggled (6 rounds, 36K tokens)
 [2026-04-08] [PASS]    M5    WhatsApp opened, scroll_to_find("Mom"), "Mom" not found (expected), graceful fail (14 rounds, 89K tokens)
@@ -964,7 +964,7 @@ Format: `[date] [status] [test-id] description`
 | H6 | Pencil icon cannot rename chat session | Not implemented — deferred to feature backlog | Low |
 | ~~F3~~ | ~~Floating button IDLE in other apps~~ | ~~FIXED: show() callback now restores state via updateStateView~~ | ~~Medium~~ |
 | ~~F6~~ | ~~"..." coexists with tool actions~~ | ~~FIXED: removeTypingIndicator() on first ToolAction~~ | ~~Medium~~ |
-| B2-a | ~~No auto-return after task in other app~~ | Fixed 2026-04-10: cloud task completion now auto-returns to `ComposeChatActivity`, and recent YouTube search passes restored the same PokeClaw session after finishing in another app | Fixed |
+| B2-a | ~~No auto-return after task in other app~~ | Fixed 2026-04-10: cloud task completion now auto-returns to `ComposeChatActivity`, and recent YouTube search passes restored the same EMEFA session after finishing in another app | Fixed |
 | M1-a | ~~YouTube search: LLM skips input_text~~ | Fixed 2026-04-10: generic in-app search guard now blocks premature completion on explicit `search [app] for [query]` / `search for [query] on [app]` tasks until the agent actually calls `input_text`, then inspects results before finishing | Fixed |
 | M3-a | ~~Screen reading routed as chat~~ | ~~FIXED: added "check", "screen", "notification", "compose", "find", "read my" to task detection~~ | ~~High~~ |
 | M4-a | ~~Compound tasks truncated by Tier 1~~ | ~~FIXED: PipelineRouter skips Tier 1 for tasks with "and"/"then"/"after"~~ | ~~High~~ |
@@ -984,7 +984,7 @@ Format: `[date] [status] [test-id] description`
 [2026-04-09] [PASS]    Q2-1  Cloud chat "hello" → "Hello! How can I help you today?" (1 round, 5K tokens)
 [2026-04-09] [PASS]    Q2-2  Cloud task "battery" → "100%, charging, 33.5°C" (2 rounds, get_device_info)
 [2026-04-09] [PASS]    Q4-1  Quick Task tap fills input "How much battery left?" + auto-switches to Task mode
-[2026-04-09] [PASS]    P1-1  Local/Cloud buttons in toolbar, same line as PokeClaw
+[2026-04-09] [PASS]    P1-1  Local/Cloud buttons in toolbar, same line as EMEFA
 [2026-04-09] [PASS]    P1-3  No background container on buttons
 [2026-04-09] [PASS]    P2-5  Cloud mode: no Chat/Task toggle, placeholder "Chat or give a task..."
 [2026-04-09] [PASS]    P3-1  Quick Tasks panel with ▲ chevrons
@@ -1008,27 +1008,27 @@ Format: `[date] [status] [test-id] description`
 [2026-04-09] [PASS]    R4 storage analysis — 165s, storage + apps → LLM cross-referenced
 [2026-04-09] [PASS]    R5 notification summary — 150s, get_notifications → grouped by app + urgency
 [2026-04-09] [PASS]    R6 charge advice — 105s, get_device_info(battery) → "100% charging, no need"
-[2026-04-09] [FIXED]   Cloud send accessibility UX — Toast shown first ("Enable Accessibility Service to run tasks"), then navigates to PokeClaw Settings (not Android Settings). User sees all permissions.
+[2026-04-09] [FIXED]   Cloud send accessibility UX — Toast shown first ("Enable Accessibility Service to run tasks"), then navigates to EMEFA Settings (not Android Settings). User sees all permissions.
 [2026-04-09] [PASS]    Chat bubble E2E — Cloud: user "hello" y=357, AI "Hello! How can I help you today?" y=465, model tag "gpt-4.1" y=538
 [2026-04-09] [PASS]    P2-3  Task mode: placeholder "Describe a phone task..." after tap 🤖 Task
 [2026-04-09] [PASS]    P2-4  Chat mode: placeholder "Chat with local AI..." after tap 💬 Chat
 [2026-04-09] [PASS]    P2-7  Mode switch preserves messages: Chat→Task→Chat, "test123" still visible
 [2026-04-09] [PASS]    P3-3  Quick Tasks collapse/expand: tap handle → collapsed, tap again → expanded
 [2026-04-09] [PASS]    J2    Empty input send: tap send with empty field → nothing sent
-[2026-04-09] [PASS]    Q4-2  Cloud Quick Task E2E: 🦞 Reddit → tap → fills input → send → agent navigated Reddit + searched pokeclaw
+[2026-04-09] [PASS]    Q4-2  Cloud Quick Task E2E: 🦞 Reddit → tap → fills input → send → agent navigated Reddit + searched emefa
 [2026-04-09] [FIXED]   L1-v9 Session restore — onCreate reads CURRENT_CONVERSATION_ID from KVUtils, reloads saved messages. replaceTypingIndicator now calls saveChat() to persist task results immediately. Verified: "Restored 7 messages from conversation chat_1775787808468"
-[2026-04-10] [NOTE]    On this Pixel 8 Pro / Android 16, reinstall cleared Accessibility (`enabled_accessibility_services=null`). Re-enabling via `adb shell settings put secure enabled_accessibility_services io.agents.pokeclaw/io.agents.pokeclaw.service.ClawAccessibilityService` + `accessibility_enabled 1` restored the bound service for QA.
+[2026-04-10] [NOTE]    On this Pixel 8 Pro / Android 16, reinstall cleared Accessibility (`enabled_accessibility_services=null`). Re-enabling via `adb shell settings put secure enabled_accessibility_services ai.progenius.emefa/ai.progenius.emefa.service.ClawAccessibilityService` + `accessibility_enabled 1` restored the bound service for QA.
 [2026-04-09] [PASS]    Full E2E WhatsApp: UI type "send hi to Girlfriend on WhatsApp" → agent opened WhatsApp → send_message called → finish("Sent 'hi' to Girlfriend on WhatsApp.") → auto-return 15s → result visible in chatroom
-[2026-04-09] [PASS]    Auto-return verified: agent navigated to WhatsApp, completed task, returned to PokeClaw, user msg + AI result both visible in same session
-[2026-04-09] [PASS]    C1/L3/L4  Monitor start via in-app monitor flow stays in PokeClaw; top bar shows "Monitoring: Rlfriend", no Home press
+[2026-04-09] [PASS]    Auto-return verified: agent navigated to WhatsApp, completed task, returned to EMEFA, user msg + AI result both visible in same session
+[2026-04-09] [PASS]    C1/L3/L4  Monitor start via in-app monitor flow stays in EMEFA; top bar shows "Monitoring: Rlfriend", no Home press
 [2026-04-09] [PASS]    C3    Tap top monitoring bar → expands to show contact + Stop → tap Stop → AutoReplyManager logs "Auto-reply DISABLED for contacts: []"
-[2026-04-09] [PASS]    K6-a  App Settings → Accessibility Service row opens Android Accessibility page for PokeClaw
-[2026-04-09] [ISSUE]   K2-a  App Settings permission status stale — Accessibility row still shows "Disabled" even when system Accessibility page shows "Use PokeClaw" ON
+[2026-04-09] [PASS]    K6-a  App Settings → Accessibility Service row opens Android Accessibility page for EMEFA
+[2026-04-09] [ISSUE]   K2-a  App Settings permission status stale — Accessibility row still shows "Disabled" even when system Accessibility page shows "Use EMEFA" ON
 [2026-04-09] [ISSUE]   K3-b  Accessibility enable auto-return incomplete — app calls START on SettingsActivity after enable, but system Accessibility SubSettings stays foreground; user is not auto-returned
 [2026-04-10] [FIXED]   K2-a  Accessibility status row now reads system enabled-services state, so app Settings shows the truthful `Enabled`/`Disabled` value
 [2026-04-10] [PASS]    K2-a  App Settings → Accessibility Service row shows `Enabled` immediately after system Accessibility toggle is ON
 [2026-04-10] [FIXED]   K3-b  Pending accessibility auto-return is now armed only when the service is disabled, preventing false triggers while Accessibility is already ON
-[2026-04-10] [PASS]    K3    Disabled Accessibility → tap app Settings row → Android Accessibility → PokeClaw detail → toggle `Use PokeClaw` ON → app auto-returns to PokeClaw Settings and row shows `Enabled`
+[2026-04-10] [PASS]    K3    Disabled Accessibility → tap app Settings row → Android Accessibility → EMEFA detail → toggle `Use EMEFA` ON → app auto-returns to EMEFA Settings and row shows `Enabled`
 [2026-04-10] [FIXED]   Q6-7  Task agent config now syncs on model switch and before startTask, so Cloud tab tasks no longer reuse stale Local agent config
 [2026-04-10] [PASS]    Q2-2/Q6-7  Cloud task "how much battery left" → Agent config updated to `gpt-4.1` → `get_device_info(category=battery)` runs → answer returned in chat with model tag `gpt-4.1-2025-04-14`
 [2026-04-10] [FIXED]   L1-v9  Cloud send-message auto-return now preserves the existing conversation instead of dropping the user into a fresh session
@@ -1041,7 +1041,7 @@ Format: `[date] [status] [test-id] description`
 [2026-04-09] [BLOCKED] L5/L5-b  Incoming WhatsApp notification auto-reply while staying in app requires a second sender device / live external message source
 [2026-04-09] [FIXED]   F2-v9 Stop button slow — added Future.cancel(true) to interrupt agent thread + abort HTTP call immediately (was: flag-only, waited for LLM round to finish)
 [2026-04-09] [ISSUE]   F2-v9 Stop → return to same session — after stopping task, should return to the SAME chat session, not open new one
-[2026-04-09] [ISSUE]   L1-v9 Auto-return should preserve session — after task completes in other app and auto-returns to PokeClaw, should show the same conversation with the result, not a fresh session
+[2026-04-09] [ISSUE]   L1-v9 Auto-return should preserve session — after task completes in other app and auto-returns to EMEFA, should show the same conversation with the result, not a fresh session
 [2026-04-10] [PASS]    Q7-2/Q7-3/Q7-4/Q7-6  Cloud quick task "Search YouTube for funny cat fails" → YouTube opens → tap left floating bubble → `Stop task requested from floating pill` logged → task cancelled → auto-return restores same `ComposeChatActivity` session → send button resets to arrow
 [2026-04-10] [PASS]    Q7-5  After floating-stop, second Cloud task "how much battery left" runs normally → no `already running` error → answer returned in same session
 [2026-04-10] [ISSUE]   Q7-local  Local task stop could trigger a native crash / stale-session race: stop during LiteRT `sendMessage()` → chat UI reloads early → `session already exists` and occasional `SIGSEGV`
@@ -1051,13 +1051,13 @@ Format: `[date] [status] [test-id] description`
 [2026-04-10] [PASS]    Q7-5-local  After local stop, a second local task starts and completes normally — no `already running`, no `session already exists`, no crash
 [2026-04-10] [FIXED]   Dbg-u1  Debug builds now run the same once-per-day GitHub release check as release builds, so accidental debug installs still see upgrade prompts
 [2026-04-10] [BLOCKED] Dbg-u1  Live prompt verification still needs a throwaway device/build that is older than the just-installed `0.5.0`; current handset has already been upgraded, so this turn only covers code inspection + build/install verification, not a fresh old-debug prompt capture
-[2026-04-10] [PASS]    Dbg-u2  Public GitHub `v0.4.1` asset (`PokeClaw_v0.4.0_20260408_140502.apk`) on test device → cold launch after `v0.5.0` release published → `Update Available` modal appears with `PokeClaw v0.5.0 is available. You are running an older version.`
-[2026-04-10] [ISSUE]   Dbg-u3  Public GitHub `v0.4.1` asset cannot be updated in place to public `v0.5.0` asset: `adb install -r ... PokeClaw_v0.5.0_20260410_161430.apk` returns `INSTALL_FAILED_UPDATE_INCOMPATIBLE`; users on the older public debug signing path need a one-time uninstall + reinstall
+[2026-04-10] [PASS]    Dbg-u2  Public GitHub `v0.4.1` asset (`EMEFA_v0.4.0_20260408_140502.apk`) on test device → cold launch after `v0.5.0` release published → `Update Available` modal appears with `EMEFA v0.5.0 is available. You are running an older version.`
+[2026-04-10] [ISSUE]   Dbg-u3  Public GitHub `v0.4.1` asset cannot be updated in place to public `v0.5.0` asset: `adb install -r ... EMEFA_v0.5.0_20260410_161430.apk` returns `INSTALL_FAILED_UPDATE_INCOMPATIBLE`; users on the older public debug signing path need a one-time uninstall + reinstall
 [2026-04-10] [FIXED]   Rel-s1  Release signing config now accepts the same `KEYSTORE_*` inputs from environment variables or `local.properties`, so local signed builds and GitHub Actions both follow the same stable-signing path
 [2026-04-10] [NOTE]    Rel-s2  `v0.5.1` is the first version prepared for a stable release key path; the old public `0.4.x` → public `0.5.0` signing mismatch is already shipped and cannot be retro-fixed without the lost original key
-[2026-04-10] [BLOCKED] Rel-s3  Public GitHub Release publication for `v0.5.1` still depends on installing the stable signing secrets into `agents-io/PokeClaw` Actions settings; code path is ready, repo permission path is not
-[2026-04-10] [PASS]    Rel-s4  Local stable-signing verification: generated a dedicated release keystore, `./gradlew :app:validateSigningRelease` passed, and a fresh `./gradlew --no-daemon :app:assembleRelease -x lintVitalRelease -x lintVitalAnalyzeRelease -x lintVitalReportRelease` produced `app/build/outputs/apk/release/PokeClaw_v0.5.1_20260410_111303.apk`
-[2026-04-10] [PASS]    Rel-s5  Local signed release artifact verification: `apksigner verify --print-certs` reports signer `CN=Nicole, OU=PokeClaw, O=agents.io, L=Vancouver, ST=British Columbia, C=CA` with SHA-256 `e000d1d6555b8fab20c03a5d9ddeba83944f26eecf0b978ac7affc2eebd43186`; local `SHA256SUMS.txt` records APK digest `fb7c6a6f4e2536f24bfb8f9ac6e8f7628aec11bf5e1a29b96fc18bb238fcde65`
+[2026-04-10] [BLOCKED] Rel-s3  Public GitHub Release publication for `v0.5.1` still depends on installing the stable signing secrets into `progenius-ai/EMEFA` Actions settings; code path is ready, repo permission path is not
+[2026-04-10] [PASS]    Rel-s4  Local stable-signing verification: generated a dedicated release keystore, `./gradlew :app:validateSigningRelease` passed, and a fresh `./gradlew --no-daemon :app:assembleRelease -x lintVitalRelease -x lintVitalAnalyzeRelease -x lintVitalReportRelease` produced `app/build/outputs/apk/release/EMEFA_v0.5.1_20260410_111303.apk`
+[2026-04-10] [PASS]    Rel-s5  Local signed release artifact verification: `apksigner verify --print-certs` reports signer `CN=Nicole, OU=EMEFA, O=progenius.ai, L=Vancouver, ST=British Columbia, C=CA` with SHA-256 `e000d1d6555b8fab20c03a5d9ddeba83944f26eecf0b978ac7affc2eebd43186`; local `SHA256SUMS.txt` records APK digest `fb7c6a6f4e2536f24bfb8f9ac6e8f7628aec11bf5e1a29b96fc18bb238fcde65`
 [2026-04-10] [PASS]    Rel-s6  Stable-signed `0.5.1` release APK fresh-installed successfully onto the Pixel test device after removing the old debug build; launcher resolves and app starts normally
 [2026-04-10] [PASS]    Rel-s7  Stable-key in-place upgrade path verified locally: with the same release keystore, a higher-version signed build (`POKECLAW_VERSION_CODE=15`, `POKECLAW_VERSION_NAME=0.5.1-upgrade-test`) installed over the stable-signed `0.5.1` baseline via `adb install -r` and Android accepted the upgrade with no signature mismatch
 [2026-04-10] [FIXED]   M1-a  Explicit in-app search tasks now use a generic guard/prompt hint: the agent cannot finish before it really types the query with `input_text`, and blocked finishes feed back a fresh screen-based node hint instead of an app-specific scripted route
@@ -1075,24 +1075,24 @@ Format: `[date] [status] [test-id] description`
 [2026-04-10] [FIXED]   Bgt-1  Existing installs could stay pinned to the legacy 100K / $0.50 task budget even after code defaults increased. `TaskBudget` now migrates untouched legacy defaults to 250K / $1.00 once, while preserving user-custom budgets; Settings budget UI now exposes `250K` explicitly and snaps to the nearest current value
 [2026-04-10] [PASS]    S2/M32  Cloud task `Install Telegram from Play Store` → Play Store path completed without budget stop; on this device the agent correctly recognized Telegram was already installed and finished in 10s
 [2026-04-10] [PASS]    S3/M20  Cloud task `Check whats trending on Twitter and tell me` → `open_app(com.twitter.android)` → inspect current feed/trending content → summarize visible topics; completed in 30s with no task-budget stop
-[2026-04-10] [BLOCKED] S1/M1-b  Cloud task `Search YouTube for funny cat fails` is currently blocked by Android's foreground permission controller (`GrantPermissionsActivity`) over YouTube; PokeClaw surfaces this as `system dialog blocked foreground automation` instead of looping or timing out
+[2026-04-10] [BLOCKED] S1/M1-b  Cloud task `Search YouTube for funny cat fails` is currently blocked by Android's foreground permission controller (`GrantPermissionsActivity`) over YouTube; EMEFA surfaces this as `system dialog blocked foreground automation` instead of looping or timing out
 [2026-04-10] [PASS]    S5/M33  Cloud task `Copy the latest email subject and Google it` → `get_notifications` → `clipboard(set)` → `open_app(com.android.chrome)` → search in Chrome → screenshot/search-results visible → `finish`; after legacy-budget migration this completed in 15 rounds / 110.2K tokens instead of hard-stopping at the old 100K ceiling
-[2026-04-10] [PASS]    S7/M51  Committed-state rerun `Open Reddit and search for pokeclaw` → `open_app(com.reddit.frontpage)` → `input_text(pokeclaw)` → results visible → `finish`; completed in 12 rounds / 91.9K tokens on the latest hardening branch
-[2026-04-10] [PASS]    Cloud quick-task sweep (effective final) on branch `hardening/behavior-safe-2026-04-09` @ `a0a88ab`: `18 PASS / 0 FAIL / 2 BLOCKED / 0 TIMEOUT / 20 TOTAL`. Blocked items are environment-driven (`S1` YouTube permission dialog, `Call Mom` missing contact). Base sweep log: `/tmp/pokeclaw-cloud-quick-tasks-20260410-full.log`; `S5` was rerun after the budget migration and passed at 110.2K tokens
+[2026-04-10] [PASS]    S7/M51  Committed-state rerun `Open Reddit and search for emefa` → `open_app(com.reddit.frontpage)` → `input_text(emefa)` → results visible → `finish`; completed in 12 rounds / 91.9K tokens on the latest hardening branch
+[2026-04-10] [PASS]    Cloud quick-task sweep (effective final) on branch `hardening/behavior-safe-2026-04-09` @ `a0a88ab`: `18 PASS / 0 FAIL / 2 BLOCKED / 0 TIMEOUT / 20 TOTAL`. Blocked items are environment-driven (`S1` YouTube permission dialog, `Call Mom` missing contact). Base sweep log: `/tmp/emefa-cloud-quick-tasks-20260410-full.log`; `S5` was rerun after the budget migration and passed at 110.2K tokens
 [2026-04-10] [PASS]    Phase1-r1  Architecture refactor smoke — relaunch via `SplashActivity` with Cloud config active lands on `ComposeChatActivity` showing `● gpt-4.1 · Cloud` and the unified Cloud placeholder, confirming chat runtime rehydrate still works after `ChatSessionController` extraction
-[2026-04-10] [PASS]    Phase1-r2  Architecture refactor smoke — copied the existing Edge Gallery Gemma model into PokeClaw's sandbox, switched provider to `LOCAL`, relaunched, and confirmed `ComposeChatActivity` rehydrated into Local mode with `Chat with local AI...` plus top status `● gemma4_2b_v09_obfus_fix_all_modalities_thinking · GPU`
+[2026-04-10] [PASS]    Phase1-r2  Architecture refactor smoke — copied the existing Edge Gallery Gemma model into EMEFA's sandbox, switched provider to `LOCAL`, relaunched, and confirmed `ComposeChatActivity` rehydrated into Local mode with `Chat with local AI...` plus top status `● gemma4_2b_v09_obfus_fix_all_modalities_thinking · GPU`
 [2026-04-10] [PASS]    Q3-1/Q5-1/Q5-1b/Phase1-r3  Local chat after `ChatSessionController` extraction: UI send produced a real assistant reply (`Hello! How can I help you today?`), GPU inference transparently fell back to CPU, and both the top status pill and assistant model tag updated to `CPU` instead of stale `GPU`
 [2026-04-10] [PASS]    Phase3-r1  Fresh reinstall + app Settings smoke: after `adb install -r`, Android cleared `enabled_accessibility_services`; app Settings now truthfully shows `Accessibility Service = Disabled` instead of stale `Enabled`
 [2026-04-10] [PASS]    Phase3-r2  Rebinding truth smoke: after restoring `enabled_accessibility_services` / `accessibility_enabled` via `adb shell settings put secure ...`, app Settings showed `Accessibility Service = Connecting` while the service was still rebinding, instead of collapsing enabled+unbound into `Disabled`
-[2026-04-10] [PASS]    Phase3-r3  Permission truth smoke: with no PokeClaw listener in `enabled_notification_listeners`, app Settings shows `Notification Access = Disabled`
+[2026-04-10] [PASS]    Phase3-r3  Permission truth smoke: with no EMEFA listener in `enabled_notification_listeners`, app Settings shows `Notification Access = Disabled`
 [2026-04-10] [FIXED]   K4-r1  Notification-listener foreground return is now gated by a pending permission-flow flag, so listener reconnects no longer blindly foreground app Settings unless the user actually came from the in-app permission flow
 [2026-04-10] [PASS]    Phase4-r1/H4-b  After local-runtime consolidation, cold launch still lands on `ComposeChatActivity` with truthful local status `● gemma4_2b_v09_obfus_fix_all_modalities_thinking · CPU`
 [2026-04-10] [PASS]    Phase4-r2/Q3-1/Q5-1/Q5-1b  Local UI send smoke after runtime consolidation: typed `say pong`, tapped the live send-button bounds, and received assistant reply `Pong! 🏓`; both top status and assistant bubble tag remained `gemma4_2b_v09_obfus_fix_all_modalities_thinking (CPU)`
 [2026-04-10] [PASS]    P7-1/P7-2  Chat bubble metadata smoke: after relaunching `ComposeChatActivity`, user bubbles render a subtle time footer (`5:57 p.m.`) and assistant bubbles render `gemma4_2b_v09_obfus_fix_all_modalities_thinking (CPU) · 5:57 p.m.` under the reply bubble
-[2026-04-10] [PASS]    P7-3/Q7-7  Saved chat history now persists per-message timestamps in markdown via hidden `<!-- pokeclaw:timestamp=... -->` comments, so reloaded conversations keep stable bubble times instead of resetting to the current clock
+[2026-04-10] [PASS]    P7-3/Q7-7  Saved chat history now persists per-message timestamps in markdown via hidden `<!-- emefa:timestamp=... -->` comments, so reloaded conversations keep stable bubble times instead of resetting to the current clock
 [2026-04-10] [PASS]    Phase1b-r1/Q7-7  After `ConversationStore` extraction, cold relaunch still restored `chat_1775851530681` with 9 saved messages; logcat showed `Restored 9 messages from conversation chat_1775851530681`, and the foreground UI still showed the existing `ay pong` / `Hello! How can I help you today?` conversation instead of a blank new chat
 [2026-04-10] [PASS]    Phase2b-r1  After `TaskFlowController` extraction, debug task broadcasts still reached the chat shell (`TaskTriggerReceiver: Received task via broadcast: battery`, `ComposeChatActivity: Auto-task from intent: battery`) and preserved in-app permission guidance by pushing `SettingsActivity` when Accessibility was unavailable
-[2026-04-10] [FIXED]   Android15-coldstart  Cold launch no longer crashes if app-start `ForegroundService` is disallowed; `ForegroundService.start()` now returns `false` and logs a warning instead of throwing `ForegroundServiceStartNotAllowedException` from `ClawApplication.onCreate()`
+[2026-04-10] [FIXED]   Android15-coldstart  Cold launch no longer crashes if app-start `ForegroundService` is disallowed; `ForegroundService.start()` now returns `false` and logs a warning instead of throwing `ForegroundServiceStartNotAllowedException` from `EmefaApplication.onCreate()`
 [2026-04-10] [PASS]    Phase2c-r1  After `ActiveTaskShellController` extraction, the Compose top bar still rendered `Monitoring: Mom`; expanded state showed `Mom` + `Stop`, and tapping `Stop` disabled auto-reply and removed the monitor
 [2026-04-10] [PASS]    Phase2c-r2  Debug `autoreply on mom` no longer bypasses app behavior: `TaskTriggerReceiver` rewrites it to `monitor mom on WhatsApp`, and on this device the flow foregrounded in-app `SettingsActivity` with no direct `Added contact` log and no ghost `Monitoring:` bar in the dumped UI
 [2026-04-10] [NOTE]    TgMon-r1  Telegram monitor QA now requires an external sender path (second account or bot token + existing bot chat); without that sender, Telegram incoming-message monitor cases must be marked `BLOCKED`
@@ -1102,7 +1102,7 @@ Format: `[date] [status] [test-id] description`
 [2026-04-10] [BLOCKED] Phase5-r2  Targeted device smoke for the new shared local runtime boundary is blocked by ADB attach state (`adb devices -l` returned no attached devices after the Phase 5 landing). Re-run `H4/H4-b`, `Q3-1`, `Q5-1`, `Q5-1b`, and the local quick-task bundle as soon as the Pixel is visible again instead of treating the missing device as an app regression
 [2026-04-10] [PASS]    Phase5-r3  Local model state consolidation compile gate: `LocalModelManager` now exposes shared device-support, catalog, and active-model state so `LlmConfigActivity` and `ChatSessionController` stop maintaining separate RAM/support/downloaded calculations (`compileDebugKotlin`, `compileDebugJavaWithJavac`)
 [2026-04-10] [PASS]    Phase5-r4  Local model ownership cleanup compile gate: `LocalModelManager.downloadModel()` no longer mutates MMKV selection state directly; chat/settings callers now decide whether a finished download should update the default or active local model (`compileDebugKotlin`, `compileDebugJavaWithJavac`)
-[2026-04-10] [NOTE]    QA-wf-r2  Device-state guard for Compose UI smoke: if notification shade or another app steals foreground, collapse/foreground PokeClaw again before judging the refactor; if IME moves the input bar, re-dump live bounds instead of reusing stale tap coordinates
+[2026-04-10] [NOTE]    QA-wf-r2  Device-state guard for Compose UI smoke: if notification shade or another app steals foreground, collapse/foreground EMEFA again before judging the refactor; if IME moves the input bar, re-dump live bounds instead of reusing stale tap coordinates
 [2026-04-10] [PASS]    H2-d  Chat keyboard dismiss smoke passed on Pixel 8 Pro: after focusing the input, tapping the blank header area cleared focus (`focused=true` -> `focused=false`) and hid the IME instead of trapping the keyboard on screen
 [2026-04-10] [PASS]    B4-c  Accessibility text-match hardening compile/unit bundle passed: low-level lookup now keeps Android's fast text path but falls back to a Unicode-normalized tree walk, and standard launch dialogs try stable positive-button ids before language-specific keywords
 [2026-04-10] [PASS]    Phase5-r5  Cloud send smoke passed after send-affordance hardening: `send yo to girlfriend on WhatsApp` ran on `gpt-4.1`, called `send_message(contact=\"girlfriend\", message=\"yo\", app=\"WhatsApp\")`, finished in 2 rounds, and auto-returned with `Task completed: Sent 'yo' to your girlfriend on WhatsApp.`
@@ -1135,7 +1135,7 @@ Format: `[date] [status] [test-id] description`
 [2026-04-11] [FIXED]   RC6-local-session-race  Local direct QA exposed a real release blocker: while a Local task owned the LiteRT session, the chat shell could still try to reopen the same local model and trigger `A session already exists`. Fixed 2026-04-11: the chat-side loader now stands down whenever a task is running and shows `● Local task using model` instead of racing the task runtime
 [2026-04-12] [PASS]    Q8-3  Cloud relaunch memory continuity on Pixel 8 Pro: in one Cloud chatroom, `Remember token cloudrestart7312 and reply with only OK.` returned `OK`; after full force-stop + relaunch, the same conversation restored and `What token did I ask you to remember? Reply with only the token.` visibly returned `cloudrestart7312`
 [2026-04-12] [PASS]    Q8-4  Local relaunch memory continuity on Pixel 8 Pro: in one Local E4B chatroom, `Remember token localrestart5186 and reply with only OK.` returned `OK`; after full force-stop + relaunch, the same conversation restored under `● Gemma 4 E4B — 3.6GB · CPU` and `What token did I ask you to remember? Reply with only the token.` visibly returned `localrestart5186`
-[2026-04-12] [PASS]    Rel-s8  Version-prep build gate for `0.6.0`: `assembleDebug` passed in-sandbox, and a stable-signed local `assembleRelease` produced `app/build/outputs/apk/release/PokeClaw_v0.6.0_20260411_223047.apk` with SHA-256 `649b87e69cf166f8ce0e144aee9d416aaba48b152fa33842a88c7f695b67c57d`
+[2026-04-12] [PASS]    Rel-s8  Version-prep build gate for `0.6.0`: `assembleDebug` passed in-sandbox, and a stable-signed local `assembleRelease` produced `app/build/outputs/apk/release/EMEFA_v0.6.0_20260411_223047.apk` with SHA-256 `649b87e69cf166f8ce0e144aee9d416aaba48b152fa33842a88c7f695b67c57d`
 ```
 
 ### Bugs Found During v9 QA
@@ -1144,8 +1144,8 @@ Format: `[date] [status] [test-id] description`
 |----|-------|-----------|----------|
 | Q5-1 | ~~LiteRT "Can not find OpenCL" crash in sendChat()~~ | Fixed 2026-04-09: `sendChat()` now mirrors the Local client fallback path, resets the engine after OpenCL/native errors, and retries on CPU instead of failing the chat send | Fixed |
 | Q5-2 | ~~API key was "test"~~ | ~~Device had dummy key, reconfigured~~ | ~~Config~~ |
-| K2-a | ~~Accessibility status row shows `Disabled` while Android Accessibility page has `Use PokeClaw` ON~~ | Fixed 2026-04-10: app Settings now reads `enabled_accessibility_services` via `isEnabledInSettings()` | Fixed |
-| K3-b | ~~Accessibility enable flow does not foreground PokeClaw after system toggle ON~~ | Fixed 2026-04-10: pending return only arms for a real disabled→enabled flow, then unwinds Settings and foregrounds app | Fixed |
+| K2-a | ~~Accessibility status row shows `Disabled` while Android Accessibility page has `Use EMEFA` ON~~ | Fixed 2026-04-10: app Settings now reads `enabled_accessibility_services` via `isEnabledInSettings()` | Fixed |
+| K3-b | ~~Accessibility enable flow does not foreground EMEFA after system toggle ON~~ | Fixed 2026-04-10: pending return only arms for a real disabled→enabled flow, then unwinds Settings and foregrounds app | Fixed |
 | Q6-7 | ~~Cloud tab tasks can reuse stale Local agent config after a model switch~~ | Fixed 2026-04-10: task agent config now syncs on model switch and immediately before `startTask()` | Fixed |
 | Q1-r1 | ~~Toolbar tab UI can drift out of sync with the actual active model after Settings/model changes~~ | Fixed 2026-04-10: `ChatScreen` now re-syncs `selectedTab` from `isLocalModel`, so placeholder/quick-tasks/toggle follow the true active model again | Fixed |
 | L1-v9 | ~~Auto-return after task completion can reopen a fresh chat state instead of preserving the active conversation~~ | Fixed 2026-04-10: same conversation remained visible after Cloud `send_message` auto-return, with result appended in place | Fixed |

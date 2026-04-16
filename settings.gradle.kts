@@ -26,6 +26,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "PokeClaw"
+rootProject.name = "EMEFA"
 include(":app")
  

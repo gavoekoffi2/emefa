@@ -1,4 +1,4 @@
-# Releasing PokeClaw
+# Releasing EMEFA
 
 This repo now assumes a single stable release signing key.
 
@@ -11,9 +11,9 @@ Generate one long-lived release keystore and keep it outside the repo.
 Recommended local inputs:
 
 ```bash
-export KEYSTORE_FILE=/absolute/path/to/pokeclaw-release.keystore
+export KEYSTORE_FILE=/absolute/path/to/emefa-release.keystore
 export KEYSTORE_PASSWORD=...
-export KEY_ALIAS=pokeclaw-release
+export KEY_ALIAS=emefa-release
 export KEY_PASSWORD=...
 ```
 
@@ -58,7 +58,7 @@ sha256sum app/build/outputs/apk/release/*.apk
 
 ```bash
 git tag -a vX.Y.Z -m "vX.Y.Z"
-git push pokeclaw vX.Y.Z
+git push emefa vX.Y.Z
 ```
 
 The GitHub Actions workflow will then create the GitHub Release, upload the signed APK, and attach `SHA256SUMS.txt`.

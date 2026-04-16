@@ -1,0 +1,183 @@
+name: 🔄 Sync Upstream PokeClaw + Build EMEFA
+
+on:
+  # Sync automatique tous les lundis à 8h UTC
+  schedule:
+    - cron: '0 8 * * 1'
+  # Déclenchement manuel
+  workflow_dispatch:
+    inputs:
+      force_sync:
+        description: 'Forcer la synchronisation même en cas de conflits'
+        required: false
+        default: 'false'
+        type: boolean
+
+jobs:
+  # ============================================================
+  # Job 1: Synchroniser avec PokeClaw upstream
+  # ============================================================
+  sync-upstream:
+    name: 🔄 Sync avec PokeClaw
+    runs-on: ubuntu-latest
+    outputs:
+      has_updates: ${{ steps.check.outputs.has_updates }}
+      
+    steps:
+      - name: 📥 Checkout EMEFA
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: 🔗 Ajouter PokeClaw comme upstream
+        run: |
+          git remote add upstream https://github.com/agents-io/PokeClaw.git || true
+          git fetch upstream --tags
+
+      - name: 🔍 Vérifier les nouvelles versions
+        id: check
+        run: |
+          # Récupérer la dernière version upstream
+          UPSTREAM_VERSION=$(git describe --tags $(git rev-list --tags --max-count=1 --remotes=upstream) 2>/dev/null || echo "unknown")
+          LOCAL_VERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          
+          echo "📦 Version upstream PokeClaw: $UPSTREAM_VERSION"
+          echo "📦 Version locale EMEFA: $LOCAL_VERSION"
+          
+          if [ "$UPSTREAM_VERSION" != "$LOCAL_VERSION" ] && [ "$UPSTREAM_VERSION" != "unknown" ]; then
+            echo "has_updates=true" >> $GITHUB_OUTPUT
+            echo "upstream_version=$UPSTREAM_VERSION" >> $GITHUB_OUTPUT
+            echo "✅ Nouvelles mises à jour disponibles: $UPSTREAM_VERSION"
+          else
+            echo "has_updates=false" >> $GITHUB_OUTPUT
+            echo "ℹ️ Pas de nouvelles mises à jour"
+          fi
+
+      - name: 🔀 Merger les mises à jour upstream (sans écraser nos changements)
+        if: steps.check.outputs.has_updates == 'true' || github.event.inputs.force_sync == 'true'
+        run: |
+          git config user.name "EMEFA Bot"
+          git config user.email "bot@progenius.ai"
+          
+          # Stratégie: merge avec préférence pour nos modifications (ours)
+          # Les fichiers de rebranding EMEFA ne seront jamais écrasés
+          git merge upstream/main \
+            --strategy-option=ours \
+            --no-edit \
+            --allow-unrelated-histories \
+            -m "🔄 Sync upstream PokeClaw ${{ steps.check.outputs.upstream_version }}" \
+            || echo "⚠️ Conflits détectés - résolution automatique en cours"
+          
+          # Résoudre les conflits en faveur de nos fichiers EMEFA
+          git checkout --ours \
+            app/src/main/res/values/colors.xml \
+            app/src/main/res/values/strings.xml \
+            app/src/main/res/values-fr/ \
+            app/src/main/java/ai/progenius/emefa/utils/LanguageManager.kt \
+            app/src/main/java/ai/progenius/emefa/agent/skill/AfricanSkills.kt \
+            app/src/main/res/mipmap/ \
+            app/src/main/res/drawable-nodpi/ \
+            2>/dev/null || true
+          
+          git add -A
+          git commit --allow-empty -m "🔄 Sync PokeClaw + préservation customisations EMEFA"
+          git push origin main
+          echo "✅ Synchronisation terminée"
+
+      - name: 📝 Créer une issue si sync impossible
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '⚠️ Sync upstream PokeClaw nécessite une intervention manuelle',
+              body: `## Synchronisation upstream échouée\n\nLa synchronisation automatique avec PokeClaw a échoué et nécessite une intervention manuelle.\n\n**Actions à effectuer:**\n1. \`git fetch upstream\`\n2. \`git merge upstream/main\`\n3. Résoudre les conflits manuellement\n4. \`git push origin main\`\n\n*Généré automatiquement par EMEFA Bot*`,
+              labels: ['sync', 'needs-attention']
+            })
+
+  # ============================================================
+  # Job 2: Build APK de release
+  # ============================================================
+  build-apk:
+    name: 🔨 Build APK EMEFA
+    runs-on: ubuntu-latest
+    needs: sync-upstream
+    if: always()
+    
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: ☕ Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: 🐘 Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY || 'emefa-cache-key' }}
+
+      - name: 🔑 Configurer la signature APK
+        if: ${{ secrets.KEYSTORE_BASE64 != '' }}
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > app/emefa-release.keystore
+          cat >> local.properties << EOF
+          storeFile=emefa-release.keystore
+          storePassword=${{ secrets.KEYSTORE_PASSWORD }}
+          keyAlias=${{ secrets.KEY_ALIAS }}
+          keyPassword=${{ secrets.KEY_PASSWORD }}
+          EOF
+
+      - name: 🔨 Build APK Debug
+        run: ./gradlew assembleDebug --no-daemon -q
+
+      - name: 📦 Upload APK Debug
+        uses: actions/upload-artifact@v4
+        with:
+          name: EMEFA-Debug-APK
+          path: app/build/outputs/apk/debug/*.apk
+          retention-days: 30
+
+      - name: 🔨 Build APK Release (si keystore configuré)
+        if: ${{ secrets.KEYSTORE_BASE64 != '' }}
+        run: ./gradlew assembleRelease --no-daemon -q
+
+      - name: 📦 Upload APK Release
+        if: ${{ secrets.KEYSTORE_BASE64 != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: EMEFA-Release-APK
+          path: app/build/outputs/apk/release/*.apk
+          retention-days: 90
+
+      - name: 🎉 Créer une Release GitHub
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            app/build/outputs/apk/release/*.apk
+            app/build/outputs/apk/debug/*.apk
+          body: |
+            ## 🤖 EMEFA ${{ github.ref_name }}
+            
+            **Assistante virtuelle IA africaine par Pro Genius AI**
+            
+            ### 📱 Installation
+            1. Téléchargez le fichier APK ci-dessous
+            2. Activez "Sources inconnues" dans les paramètres Android
+            3. Installez l'APK
+            4. Configurez votre clé API dans les paramètres
+            
+            ### 🆕 Nouveautés
+            - Basé sur PokeClaw avec customisations EMEFA
+            - Interface en Français et Anglais
+            - Skills africains (Mobile Money, WhatsApp Business, etc.)
+            - Couleurs Pro Genius AI (Orange + Bleu)
+            
+            ---
+            *Développé avec ❤️ par Pro Genius AI*

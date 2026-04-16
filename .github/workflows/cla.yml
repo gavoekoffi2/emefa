@@ -23,7 +23,7 @@ jobs:
           PERSONAL_ACCESS_TOKEN: ${{ secrets.CLA_TOKEN }}
         with:
           path-to-signatures: signatures/cla.json
-          path-to-document: https://github.com/agents-io/PokeClaw/blob/main/CLA.md
+          path-to-document: https://github.com/progenius-ai/EMEFA/blob/main/CLA.md
           branch: main
           allowlist: bot*
 
@@ -32,9 +32,9 @@ jobs:
           signed-comment-emoji: ":white_check_mark:"
 
           custom-notsigned-prcomment: |
-            Thank you for your contribution to PokeClaw!
+            Thank you for your contribution to EMEFA!
 
-            Before we can merge this PR, please sign our [Contributor License Agreement](https://github.com/agents-io/PokeClaw/blob/main/CLA.md).
+            Before we can merge this PR, please sign our [Contributor License Agreement](https://github.com/progenius-ai/EMEFA/blob/main/CLA.md).
 
             To sign, add a comment on this PR with exactly:
             > I have read the CLA and I agree
