@@ -58,8 +58,7 @@ jobs:
       - name: Get version
         id: version
         run: |
-          VERSION=$(grep 'versionName' app/build.gradle.kts | head -1 | grep -oP '(?<=")[^"]+')
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "version=0.6.5" >> "$GITHUB_OUTPUT"
           echo "date=$(date +%Y%m%d)" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Release
