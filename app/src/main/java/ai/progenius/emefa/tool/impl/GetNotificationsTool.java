@@ -7,7 +7,7 @@ import android.app.Notification;
 import android.os.Bundle;
 import android.service.notification.StatusBarNotification;
 
-import ai.progenius.emefa.ClawApplication;
+import ai.progenius.emefa.EmefaApplication;
 import ai.progenius.emefa.service.ClawNotificationListener;
 import ai.progenius.emefa.tool.BaseTool;
 import ai.progenius.emefa.tool.ToolParameter;
@@ -135,7 +135,7 @@ public class GetNotificationsTool extends BaseTool {
 
     private String getAppLabel(String packageName) {
         try {
-            android.content.pm.PackageManager pm = ClawApplication.Companion.getInstance().getPackageManager();
+            android.content.pm.PackageManager pm = EmefaApplication.Companion.getInstance().getPackageManager();
             android.content.pm.ApplicationInfo ai = pm.getApplicationInfo(packageName, 0);
             return pm.getApplicationLabel(ai).toString();
         } catch (Exception e) {

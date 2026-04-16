@@ -10,7 +10,7 @@ import android.database.Cursor;
 import android.net.Uri;
 import android.provider.ContactsContract;
 
-import ai.progenius.emefa.ClawApplication;
+import ai.progenius.emefa.EmefaApplication;
 import ai.progenius.emefa.tool.BaseTool;
 import ai.progenius.emefa.tool.ToolParameter;
 import ai.progenius.emefa.tool.ToolResult;
@@ -58,7 +58,7 @@ public class MakeCallTool extends BaseTool {
     @Override
     public ToolResult execute(Map<String, Object> params) {
         String contact = requireString(params, "contact").trim();
-        Context ctx = ClawApplication.Companion.getInstance();
+        Context ctx = EmefaApplication.Companion.getInstance();
 
         XLog.i(TAG, "Making call to: " + contact);
 

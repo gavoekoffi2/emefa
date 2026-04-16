@@ -18,7 +18,7 @@ import android.os.Environment;
 import android.os.StatFs;
 import android.provider.Settings;
 
-import ai.progenius.emefa.ClawApplication;
+import ai.progenius.emefa.EmefaApplication;
 import ai.progenius.emefa.tool.BaseTool;
 import ai.progenius.emefa.tool.ToolParameter;
 import ai.progenius.emefa.tool.ToolResult;
@@ -67,7 +67,7 @@ public class GetDeviceInfoTool extends BaseTool {
     @Override
     public ToolResult execute(Map<String, Object> params) {
         String category = requireString(params, "category").toLowerCase().trim();
-        Context ctx = ClawApplication.Companion.getInstance();
+        Context ctx = EmefaApplication.Companion.getInstance();
 
         try {
             switch (category) {

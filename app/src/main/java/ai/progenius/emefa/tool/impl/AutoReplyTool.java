@@ -3,7 +3,7 @@
 
 package ai.progenius.emefa.tool.impl;
 
-import ai.progenius.emefa.ClawApplication;
+import ai.progenius.emefa.EmefaApplication;
 import ai.progenius.emefa.service.AutoReplyManager;
 import ai.progenius.emefa.service.ForegroundService;
 import ai.progenius.emefa.tool.BaseTool;
@@ -64,7 +64,7 @@ public class AutoReplyTool extends BaseTool {
 
         if (action.equals("off") || action.equals("disable") || action.equals("stop")) {
             manager.setEnabled(false);
-            ForegroundService.Companion.resetToIdle(ClawApplication.Companion.getInstance());
+            ForegroundService.Companion.resetToIdle(EmefaApplication.Companion.getInstance());
             return ToolResult.success("Auto-reply disabled.");
         }
 
@@ -80,7 +80,7 @@ public class AutoReplyTool extends BaseTool {
             }
             manager.addTarget(contact, app);
             manager.setEnabled(true);
-            ForegroundService.Companion.showMonitorStatus(ClawApplication.Companion.getInstance());
+            ForegroundService.Companion.showMonitorStatus(EmefaApplication.Companion.getInstance());
             return ToolResult.success("Auto-reply enabled for " + contact + " on " + app +
                     ". Monitoring incoming messages and will reply automatically.");
         }

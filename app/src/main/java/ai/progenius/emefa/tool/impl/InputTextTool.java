@@ -12,7 +12,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.view.accessibility.AccessibilityNodeInfo;
 
-import ai.progenius.emefa.ClawApplication;
+import ai.progenius.emefa.EmefaApplication;
 import ai.progenius.emefa.R;
 import ai.progenius.emefa.service.ClawAccessibilityService;
 import ai.progenius.emefa.tool.BaseTool;
@@ -34,7 +34,7 @@ public class InputTextTool extends BaseTool {
 
     @Override
     public String getDisplayName() {
-        return ClawApplication.Companion.getInstance().getString(R.string.tool_name_input_text);
+        return EmefaApplication.Companion.getInstance().getString(R.string.tool_name_input_text);
     }
 
     @Override

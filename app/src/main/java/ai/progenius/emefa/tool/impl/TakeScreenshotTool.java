@@ -5,7 +5,7 @@ package ai.progenius.emefa.tool.impl;
 
 import android.graphics.Bitmap;
 
-import ai.progenius.emefa.ClawApplication;
+import ai.progenius.emefa.EmefaApplication;
 import ai.progenius.emefa.R;
 import ai.progenius.emefa.service.ClawAccessibilityService;
 import ai.progenius.emefa.tool.BaseTool;
@@ -27,7 +27,7 @@ public class TakeScreenshotTool extends BaseTool {
 
     @Override
     public String getDisplayName() {
-        return ClawApplication.Companion.getInstance().getString(R.string.tool_name_screenshot);
+        return EmefaApplication.Companion.getInstance().getString(R.string.tool_name_screenshot);
     }
 
     @Override
@@ -64,7 +64,7 @@ public class TakeScreenshotTool extends BaseTool {
                 bitmap = softBitmap;
             }
 
-            File dir = new File(ClawApplication.Companion.getInstance().getCacheDir(), "screenshots");
+            File dir = new File(EmefaApplication.Companion.getInstance().getCacheDir(), "screenshots");
             if (!dir.exists()) dir.mkdirs();
 
             String filename = System.currentTimeMillis() + ".png";

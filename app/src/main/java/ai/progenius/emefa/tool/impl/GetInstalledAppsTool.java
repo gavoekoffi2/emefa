@@ -7,7 +7,7 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 
-import ai.progenius.emefa.ClawApplication;
+import ai.progenius.emefa.EmefaApplication;
 import ai.progenius.emefa.R;
 import ai.progenius.emefa.tool.BaseTool;
 import ai.progenius.emefa.tool.ToolParameter;
@@ -31,7 +31,7 @@ public class GetInstalledAppsTool extends BaseTool {
 
     @Override
     public String getDisplayName() {
-        return ClawApplication.Companion.getInstance().getString(R.string.tool_name_get_installed_apps);
+        return EmefaApplication.Companion.getInstance().getString(R.string.tool_name_get_installed_apps);
     }
 
     @Override
@@ -57,7 +57,7 @@ public class GetInstalledAppsTool extends BaseTool {
         String keyword = optionalString(params, "keyword", "");
 
         try {
-            PackageManager pm = ClawApplication.Companion.getInstance().getPackageManager();
+            PackageManager pm = EmefaApplication.Companion.getInstance().getPackageManager();
             Intent mainIntent = new Intent(Intent.ACTION_MAIN, null);
             mainIntent.addCategory(Intent.CATEGORY_LAUNCHER);
 

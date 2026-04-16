@@ -3,7 +3,7 @@
 
 package ai.progenius.emefa.tool.impl.mobile;
 
-import ai.progenius.emefa.ClawApplication;
+import ai.progenius.emefa.EmefaApplication;
 import ai.progenius.emefa.R;
 import ai.progenius.emefa.service.ClawAccessibilityService;
 import ai.progenius.emefa.tool.BaseTool;
@@ -23,7 +23,7 @@ public class SwipeTool extends BaseTool {
 
     @Override
     public String getDisplayName() {
-        return ClawApplication.Companion.getInstance().getString(R.string.tool_name_swipe);
+        return EmefaApplication.Companion.getInstance().getString(R.string.tool_name_swipe);
     }
 
     @Override

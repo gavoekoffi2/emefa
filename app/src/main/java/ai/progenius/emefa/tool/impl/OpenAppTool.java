@@ -5,7 +5,7 @@ package ai.progenius.emefa.tool.impl;
 
 import android.view.accessibility.AccessibilityNodeInfo;
 
-import ai.progenius.emefa.ClawApplication;
+import ai.progenius.emefa.EmefaApplication;
 import ai.progenius.emefa.R;
 import ai.progenius.emefa.service.ClawAccessibilityService;
 import ai.progenius.emefa.tool.BaseTool;
@@ -49,7 +49,7 @@ public class OpenAppTool extends BaseTool {
 
     @Override
     public String getDisplayName() {
-        return ClawApplication.Companion.getInstance().getString(R.string.tool_name_open_app);
+        return EmefaApplication.Companion.getInstance().getString(R.string.tool_name_open_app);
     }
 
     @Override
@@ -204,7 +204,7 @@ public class OpenAppTool extends BaseTool {
         }
         // Try to find by searching installed app labels AND package names
         try {
-            android.content.pm.PackageManager pm = ClawApplication.Companion.getInstance().getPackageManager();
+            android.content.pm.PackageManager pm = EmefaApplication.Companion.getInstance().getPackageManager();
             String bestMatch = null;
             int bestScore = 0;
 

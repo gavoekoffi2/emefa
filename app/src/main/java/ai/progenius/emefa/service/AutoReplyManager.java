@@ -15,7 +15,7 @@ import ai.progenius.emefa.AppCapabilityCoordinator;
 import ai.progenius.emefa.tool.ToolRegistry;
 import ai.progenius.emefa.tool.ToolResult;
 import ai.progenius.emefa.tool.impl.SendMessageTool;
-import ai.progenius.emefa.ClawApplication;
+import ai.progenius.emefa.EmefaApplication;
 import ai.progenius.emefa.ServiceBindingState;
 import ai.progenius.emefa.utils.ChatNoiseFilterUtils;
 import ai.progenius.emefa.utils.ContactListUiUtils;
@@ -237,9 +237,9 @@ public class AutoReplyManager {
     private void syncForegroundNotification() {
         try {
             if (enabled && !monitoredTargets.isEmpty()) {
-                ForegroundService.Companion.showMonitorStatus(ClawApplication.Companion.getInstance());
+                ForegroundService.Companion.showMonitorStatus(EmefaApplication.Companion.getInstance());
             } else {
-                ForegroundService.Companion.resetToIdle(ClawApplication.Companion.getInstance());
+                ForegroundService.Companion.resetToIdle(EmefaApplication.Companion.getInstance());
             }
         } catch (Exception e) {
             XLog.w(TAG, "Failed to sync foreground notification", e);
@@ -291,7 +291,7 @@ public class AutoReplyManager {
     }
 
     private boolean isAccessibilityHealthyForReply() {
-        ClawApplication app = ClawApplication.Companion.getInstance();
+        EmefaApplication app = EmefaApplication.Companion.getInstance();
         if (app == null) return false;
         ServiceBindingState state = AppCapabilityCoordinator.INSTANCE.accessibilityState(app);
         if (state == ServiceBindingState.READY || state == ServiceBindingState.CONNECTING) {
@@ -303,7 +303,7 @@ public class AutoReplyManager {
     }
 
     private boolean ensureDeviceReadyForReply(ClawAccessibilityService svc, MonitorTarget target, String incomingMessage) {
-        ClawApplication app = ClawApplication.Companion.getInstance();
+        EmefaApplication app = EmefaApplication.Companion.getInstance();
         if (app == null) {
             failAutoReply(target, incomingMessage, AutoReplyFailureStage.SCREEN_LOCKED,
                 "Application context unavailable while preparing auto-reply", null);

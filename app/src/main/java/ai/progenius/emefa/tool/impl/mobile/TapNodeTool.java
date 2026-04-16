@@ -3,7 +3,7 @@
 
 package ai.progenius.emefa.tool.impl.mobile;
 
-import ai.progenius.emefa.ClawApplication;
+import ai.progenius.emefa.EmefaApplication;
 import ai.progenius.emefa.R;
 import ai.progenius.emefa.service.ClawAccessibilityService;
 import ai.progenius.emefa.tool.BaseTool;

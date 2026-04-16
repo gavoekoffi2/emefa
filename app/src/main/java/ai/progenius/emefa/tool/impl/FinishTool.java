@@ -3,7 +3,7 @@
 
 package ai.progenius.emefa.tool.impl;
 
-import ai.progenius.emefa.ClawApplication;
+import ai.progenius.emefa.EmefaApplication;
 import ai.progenius.emefa.R;
 import ai.progenius.emefa.tool.BaseTool;
 import ai.progenius.emefa.tool.ToolParameter;
@@ -22,7 +22,7 @@ public class FinishTool extends BaseTool {
 
     @Override
     public String getDisplayName() {
-        return ClawApplication.Companion.getInstance().getString(R.string.tool_name_finish);
+        return EmefaApplication.Companion.getInstance().getString(R.string.tool_name_finish);
     }
 
     @Override

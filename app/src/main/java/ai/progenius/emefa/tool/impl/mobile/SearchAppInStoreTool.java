@@ -8,7 +8,7 @@ import android.content.Intent;
 import android.os.Build;
 import ai.progenius.emefa.utils.XLog;
 
-import ai.progenius.emefa.ClawApplication;
+import ai.progenius.emefa.EmefaApplication;
 import ai.progenius.emefa.R;
 import ai.progenius.emefa.service.ClawAccessibilityService;
 import ai.progenius.emefa.tool.BaseTool;
@@ -58,7 +58,7 @@ public class SearchAppInStoreTool extends BaseTool {
 
     @Override
     public String getDisplayName() {
-        return ClawApplication.Companion.getInstance().getString(R.string.tool_name_search_app);
+        return EmefaApplication.Companion.getInstance().getString(R.string.tool_name_search_app);
     }
 
     @Override
@@ -95,7 +95,7 @@ public class SearchAppInStoreTool extends BaseTool {
         }
 
         String keyword = requireString(params, "keyword");
-        Context context = ClawApplication.Companion.getInstance();
+        Context context = EmefaApplication.Companion.getInstance();
 
         String brand = Build.MANUFACTURER.toLowerCase().trim();
         XLog.i(TAG, "Device brand: " + brand);

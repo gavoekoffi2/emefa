@@ -5,7 +5,7 @@ package ai.progenius.emefa.tool.impl.tv;
 
 import android.view.KeyEvent;
 
-import ai.progenius.emefa.ClawApplication;
+import ai.progenius.emefa.EmefaApplication;
 import ai.progenius.emefa.R;
 
 public class DpadUpTool extends BaseKeyTool {
@@ -17,7 +17,7 @@ public class DpadUpTool extends BaseKeyTool {
 
     @Override
     public String getDisplayName() {
-        return ClawApplication.Companion.getInstance().getString(R.string.tool_name_dpad_up);
+        return EmefaApplication.Companion.getInstance().getString(R.string.tool_name_dpad_up);
     }
 
     @Override

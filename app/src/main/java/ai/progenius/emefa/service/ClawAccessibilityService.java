@@ -15,7 +15,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
-import ai.progenius.emefa.ClawApplication;
+import ai.progenius.emefa.EmefaApplication;
 import ai.progenius.emefa.utils.XLog;
 import ai.progenius.emefa.utils.KVUtils;
 import android.view.Display;
@@ -107,7 +107,7 @@ public class ClawAccessibilityService extends AccessibilityService {
         ClawAccessibilityService service = instance;
         if (service != null) return service;
 
-        Context app = ClawApplication.Companion.getInstance();
+        Context app = EmefaApplication.Companion.getInstance();
         if (app == null || !isEnabledInSettings(app)) {
             return null;
         }
