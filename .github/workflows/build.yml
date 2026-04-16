@@ -1,5 +1,4 @@
-name: 🔨 Build EMEFA APK
-
+name: Build EMEFA APK
 on:
   workflow_dispatch:
   push:
@@ -9,19 +8,15 @@ on:
 
 jobs:
   build:
-    runs-on:
-  workflow_dispatch: ubuntu-latest
-
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
-          java-version:
-  workflow_dispatch: '17'
-          distribution:
-  workflow_dispatch: 'temurin'
+          java-version: '17'
+          distribution: temurin
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
@@ -35,10 +30,10 @@ jobs:
           key: gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
           restore-keys: gradle-
 
-      - name: 🔨 Build APK Debug
+      - name: Build APK Debug
         run: ./gradlew assembleDebug
 
-      - name: 📦 Upload APK Debug
+      - name: Upload APK Debug
         uses: actions/upload-artifact@v4
         with:
           name: EMEFA-Debug-APK
@@ -48,11 +43,9 @@ jobs:
   release-apk:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     needs: build
-    runs-on:
-  workflow_dispatch: ubuntu-latest
+    runs-on: ubuntu-latest
     permissions:
       contents: write
-
     steps:
       - uses: actions/checkout@v4
 
@@ -65,34 +58,32 @@ jobs:
       - name: Get version
         id: version
         run: |
-          VERSION=$(grep 'versionName' app/build.gradle.kts | head -1 | sed 's/.*"\(.*\)".*/\1/')
+          VERSION=$(grep 'versionName' app/build.gradle.kts | head -1 | grep -oP '(?<=")[^"]+')
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "date=$(date +%Y%m%d)" >> "$GITHUB_OUTPUT"
 
-      - name: 🎉 Créer Release GitHub
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.version.outputs.version }}-${{ steps.version.outputs.date }}
-          name: 🤖 EMEFA v${{ steps.version.outputs.version }} — Assistante IA Africaine
+          name: EMEFA v${{ steps.version.outputs.version }} - Assistante IA Africaine
           files: apk/*.apk
           draft: false
           prerelease: true
           body: |
-            ## 🤖 EMEFA v${{ steps.version.outputs.version }}
-            **Assistante Virtuelle IA Africaine par Pro Genius AI**
-            
-            ### 📱 Installation
-            1. Téléchargez l'APK ci-dessous
-            2. Activez **"Sources inconnues"** dans Paramètres → Sécurité
+            EMEFA v${{ steps.version.outputs.version }} - Assistante Virtuelle IA Africaine par Pro Genius AI
+
+            Installation:
+            1. Telechargez l APK ci-dessous
+            2. Activez Sources inconnues dans Parametres > Securite
             3. Installez et lancez EMEFA
-            4. Configurez votre modèle IA dans les paramètres
-            
-            ### ✨ Fonctionnalités
-            - 🌍 Interface Français / Anglais
-            - 💰 Mobile Money (Wave, Orange Money, MTN MoMo)
-            - 📱 Intégration WhatsApp Business
-            - 🗣️ Traduction langues africaines
-            - 🎨 Design Pro Genius AI (Orange + Bleu)
-            
-            ---
-            *Développé avec ❤️ par Pro Genius AI*
+            4. Configurez votre modele IA dans les parametres
+
+            Fonctionnalites:
+            - Interface Francais / Anglais
+            - Mobile Money (Wave, Orange Money, MTN MoMo)
+            - Integration WhatsApp Business
+            - Traduction langues africaines
+            - Design Pro Genius AI (Orange + Bleu)
+
+            Developpe par Pro Genius AI
