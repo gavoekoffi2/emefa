@@ -1,7 +1,6 @@
+<?xml version='1.0' encoding='utf-8'?>
 <resources>
     <string name="app_name">EMEFA</string>
-
-    <!-- Common -->
     <string name="common_confirm">OK</string>
     <string name="common_cancel">Cancel</string>
     <string name="common_close">Close</string>
@@ -15,10 +14,7 @@
     <string name="channel_telegram">Telegram</string>
     <string name="channel_wechat">WeChat</string>
     <string name="common_load_failed">Failed to load: %s</string>
-
     <string name="app_slogan">AI Agents that get things done</string>
-
-    <!-- Guide -->
     <string name="guide_page_title">Permission Setup</string>
     <string name="guide_page_subtitle">Please enable the following permissions for the app to work properly</string>
     <string name="guide_skip">Skip</string>
@@ -33,8 +29,6 @@
     <string name="guide_desc_battery">Prevents the system from killing EMEFA. Tap to allow.</string>
     <string name="guide_title_storage">File Access</string>
     <string name="guide_desc_storage">Lets EMEFA read and write files on your device. Tap to enable.</string>
-
-    <!-- Home -->
     <string name="home_need_notification_permission">Notification permission is required</string>
     <string name="home_enable_accessibility">Please enable EMEFA Accessibility Service</string>
     <string name="home_accessibility_enabled">Accessibility service enabled</string>
@@ -57,18 +51,12 @@
     <string name="home_cancel_task">Stop current task</string>
     <string name="home_cancel_task_success">AI task stopped</string>
     <string name="home_no_task_running">No task is running</string>
-
-    <!-- Settings -->
     <string name="settings_title">Settings</string>
     <string name="settings_group_channel">Channels</string>
     <string name="settings_group_model">Model</string>
-
-    <!-- Unbind -->
     <string name="unbind_title">Disconnect</string>
     <string name="unbind_message">Disconnect %1$s? You will no longer receive messages via %2$s.</string>
     <string name="unbind_action">Disconnect</string>
-
-    <!-- Channel Config -->
     <string name="channel_config_discord_title">Discord Config</string>
     <string name="channel_config_discord_tip">Enter Bot Token (from Discord Developer Portal → Bot page). Message Content Intent must be enabled.</string>
     <string name="channel_config_discord_hint1">Enter Bot Token</string>
@@ -91,8 +79,6 @@
     <string name="channel_config_lan_hint">💡 Enable \"LAN Config\" in Settings to configure via browser</string>
     <string name="channel_config_lan_hint_running">💡 Open %s in your browser to configure</string>
     <string name="channel_config_lan_copied">Address copied</string>
-
-    <!-- LLM Config -->
     <string name="llm_config_title">LLM Configuration</string>
     <string name="llm_config_tip">Enter your LLM API key, base URL and model name. Data is stored locally only.</string>
     <string name="llm_config_api_key">API Key</string>
@@ -104,32 +90,22 @@
     <string name="llm_config_saved">LLM configuration saved</string>
     <string name="llm_config_api_key_required">Please enter API Key</string>
     <string name="menu_llm_config">LLM Config</string>
-
-    <!-- Settings Menu -->
     <string name="menu_discord">Discord</string>
     <string name="menu_telegram">Telegram</string>
     <string name="menu_wechat">WeChat</string>
     <string name="menu_lan_config">LAN Config</string>
     <string name="lan_config_stopped">Off</string>
     <string name="lan_config_no_wifi">Please connect to WiFi first</string>
-
-    <!-- Protocol -->
     <string name="protocol_agree_title">Privacy Guidelines</string>
     <string name="protocol_alert_title">Terms and Privacy</string>
     <string name="protocol_disagree">Disagree</string>
     <string name="protocol_agree_continue">Agree and Continue</string>
-
-    <!-- Floating -->
     <string name="floating_ai_label">AI</string>
     <string name="floating_task_received">Received: \"%s\"</string>
-
-    <!-- Foreground Service Notification -->
     <string name="notification_channel_name">EMEFA Status</string>
     <string name="notification_channel_description">Shows EMEFA running status and stats</string>
     <string name="notification_content_title">EMEFA · Task in progress</string>
     <string name="notification_content_text">Running task...</string>
-
-    <!-- Channel Messages -->
     <string name="channel_msg_task_cancelled">Task cancelled manually</string>
     <string name="channel_msg_service_not_ready">Service not ready, please try again later</string>
     <string name="channel_msg_tool_success">Success</string>
@@ -139,8 +115,6 @@
     <string name="channel_msg_no_accessibility">Accessibility permission missing, cannot execute task</string>
     <string name="channel_msg_task_in_progress">A task is already running, please wait</string>
     <string name="channel_msg_system_dialog_blocked">A system dialog may be blocking the screen. Please check and handle it manually, then try again.</string>
-
-    <!-- Accessibility -->
     <string name="cd_back_button">Back</string>
     <string name="cd_settings">Settings</string>
     <string name="cd_clear_input">Clear input</string>
@@ -156,24 +130,18 @@
     <string name="cd_arrow_right">More</string>
     <string name="cd_empty_state">No data</string>
     <string name="cd_error_state">Load failed</string>
-
-    <!-- Agent -->
     <string name="agent_accessibility_not_enabled">Accessibility service is not enabled</string>
     <string name="agent_task_cancelled">Task cancelled</string>
     <string name="agent_task_completed">Task completed</string>
     <string name="agent_task_cancel">Task cancelled</string>
     <string name="agent_api_call_failed">AI service call failed: %s</string>
     <string name="agent_max_iterations">Reached maximum iterations (%d) without completing the task</string>
-
-    <!-- File Tool -->
     <string name="tool_no_storage_permission">No file read/write permission</string>
     <string name="tool_file_not_found">File not found: %s</string>
     <string name="tool_not_a_file">Path is not a file: %s</string>
     <string name="tool_no_task_channel">No active task channel</string>
     <string name="tool_file_sent">File sent: %s</string>
     <string name="tool_file_send_failed">Failed to send file: %s</string>
-
-    <!-- Tool Names -->
     <string name="tool_name_screenshot">Screenshot</string>
     <string name="tool_name_send_file">Send File</string>
     <string name="tool_name_wait">Wait</string>
@@ -200,9 +168,17 @@
     <string name="tool_name_search_app">Search App</string>
     <string name="tool_name_clipboard">Clipboard</string>
     <string name="tool_name_scroll_to_find">Scroll to Find</string>
-
-    <!-- Input Dialog -->
     <string name="input_dialog_need_more">Enter at least %d characters</string>
     <string name="input_dialog_need_less">Enter at most %d characters</string>
     <string name="input_dialog_no_zero">Please enter a non-zero value</string>
+    <string name="settings_group_appearance">Appearance</string>
+    <string name="settings_theme">Theme</string>
+    <string name="settings_language">Language</string>
+    <string name="settings_group_about">About</string>
+    <string name="settings_debug_report">Share Debug Report</string>
+    <string name="settings_built_by">Built by</string>
+    <string name="btn_cancel">Cancel</string>
+    <string name="btn_save">Save</string>
+    <string name="btn_close">Close</string>
+    <string name="btn_confirm">OK</string>
 </resources>

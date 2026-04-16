@@ -31,6 +31,7 @@ import ai.progenius.emefa.server.ConfigServerManager
 import ai.progenius.emefa.service.ForegroundService
 import ai.progenius.emefa.support.DebugReportManager
 import ai.progenius.emefa.utils.KVUtils
+import ai.progenius.emefa.utils.LanguageManager
 import ai.progenius.emefa.utils.XLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -296,19 +297,29 @@ class SettingsActivity : BaseActivity() {
 
         // Appearance
         val appearanceGroup = findViewById<MenuGroup>(R.id.appearanceGroup)
-        appearanceGroup.setTitle("Appearance")
+        appearanceGroup.setTitle(getString(R.string.settings_group_appearance))
 
         appearanceGroup.addMenuItem(
             leadingIcon = android.R.drawable.ic_menu_slideshow,
-            title = "Theme",
+            title = getString(R.string.settings_theme),
             onClick = {
                 startActivity(Intent(this, ThemeActivity::class.java))
             },
-            showDivider = false
+            showDivider = true
         ).apply {
             val themeId = KVUtils.getString("THEME_ID", "abyss_dark")
             val label = themeId.replace("_", " ").replaceFirstChar { it.uppercase() }
             setTrailingText(label)
+        }
+
+        // Language selector
+        appearanceGroup.addMenuItem(
+            leadingIcon = android.R.drawable.ic_menu_compass,
+            title = getString(R.string.settings_language),
+            onClick = { showLanguageDialog() },
+            showDivider = false
+        ).apply {
+            setTrailingText(LanguageManager.getLanguageDisplayName(LanguageManager.getCurrentLanguage(this@SettingsActivity)))
         }
 
         // Tools
@@ -360,9 +371,9 @@ class SettingsActivity : BaseActivity() {
             setTrailingText("Coming soon")
         }
 
-        // About
+          // About
         val aboutGroup = findViewById<MenuGroup>(R.id.aboutGroup)
-        aboutGroup.setTitle("About")
+        aboutGroup.setTitle(getString(R.string.settings_group_about))
 
         aboutGroup.addMenuItem(
             leadingIcon = android.R.drawable.ic_menu_info_details,
@@ -370,38 +381,35 @@ class SettingsActivity : BaseActivity() {
             onClick = { },
             showDivider = true
         ).apply {
-            setTrailingText("v${ai.progenius.emefa.BuildConfig.VERSION_NAME}")
+            setTrailingText("v${ai.progenius.emefa.BuildConfig.VERSION_NAME} — Pro Genius AI")
         }
-
         aboutGroup.addMenuItem(
             leadingIcon = android.R.drawable.ic_menu_upload,
-            title = "Share Debug Report",
+            title = getString(R.string.settings_debug_report),
             onClick = { shareDebugReport() },
             showDivider = true
         ).apply {
             setTrailingText("ZIP logs + state")
         }
-
         aboutGroup.addMenuItem(
             leadingIcon = android.R.drawable.ic_menu_share,
             title = "GitHub",
             onClick = {
-                startActivity(Intent(Intent.ACTION_VIEW, "https://github.com/progenius-ai/EMEFA".toUri()))
+                startActivity(Intent(Intent.ACTION_VIEW, "https://github.com/gavoekoffi2/emefa".toUri()))
             },
             showDivider = true
         ).apply {
-            setTrailingText("progenius-ai/EMEFA")
+            setTrailingText("gavoekoffi2/emefa")
         }
-
         aboutGroup.addMenuItem(
             leadingIcon = android.R.drawable.ic_menu_compass,
-            title = "Built by",
+            title = getString(R.string.settings_built_by),
             onClick = {
-                startActivity(Intent(Intent.ACTION_VIEW, "https://github.com/ithiria894".toUri()))
+                startActivity(Intent(Intent.ACTION_VIEW, "https://progenius.ai".toUri()))
             },
             showDivider = false
         ).apply {
-            setTrailingText("ithiria894")
+            setTrailingText("Pro Genius AI")
         }
     }
 
@@ -598,6 +606,40 @@ class SettingsActivity : BaseActivity() {
                 recreate()
             }
             .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    /**
+     * Affiche un dialogue pour choisir la langue (Français / English)
+     */
+    private fun showLanguageDialog() {
+        val languages = LanguageManager.getAvailableLanguages()
+        val currentLang = LanguageManager.getCurrentLanguage(this)
+        val items = languages.map { it.second }.toTypedArray()
+        val currentIndex = languages.indexOfFirst { it.first == currentLang }.coerceAtLeast(0)
+
+        android.app.AlertDialog.Builder(this)
+            .setTitle(getString(R.string.settings_language))
+            .setSingleChoiceItems(items, currentIndex) { dialog, which ->
+                val selectedLang = languages[which].first
+                if (selectedLang != currentLang) {
+                    LanguageManager.setLanguage(this, selectedLang)
+                    Toast.makeText(
+                        this,
+                        if (selectedLang == LanguageManager.LANG_FRENCH)
+                            "Langue changée en Français"
+                        else
+                            "Language changed to English",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    dialog.dismiss()
+                    // Redémarrer l'activité pour appliquer la langue
+                    recreate()
+                } else {
+                    dialog.dismiss()
+                }
+            }
+            .setNegativeButton(getString(R.string.btn_cancel), null)
             .show()
     }
 }
