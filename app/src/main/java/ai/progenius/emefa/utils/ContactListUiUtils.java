@@ -1,7 +1,7 @@
 // Copyright 2026 PokeClaw (agents.io). All rights reserved.
 // Licensed under the Apache License, Version 2.0.
 
-package io.agents.pokeclaw.utils;
+package ai.progenius.emefa.utils;
 
 import android.graphics.Rect;
 import android.os.Bundle;
@@ -12,7 +12,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
-import io.agents.pokeclaw.service.ClawAccessibilityService;
+import ai.progenius.emefa.service.ClawAccessibilityService;
 
 /**
  * Generic contact/chat-list search helpers.

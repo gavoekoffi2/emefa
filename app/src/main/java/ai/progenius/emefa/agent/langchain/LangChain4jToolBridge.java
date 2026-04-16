@@ -1,12 +1,12 @@
 // Copyright 2026 PokeClaw (agents.io). All rights reserved.
 // Licensed under the Apache License, Version 2.0.
 
-package io.agents.pokeclaw.agent.langchain;
+package ai.progenius.emefa.agent.langchain;
 
-import io.agents.pokeclaw.tool.BaseTool;
-import io.agents.pokeclaw.tool.ToolParameter;
-import io.agents.pokeclaw.tool.ToolRegistry;
-import io.agents.pokeclaw.tool.ToolResult;
+import ai.progenius.emefa.tool.BaseTool;
+import ai.progenius.emefa.tool.ToolParameter;
+import ai.progenius.emefa.tool.ToolRegistry;
+import ai.progenius.emefa.tool.ToolResult;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 

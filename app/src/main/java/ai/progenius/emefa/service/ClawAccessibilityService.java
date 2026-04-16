@@ -1,7 +1,7 @@
 // Copyright 2026 PokeClaw (agents.io). All rights reserved.
 // Licensed under the Apache License, Version 2.0.
 
-package io.agents.pokeclaw.service;
+package ai.progenius.emefa.service;
 
 import android.accessibilityservice.AccessibilityService;
 import android.accessibilityservice.GestureDescription;
@@ -15,9 +15,9 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
-import io.agents.pokeclaw.ClawApplication;
-import io.agents.pokeclaw.utils.XLog;
-import io.agents.pokeclaw.utils.KVUtils;
+import ai.progenius.emefa.ClawApplication;
+import ai.progenius.emefa.utils.XLog;
+import ai.progenius.emefa.utils.KVUtils;
 import android.view.Display;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
@@ -31,7 +31,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
-import io.agents.pokeclaw.utils.UiTextMatchUtils;
+import ai.progenius.emefa.utils.UiTextMatchUtils;
 
 /**
  * Core accessibility service that provides all device interaction capabilities.
@@ -188,7 +188,7 @@ public class ClawAccessibilityService extends AccessibilityService {
 
         mainHandler.postDelayed(() -> {
             try {
-                Intent intent = new Intent(this, io.agents.pokeclaw.ui.settings.SettingsActivity.class);
+                Intent intent = new Intent(this, ai.progenius.emefa.ui.settings.SettingsActivity.class);
                 intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK
                         | Intent.FLAG_ACTIVITY_CLEAR_TOP
                         | Intent.FLAG_ACTIVITY_SINGLE_TOP

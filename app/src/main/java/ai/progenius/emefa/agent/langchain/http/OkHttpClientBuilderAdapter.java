@@ -1,9 +1,9 @@
 // Copyright 2026 PokeClaw (agents.io). All rights reserved.
 // Licensed under the Apache License, Version 2.0.
 
-package io.agents.pokeclaw.agent.langchain.http;
+package ai.progenius.emefa.agent.langchain.http;
 
-import io.agents.pokeclaw.utils.XLog;
+import ai.progenius.emefa.utils.XLog;
 
 import java.io.File;
 import java.time.Duration;

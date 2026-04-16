@@ -1,14 +1,14 @@
 // Copyright 2026 PokeClaw (agents.io). All rights reserved.
 // Licensed under the Apache License, Version 2.0.
 
-package io.agents.pokeclaw.tool.impl;
+package ai.progenius.emefa.tool.impl;
 
-import io.agents.pokeclaw.ClawApplication;
-import io.agents.pokeclaw.service.AutoReplyManager;
-import io.agents.pokeclaw.service.ForegroundService;
-import io.agents.pokeclaw.tool.BaseTool;
-import io.agents.pokeclaw.tool.ToolParameter;
-import io.agents.pokeclaw.tool.ToolResult;
+import ai.progenius.emefa.ClawApplication;
+import ai.progenius.emefa.service.AutoReplyManager;
+import ai.progenius.emefa.service.ForegroundService;
+import ai.progenius.emefa.tool.BaseTool;
+import ai.progenius.emefa.tool.ToolParameter;
+import ai.progenius.emefa.tool.ToolResult;
 
 import java.util.Arrays;
 import java.util.List;

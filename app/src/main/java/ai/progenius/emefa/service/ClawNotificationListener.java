@@ -1,7 +1,7 @@
 // Copyright 2026 PokeClaw (agents.io). All rights reserved.
 // Licensed under the Apache License, Version 2.0.
 
-package io.agents.pokeclaw.service;
+package ai.progenius.emefa.service;
 
 import android.content.ComponentName;
 import android.content.Context;
@@ -13,8 +13,8 @@ import android.os.Handler;
 import android.os.Looper;
 import android.provider.Settings;
 
-import io.agents.pokeclaw.utils.KVUtils;
-import io.agents.pokeclaw.utils.XLog;
+import ai.progenius.emefa.utils.KVUtils;
+import ai.progenius.emefa.utils.XLog;
 
 import java.util.Set;
 import java.util.HashSet;
@@ -176,7 +176,7 @@ public class ClawNotificationListener extends NotificationListenerService {
         Handler mainHandler = new Handler(Looper.getMainLooper());
         mainHandler.postDelayed(() -> {
             try {
-                android.content.Intent intent = new android.content.Intent(this, io.agents.pokeclaw.ui.settings.SettingsActivity.class);
+                android.content.Intent intent = new android.content.Intent(this, ai.progenius.emefa.ui.settings.SettingsActivity.class);
                 intent.setFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK
                         | android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP
                         | android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP

@@ -1,34 +1,34 @@
 // Copyright 2026 PokeClaw (agents.io). All rights reserved.
 // Licensed under the Apache License, Version 2.0.
 
-package io.agents.pokeclaw.debug;
+package ai.progenius.emefa.debug;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.util.Base64;
 
-import io.agents.pokeclaw.ui.chat.ComposeChatActivity;
-import io.agents.pokeclaw.utils.XLog;
+import ai.progenius.emefa.ui.chat.ComposeChatActivity;
+import ai.progenius.emefa.utils.XLog;
 
 /**
  * Debug broadcast receiver to trigger tasks via ADB without manual UI interaction.
  *
  * Usage:
- *   adb shell am broadcast -a io.agents.pokeclaw.TASK --es task "send hi to Mom on WhatsApp" -p io.agents.pokeclaw
- *   adb shell am broadcast -a io.agents.pokeclaw.TASK --es chat "read my clipboard and explain what it says" -p io.agents.pokeclaw
- *   adb shell am broadcast -a io.agents.pokeclaw.TASK --es chat_b64 "$(printf 'remember token abc123 and reply with only OK' | base64 -w0)" -p io.agents.pokeclaw
+ *   adb shell am broadcast -a ai.progenius.emefa.TASK --es task "send hi to Mom on WhatsApp" -p ai.progenius.emefa
+ *   adb shell am broadcast -a ai.progenius.emefa.TASK --es chat "read my clipboard and explain what it says" -p ai.progenius.emefa
+ *   adb shell am broadcast -a ai.progenius.emefa.TASK --es chat_b64 "$(printf 'remember token abc123 and reply with only OK' | base64 -w0)" -p ai.progenius.emefa
  *
  * Launches ComposeChatActivity with the matching extra — works even after reinstall.
  */
 public class TaskTriggerReceiver extends BroadcastReceiver {
 
     private static final String TAG = "TaskTriggerReceiver";
-    public static final String ACTION = "io.agents.pokeclaw.TASK";
+    public static final String ACTION = "ai.progenius.emefa.TASK";
 
     @Override
     public void onReceive(Context context, Intent intent) {
-        if (!io.agents.pokeclaw.BuildConfig.DEBUG) return;
+        if (!ai.progenius.emefa.BuildConfig.DEBUG) return;
         if (intent == null || !ACTION.equals(intent.getAction())) return;
         String task = firstNonBlank(
                 decodeBase64Extra(intent, "task_b64"),
@@ -50,7 +50,7 @@ public class TaskTriggerReceiver extends BroadcastReceiver {
         if (hasTask && task.startsWith("autoreply ")) {
             String cmd = task.substring(10).trim();
             if (cmd.equals("off")) {
-                io.agents.pokeclaw.service.AutoReplyManager.getInstance().stopAll();
+                ai.progenius.emefa.service.AutoReplyManager.getInstance().stopAll();
                 XLog.i(TAG, "Auto-reply disabled");
             } else if (cmd.startsWith("on ")) {
                 String target = cmd.substring(3).trim();

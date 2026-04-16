@@ -1,7 +1,7 @@
 // Copyright 2026 PokeClaw (agents.io). All rights reserved.
 // Licensed under the Apache License, Version 2.0.
 
-package io.agents.pokeclaw.utils;
+package ai.progenius.emefa.utils;
 
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -33,7 +33,7 @@ public class UpdateChecker {
         XLog.d(TAG, "Checking for updates on " + (debugBuild ? "debug" : "release") + " build");
 
         // Only check once per day
-        long lastCheck = io.agents.pokeclaw.utils.KVUtils.INSTANCE.getLong("last_update_check", 0);
+        long lastCheck = ai.progenius.emefa.utils.KVUtils.INSTANCE.getLong("last_update_check", 0);
         long now = System.currentTimeMillis();
         if (now - lastCheck < CHECK_INTERVAL_MS) {
             XLog.d(TAG, "Skipping update check, last check was " + ((now - lastCheck) / 1000 / 60) + " min ago");
@@ -68,7 +68,7 @@ public class UpdateChecker {
                 XLog.i(TAG, "Current: " + currentVersion + ", Latest: " + latestTag);
 
                 // Save check time
-                io.agents.pokeclaw.utils.KVUtils.INSTANCE.putLong("last_update_check", now);
+                ai.progenius.emefa.utils.KVUtils.INSTANCE.putLong("last_update_check", now);
 
                 if (isNewer(latestTag, currentVersion)) {
                     activity.runOnUiThread(() -> showUpdateDialog(activity, latestTag, downloadUrl, debugBuild));

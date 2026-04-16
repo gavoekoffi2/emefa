@@ -1,18 +1,18 @@
 // Copyright 2026 PokeClaw (agents.io). All rights reserved.
 // Licensed under the Apache License, Version 2.0.
 
-package io.agents.pokeclaw.tool.impl;
+package ai.progenius.emefa.tool.impl;
 
 import android.app.Notification;
 import android.os.Bundle;
 import android.service.notification.StatusBarNotification;
 
-import io.agents.pokeclaw.ClawApplication;
-import io.agents.pokeclaw.service.ClawNotificationListener;
-import io.agents.pokeclaw.tool.BaseTool;
-import io.agents.pokeclaw.tool.ToolParameter;
-import io.agents.pokeclaw.tool.ToolResult;
-import io.agents.pokeclaw.utils.XLog;
+import ai.progenius.emefa.ClawApplication;
+import ai.progenius.emefa.service.ClawNotificationListener;
+import ai.progenius.emefa.tool.BaseTool;
+import ai.progenius.emefa.tool.ToolParameter;
+import ai.progenius.emefa.tool.ToolResult;
+import ai.progenius.emefa.utils.XLog;
 
 import java.util.Collections;
 import java.util.List;
@@ -66,7 +66,7 @@ public class GetNotificationsTool extends BaseTool {
             int count = 0;
             for (StatusBarNotification sbn : notifications) {
                 // Skip PokeClaw's own notifications
-                if ("io.agents.pokeclaw".equals(sbn.getPackageName())) continue;
+                if ("ai.progenius.emefa".equals(sbn.getPackageName())) continue;
 
                 Notification notif = sbn.getNotification();
                 if (notif == null || notif.extras == null) continue;

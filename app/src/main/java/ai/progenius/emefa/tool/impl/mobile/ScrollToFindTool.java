@@ -1,19 +1,19 @@
 // Copyright 2026 PokeClaw (agents.io). All rights reserved.
 // Licensed under the Apache License, Version 2.0.
 
-package io.agents.pokeclaw.tool.impl.mobile;
+package ai.progenius.emefa.tool.impl.mobile;
 
 import android.graphics.Rect;
 import android.util.DisplayMetrics;
 import android.view.WindowManager;
 import android.view.accessibility.AccessibilityNodeInfo;
 
-import io.agents.pokeclaw.ClawApplication;
-import io.agents.pokeclaw.R;
-import io.agents.pokeclaw.service.ClawAccessibilityService;
-import io.agents.pokeclaw.tool.BaseTool;
-import io.agents.pokeclaw.tool.ToolParameter;
-import io.agents.pokeclaw.tool.ToolResult;
+import ai.progenius.emefa.ClawApplication;
+import ai.progenius.emefa.R;
+import ai.progenius.emefa.service.ClawAccessibilityService;
+import ai.progenius.emefa.tool.BaseTool;
+import ai.progenius.emefa.tool.ToolParameter;
+import ai.progenius.emefa.tool.ToolResult;
 
 import java.util.Arrays;
 import java.util.List;

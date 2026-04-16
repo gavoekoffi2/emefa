@@ -1,7 +1,7 @@
 // Copyright 2026 PokeClaw (agents.io). All rights reserved.
 // Licensed under the Apache License, Version 2.0.
 
-package io.agents.pokeclaw.service;
+package ai.progenius.emefa.service;
 
 import android.app.KeyguardManager;
 import android.app.Notification;
@@ -11,17 +11,17 @@ import android.os.PowerManager;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
 
-import io.agents.pokeclaw.AppCapabilityCoordinator;
-import io.agents.pokeclaw.tool.ToolRegistry;
-import io.agents.pokeclaw.tool.ToolResult;
-import io.agents.pokeclaw.tool.impl.SendMessageTool;
-import io.agents.pokeclaw.ClawApplication;
-import io.agents.pokeclaw.ServiceBindingState;
-import io.agents.pokeclaw.utils.ChatNoiseFilterUtils;
-import io.agents.pokeclaw.utils.ContactListUiUtils;
-import io.agents.pokeclaw.utils.ContactMatchUtils;
-import io.agents.pokeclaw.utils.UiActionMatchUtils;
-import io.agents.pokeclaw.utils.XLog;
+import ai.progenius.emefa.AppCapabilityCoordinator;
+import ai.progenius.emefa.tool.ToolRegistry;
+import ai.progenius.emefa.tool.ToolResult;
+import ai.progenius.emefa.tool.impl.SendMessageTool;
+import ai.progenius.emefa.ClawApplication;
+import ai.progenius.emefa.ServiceBindingState;
+import ai.progenius.emefa.utils.ChatNoiseFilterUtils;
+import ai.progenius.emefa.utils.ContactListUiUtils;
+import ai.progenius.emefa.utils.ContactMatchUtils;
+import ai.progenius.emefa.utils.UiActionMatchUtils;
+import ai.progenius.emefa.utils.XLog;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -635,7 +635,7 @@ public class AutoReplyManager {
                 prompt = sender + " says: \"" + incomingMessage + "\"\nYour reply:";
             }
 
-            String provider = io.agents.pokeclaw.utils.KVUtils.INSTANCE.getLlmProvider();
+            String provider = ai.progenius.emefa.utils.KVUtils.INSTANCE.getLlmProvider();
             String reply;
 
             if (!"LOCAL".equals(provider)) {
@@ -662,7 +662,7 @@ public class AutoReplyManager {
 
     private String generateReplyCloud(String prompt) {
         XLog.i(TAG, "generateReplyCloud: using LlmSessionManager");
-        String reply = io.agents.pokeclaw.agent.llm.LlmSessionManager.INSTANCE.singleShotCloud(
+        String reply = ai.progenius.emefa.agent.llm.LlmSessionManager.INSTANCE.singleShotCloud(
             REPLY_SYSTEM_PROMPT, prompt, 0.7
         );
         if (reply != null) {
@@ -674,7 +674,7 @@ public class AutoReplyManager {
 
     private String generateReplyLocal(String prompt) {
         XLog.i(TAG, "generateReplyLocal: using LlmSessionManager");
-        String reply = io.agents.pokeclaw.agent.llm.LlmSessionManager.INSTANCE.singleShotLocal(
+        String reply = ai.progenius.emefa.agent.llm.LlmSessionManager.INSTANCE.singleShotLocal(
             REPLY_SYSTEM_PROMPT, prompt, 0.7
         );
         if (reply != null) {
@@ -876,8 +876,8 @@ public class AutoReplyManager {
     private ToolResult tapSendViaLlm(ClawAccessibilityService service, String alreadyTypedMessage) {
         try {
             // Read current screen as text
-            io.agents.pokeclaw.tool.impl.GetScreenInfoTool screenTool = new io.agents.pokeclaw.tool.impl.GetScreenInfoTool();
-            io.agents.pokeclaw.tool.ToolResult screenResult = screenTool.execute(java.util.Collections.emptyMap());
+            ai.progenius.emefa.tool.impl.GetScreenInfoTool screenTool = new ai.progenius.emefa.tool.impl.GetScreenInfoTool();
+            ai.progenius.emefa.tool.ToolResult screenResult = screenTool.execute(java.util.Collections.emptyMap());
             if (!screenResult.isSuccess() || screenResult.getData() == null) {
                 // Last resort: press Enter
                 Runtime.getRuntime().exec(new String[]{"input", "keyevent", "66"}).waitFor();
@@ -901,7 +901,7 @@ public class AutoReplyManager {
             response = response.trim().replaceAll("[\"'`]", "");
             if (response.startsWith("n")) {
                 // Node ID — use tap_node tool
-                io.agents.pokeclaw.tool.ToolRegistry registry = io.agents.pokeclaw.tool.ToolRegistry.getInstance();
+                ai.progenius.emefa.tool.ToolRegistry registry = ai.progenius.emefa.tool.ToolRegistry.getInstance();
                 java.util.Map<String, Object> params = new java.util.HashMap<>();
                 params.put("node_id", response);
                 registry.executeTool("tap_node", params);
@@ -934,8 +934,8 @@ public class AutoReplyManager {
      */
     private ToolResult typeAndSendViaLlm(ClawAccessibilityService service, String message) {
         try {
-            io.agents.pokeclaw.tool.impl.GetScreenInfoTool screenTool = new io.agents.pokeclaw.tool.impl.GetScreenInfoTool();
-            io.agents.pokeclaw.tool.ToolResult screenResult = screenTool.execute(java.util.Collections.emptyMap());
+            ai.progenius.emefa.tool.impl.GetScreenInfoTool screenTool = new ai.progenius.emefa.tool.impl.GetScreenInfoTool();
+            ai.progenius.emefa.tool.ToolResult screenResult = screenTool.execute(java.util.Collections.emptyMap());
             if (!screenResult.isSuccess() || screenResult.getData() == null) {
                 return ToolResult.error("Cannot read screen for LLM-assisted send");
             }
@@ -978,7 +978,7 @@ public class AutoReplyManager {
             json = json.substring(start, end + 1);
 
             com.google.gson.JsonArray actions = com.google.gson.JsonParser.parseString(json).getAsJsonArray();
-            io.agents.pokeclaw.tool.ToolRegistry registry = io.agents.pokeclaw.tool.ToolRegistry.getInstance();
+            ai.progenius.emefa.tool.ToolRegistry registry = ai.progenius.emefa.tool.ToolRegistry.getInstance();
 
             for (int i = 0; i < actions.size(); i++) {
                 com.google.gson.JsonObject action = actions.get(i).getAsJsonObject();
@@ -1030,7 +1030,7 @@ public class AutoReplyManager {
      * For quick targeted questions like "which node is the send button?"
      */
     private String singleLlmCall(String prompt) {
-        return io.agents.pokeclaw.agent.llm.LlmSessionManager.INSTANCE.singleShot(prompt, 0.3);
+        return ai.progenius.emefa.agent.llm.LlmSessionManager.INSTANCE.singleShot(prompt, 0.3);
     }
 
     private android.graphics.Rect getBottomEditTextBounds(AccessibilityNodeInfo root) {
