@@ -61,7 +61,7 @@ class MoneyFusionActivity : BaseActivity() {
         val titleView = TextView(this).apply {
             text = "MoneyFusion Pay"
             textSize = 22f
-            setTextColor(themeColors.textPrimary)
+            setTextColor(themeColors.aiText)
             setPadding(0, 0, 0, 8)
         }
         layout.addView(titleView)
@@ -69,7 +69,7 @@ class MoneyFusionActivity : BaseActivity() {
         val subtitleView = TextView(this).apply {
             text = "Paiement Mobile Money Africain"
             textSize = 14f
-            setTextColor(themeColors.textSecondary)
+            setTextColor(themeColors.aiText)
             setPadding(0, 0, 0, 32)
         }
         layout.addView(subtitleView)
@@ -78,7 +78,7 @@ class MoneyFusionActivity : BaseActivity() {
         val amountLabel = TextView(this).apply {
             text = "Montant (FCFA)"
             textSize = 14f
-            setTextColor(themeColors.textPrimary)
+            setTextColor(themeColors.aiText)
         }
         layout.addView(amountLabel)
 
@@ -86,8 +86,8 @@ class MoneyFusionActivity : BaseActivity() {
             hint = "Ex: 5000"
             inputType = android.text.InputType.TYPE_CLASS_NUMBER or
                     android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
-            setTextColor(themeColors.textPrimary)
-            setHintTextColor(themeColors.textSecondary)
+            setTextColor(themeColors.aiText)
+            setHintTextColor(themeColors.aiText)
             val prefilledAmount = intent.getDoubleExtra(EXTRA_AMOUNT, 0.0)
             if (prefilledAmount > 0) setText(prefilledAmount.toInt().toString())
             setPadding(0, 8, 0, 24)
@@ -98,7 +98,7 @@ class MoneyFusionActivity : BaseActivity() {
         val countryLabel = TextView(this).apply {
             text = "Pays"
             textSize = 14f
-            setTextColor(themeColors.textPrimary)
+            setTextColor(themeColors.aiText)
         }
         layout.addView(countryLabel)
 
@@ -117,7 +117,7 @@ class MoneyFusionActivity : BaseActivity() {
         val operatorLabel = TextView(this).apply {
             text = "Opérateur Mobile Money"
             textSize = 14f
-            setTextColor(themeColors.textPrimary)
+            setTextColor(themeColors.aiText)
         }
         layout.addView(operatorLabel)
 
@@ -159,15 +159,15 @@ class MoneyFusionActivity : BaseActivity() {
         val phoneLabel = TextView(this).apply {
             text = "Numéro de téléphone"
             textSize = 14f
-            setTextColor(themeColors.textPrimary)
+            setTextColor(themeColors.aiText)
         }
         layout.addView(phoneLabel)
 
         val phoneInput = EditText(this).apply {
             hint = "Ex: 0701020304"
             inputType = android.text.InputType.TYPE_CLASS_PHONE
-            setTextColor(themeColors.textPrimary)
-            setHintTextColor(themeColors.textSecondary)
+            setTextColor(themeColors.aiText)
+            setHintTextColor(themeColors.aiText)
             setPadding(0, 8, 0, 24)
         }
         layout.addView(phoneInput)
@@ -176,7 +176,7 @@ class MoneyFusionActivity : BaseActivity() {
         val nameLabel = TextView(this).apply {
             text = "Votre nom"
             textSize = 14f
-            setTextColor(themeColors.textPrimary)
+            setTextColor(themeColors.aiText)
         }
         layout.addView(nameLabel)
 
@@ -184,8 +184,8 @@ class MoneyFusionActivity : BaseActivity() {
             hint = "Ex: Jean Dupont"
             inputType = android.text.InputType.TYPE_CLASS_TEXT or
                     android.text.InputType.TYPE_TEXT_FLAG_CAP_WORDS
-            setTextColor(themeColors.textPrimary)
-            setHintTextColor(themeColors.textSecondary)
+            setTextColor(themeColors.aiText)
+            setHintTextColor(themeColors.aiText)
             setPadding(0, 8, 0, 32)
         }
         layout.addView(nameInput)
@@ -194,7 +194,7 @@ class MoneyFusionActivity : BaseActivity() {
         val statusView = TextView(this).apply {
             text = ""
             textSize = 14f
-            setTextColor(themeColors.textSecondary)
+            setTextColor(themeColors.aiText)
             visibility = View.GONE
         }
         layout.addView(statusView)
@@ -213,7 +213,7 @@ class MoneyFusionActivity : BaseActivity() {
         val noteView = TextView(this).apply {
             text = "\n⚠️ Configurez votre URL API MoneyFusion dans Paramètres → Paiements"
             textSize = 12f
-            setTextColor(themeColors.textSecondary)
+            setTextColor(themeColors.aiText)
         }
         layout.addView(noteView)
 
