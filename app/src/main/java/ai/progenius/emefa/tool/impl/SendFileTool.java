@@ -9,7 +9,8 @@ import android.os.Environment;
 import androidx.core.content.ContextCompat;
 
 import ai.progenius.emefa.EmefaApplication;
-import ai.progenius.emefa.EmefaApplicationKt;
+import ai.progenius.emefa.ClawApplicationKt;
+
 import ai.progenius.emefa.R;
 import ai.progenius.emefa.channel.Channel;
 import ai.progenius.emefa.channel.ChannelManager;
