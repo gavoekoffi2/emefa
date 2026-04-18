@@ -434,7 +434,7 @@ class SettingsActivity : BaseActivity() {
             onClick = {
                 val configured = ai.progenius.emefa.utils.KVUtils.getString("livekit_url", "").isNotEmpty()
                 if (configured) {
-                    ai.progenius.emefa.voice.VoiceManager.getInstance(this).toggleFloatingButton()
+                    ai.progenius.emefa.voice.VoiceManager.showFloatingButton(this)
                 } else {
                     showLiveKitConfigDialog()
                 }
@@ -461,8 +461,8 @@ class SettingsActivity : BaseActivity() {
                 if (!hasOverlay) {
                     startActivity(Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION))
                 } else {
-                    ai.progenius.emefa.voice.VoiceManager.getInstance(this).toggleFloatingButton()
-                    Toast.makeText(this, "Bouton micro activé/désactivé", Toast.LENGTH_SHORT).show()
+                    ai.progenius.emefa.voice.VoiceManager.showFloatingButton(this)
+                    Toast.makeText(this, "Bouton micro activé", Toast.LENGTH_SHORT).show()
                 }
             },
             showDivider = false
