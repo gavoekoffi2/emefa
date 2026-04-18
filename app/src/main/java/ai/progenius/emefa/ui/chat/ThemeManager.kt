@@ -1,17 +1,18 @@
 // Copyright 2026 EMEFA (progenius.ai). All rights reserved.
 // Licensed under the Apache License, Version 2.0.
-
 package ai.progenius.emefa.ui.chat
-
 import android.graphics.Color
 import ai.progenius.emefa.utils.KVUtils
 
 /**
- * Runtime theme color provider.
- * Reads saved theme ID from KVUtils and returns the appropriate colors.
+ * Runtime theme color provider — EMEFA Premium Design System
+ *
+ * Palette identitaire :
+ *   Orange foncé  : #E85D04 / #C94D00
+ *   Bleu nuit     : #080F1E / #1A2B5E / #2563EB
+ *   Blanc/Crème   : #FFFFFF / #F8F9FC
  */
 object ThemeManager {
-
     data class ChatColors(
         val bg: Int,
         val toolbarBg: Int,
@@ -29,111 +30,122 @@ object ThemeManager {
     )
 
     private val themes = mapOf(
-        "ember_dark" to ChatColors(
-            bg = Color.parseColor("#151211"), toolbarBg = Color.parseColor("#1F1A18"),
-            userBubble = Color.parseColor("#D45A30"), userText = Color.parseColor("#FEF2ED"),
-            aiBubble = Color.parseColor("#342C28"), aiBubbleBorder = Color.parseColor("#3D332C"),
-            aiText = Color.parseColor("#E0D5CC"), avatarBg = Color.parseColor("#C0542E"),
-            inputBorder = Color.parseColor("#332B27"), sendColor = Color.parseColor("#E8845A"),
-            toolOk = Color.parseColor("#E8845A"), toolDefault = Color.parseColor("#7A6E64"),
-            divider = Color.parseColor("#2A2220")
+
+        // ── THÈME SOMBRE : Orange + Bleu Nuit (par défaut) ─────────────────
+        "emefa_dark" to ChatColors(
+            bg               = Color.parseColor("#080F1E"),
+            toolbarBg        = Color.parseColor("#0F1829"),
+            userBubble       = Color.parseColor("#C94D00"),
+            userText         = Color.parseColor("#FFFFFF"),
+            aiBubble         = Color.parseColor("#131F35"),
+            aiBubbleBorder   = Color.parseColor("#1E3050"),
+            aiText           = Color.parseColor("#D8E4F0"),
+            avatarBg         = Color.parseColor("#E85D04"),
+            inputBorder      = Color.parseColor("#1A2B45"),
+            sendColor        = Color.parseColor("#E85D04"),
+            toolOk           = Color.parseColor("#E85D04"),
+            toolDefault      = Color.parseColor("#4A6080"),
+            divider          = Color.parseColor("#0F1A2E")
         ),
-        "abyss_dark" to ChatColors(
-            bg = Color.parseColor("#0C111B"), toolbarBg = Color.parseColor("#151D2E"),
-            userBubble = Color.parseColor("#2563EB"), userText = Color.parseColor("#F0F5FF"),
-            aiBubble = Color.parseColor("#1E2D45"), aiBubbleBorder = Color.parseColor("#2A3D5A"),
-            aiText = Color.parseColor("#D0DAE8"), avatarBg = Color.parseColor("#1D4ED8"),
-            inputBorder = Color.parseColor("#1E293B"), sendColor = Color.parseColor("#60A5FA"),
-            toolOk = Color.parseColor("#38BDF8"), toolDefault = Color.parseColor("#475569"),
-            divider = Color.parseColor("#1A2234")
+
+        // ── THÈME CLAIR : Orange + Bleu + Blanc ────────────────────────────
+        "emefa_light" to ChatColors(
+            bg               = Color.parseColor("#F8F9FC"),
+            toolbarBg        = Color.parseColor("#FFFFFF"),
+            userBubble       = Color.parseColor("#E85D04"),
+            userText         = Color.parseColor("#FFFFFF"),
+            aiBubble         = Color.parseColor("#EEF3FC"),
+            aiBubbleBorder   = Color.parseColor("#C8D8F0"),
+            aiText           = Color.parseColor("#1A2B5E"),
+            avatarBg         = Color.parseColor("#1A2B5E"),
+            inputBorder      = Color.parseColor("#D0DCF0"),
+            sendColor        = Color.parseColor("#E85D04"),
+            toolOk           = Color.parseColor("#E85D04"),
+            toolDefault      = Color.parseColor("#8A9AB8"),
+            divider          = Color.parseColor("#E0E8F5")
         ),
-        "moss_dark" to ChatColors(
-            bg = Color.parseColor("#0F1410"), toolbarBg = Color.parseColor("#161E16"),
-            userBubble = Color.parseColor("#2D7A4F"), userText = Color.parseColor("#EEF7F0"),
-            aiBubble = Color.parseColor("#243524"), aiBubbleBorder = Color.parseColor("#334833"),
-            aiText = Color.parseColor("#D0E0D0"), avatarBg = Color.parseColor("#2D7A4F"),
-            inputBorder = Color.parseColor("#233023"), sendColor = Color.parseColor("#6EE7A0"),
-            toolOk = Color.parseColor("#4ADE80"), toolDefault = Color.parseColor("#4A6350"),
-            divider = Color.parseColor("#1C261C")
+
+        // ── THÈME MINUIT : Nuit profonde + Orange lumineux ──────────────────
+        "emefa_midnight" to ChatColors(
+            bg               = Color.parseColor("#020810"),
+            toolbarBg        = Color.parseColor("#080F1E"),
+            userBubble       = Color.parseColor("#D45500"),
+            userText         = Color.parseColor("#FFFFFF"),
+            aiBubble         = Color.parseColor("#0C1628"),
+            aiBubbleBorder   = Color.parseColor("#162440"),
+            aiText           = Color.parseColor("#C8D8EC"),
+            avatarBg         = Color.parseColor("#E85D04"),
+            inputBorder      = Color.parseColor("#101E35"),
+            sendColor        = Color.parseColor("#FF6B1A"),
+            toolOk           = Color.parseColor("#FF6B1A"),
+            toolDefault      = Color.parseColor("#3A5070"),
+            divider          = Color.parseColor("#0A1525")
         ),
-        "onyx_dark" to ChatColors(
-            bg = Color.parseColor("#111111"), toolbarBg = Color.parseColor("#1A1A1A"),
-            userBubble = Color.parseColor("#444444"), userText = Color.parseColor("#F0F0F0"),
-            aiBubble = Color.parseColor("#2C2C2C"), aiBubbleBorder = Color.parseColor("#404040"),
-            aiText = Color.parseColor("#DDDDDD"), avatarBg = Color.parseColor("#444444"),
-            inputBorder = Color.parseColor("#2A2A2A"), sendColor = Color.parseColor("#999999"),
-            toolOk = Color.parseColor("#A3A3A3"), toolDefault = Color.parseColor("#555555"),
-            divider = Color.parseColor("#222222")
-        ),
-        "ember_light" to ChatColors(
-            bg = Color.parseColor("#F5EDE5"), toolbarBg = Color.parseColor("#EDE3DA"),
-            userBubble = Color.parseColor("#C0542E"), userText = Color.parseColor("#FFFFFF"),
-            aiBubble = Color.parseColor("#EAE0D4"), aiBubbleBorder = Color.parseColor("#D8CBBC"),
-            aiText = Color.parseColor("#4A3828"), avatarBg = Color.parseColor("#C0542E"),
-            inputBorder = Color.parseColor("#C8BAB0"), sendColor = Color.parseColor("#C0542E"),
-            toolOk = Color.parseColor("#C0542E"), toolDefault = Color.parseColor("#C4B5A8"),
-            divider = Color.parseColor("#DDD2C6")
-        ),
-        "abyss_light" to ChatColors(
-            bg = Color.parseColor("#E8EDF4"), toolbarBg = Color.parseColor("#DDE4EE"),
-            userBubble = Color.parseColor("#2563EB"), userText = Color.parseColor("#FFFFFF"),
-            aiBubble = Color.parseColor("#D5DFEE"), aiBubbleBorder = Color.parseColor("#B0C0D8"),
-            aiText = Color.parseColor("#334155"), avatarBg = Color.parseColor("#2563EB"),
-            inputBorder = Color.parseColor("#C8D4E4"), sendColor = Color.parseColor("#2563EB"),
-            toolOk = Color.parseColor("#2563EB"), toolDefault = Color.parseColor("#94A3B8"),
-            divider = Color.parseColor("#C8D4E4")
-        ),
-        "moss_light" to ChatColors(
-            bg = Color.parseColor("#E4EFE4"), toolbarBg = Color.parseColor("#D8E8D8"),
-            userBubble = Color.parseColor("#2D7A4F"), userText = Color.parseColor("#FFFFFF"),
-            aiBubble = Color.parseColor("#D0E8D0"), aiBubbleBorder = Color.parseColor("#A8C8A8"),
-            aiText = Color.parseColor("#2A4A2A"), avatarBg = Color.parseColor("#2D7A4F"),
-            inputBorder = Color.parseColor("#B8D0B8"), sendColor = Color.parseColor("#2D7A4F"),
-            toolOk = Color.parseColor("#2D7A4F"), toolDefault = Color.parseColor("#8CB898"),
-            divider = Color.parseColor("#C0D8C0")
-        ),
-        "onyx_light" to ChatColors(
-            bg = Color.parseColor("#E8E8E8"), toolbarBg = Color.parseColor("#DEDEDE"),
-            userBubble = Color.parseColor("#444444"), userText = Color.parseColor("#F5F5F5"),
-            aiBubble = Color.parseColor("#D8D8D8"), aiBubbleBorder = Color.parseColor("#BBBBBB"),
-            aiText = Color.parseColor("#2A2A2A"), avatarBg = Color.parseColor("#444444"),
-            inputBorder = Color.parseColor("#CCCCCC"), sendColor = Color.parseColor("#555555"),
-            toolOk = Color.parseColor("#666666"), toolDefault = Color.parseColor("#BBBBBB"),
-            divider = Color.parseColor("#CCCCCC")
+
+        // ── THÈME BLANC PREMIUM : Blanc pur + Orange + Bleu Royal ──────────
+        "emefa_white" to ChatColors(
+            bg               = Color.parseColor("#FFFFFF"),
+            toolbarBg        = Color.parseColor("#FAFBFF"),
+            userBubble       = Color.parseColor("#E85D04"),
+            userText         = Color.parseColor("#FFFFFF"),
+            aiBubble         = Color.parseColor("#F0F4FF"),
+            aiBubbleBorder   = Color.parseColor("#C0D0F0"),
+            aiText           = Color.parseColor("#0F1E40"),
+            avatarBg         = Color.parseColor("#1A2B5E"),
+            inputBorder      = Color.parseColor("#D8E4F8"),
+            sendColor        = Color.parseColor("#E85D04"),
+            toolOk           = Color.parseColor("#E85D04"),
+            toolDefault      = Color.parseColor("#7A90B8"),
+            divider          = Color.parseColor("#E8EFF8")
         )
     )
 
     fun getColors(): ChatColors {
-        val id = KVUtils.getString("THEME_ID", "ember_dark")
-        return themes[id] ?: themes["ember_dark"]!!
+        val id = KVUtils.getString("THEME_ID", "emefa_dark")
+        return themes[id] ?: themes["emefa_dark"]!!
+    }
+
+    fun getAllThemeIds(): List<String> = themes.keys.toList()
+
+    fun getThemeDisplayName(id: String): String = when (id) {
+        "emefa_dark"     -> "Sombre — Orange & Bleu Nuit"
+        "emefa_light"    -> "Clair — Orange & Bleu & Blanc"
+        "emefa_midnight" -> "Minuit — Nuit Profonde"
+        "emefa_white"    -> "Blanc Premium"
+        else             -> id
     }
 
     fun ChatColors.toComposeColors(): EmefaColors {
         val dark = isDark()
         return EmefaColors(
-            background = androidx.compose.ui.graphics.Color(bg),
-            surface = androidx.compose.ui.graphics.Color(toolbarBg),
-            userBubble = androidx.compose.ui.graphics.Color(userBubble),
-            userText = androidx.compose.ui.graphics.Color(userText),
-            aiBubble = androidx.compose.ui.graphics.Color(aiBubble),
+            background     = androidx.compose.ui.graphics.Color(bg),
+            surface        = androidx.compose.ui.graphics.Color(toolbarBg),
+            userBubble     = androidx.compose.ui.graphics.Color(userBubble),
+            userText       = androidx.compose.ui.graphics.Color(userText),
+            aiBubble       = androidx.compose.ui.graphics.Color(aiBubble),
             aiBubbleBorder = androidx.compose.ui.graphics.Color(aiBubbleBorder),
-            aiText = androidx.compose.ui.graphics.Color(aiText),
-            avatar = androidx.compose.ui.graphics.Color(avatarBg),
-            accent = androidx.compose.ui.graphics.Color(sendColor),
-            // Warm grays to match ember palette (never cool blue-purple)
-            textPrimary = if (dark) androidx.compose.ui.graphics.Color(0xFFF0EAE4.toInt())
-                          else androidx.compose.ui.graphics.Color(0xFF2C2218.toInt()),
-            textSecondary = if (dark) androidx.compose.ui.graphics.Color(0xFFB0A89E.toInt())
-                            else androidx.compose.ui.graphics.Color(0xFF6B5D52.toInt()),
-            textTertiary = if (dark) androidx.compose.ui.graphics.Color(0xFF7A6E64.toInt())
-                           else androidx.compose.ui.graphics.Color(0xFFA09488.toInt()),
-            divider = androidx.compose.ui.graphics.Color(divider),
-            inputBorder = androidx.compose.ui.graphics.Color(inputBorder),
+            aiText         = androidx.compose.ui.graphics.Color(aiText),
+            avatar         = androidx.compose.ui.graphics.Color(avatarBg),
+            accent         = androidx.compose.ui.graphics.Color(sendColor),
+            textPrimary    = if (dark)
+                                 androidx.compose.ui.graphics.Color(0xFFF0EEF8.toInt())
+                             else
+                                 androidx.compose.ui.graphics.Color(0xFF0F1E40.toInt()),
+            textSecondary  = if (dark)
+                                 androidx.compose.ui.graphics.Color(0xFFA0B4CC.toInt())
+                             else
+                                 androidx.compose.ui.graphics.Color(0xFF3A5070.toInt()),
+            textTertiary   = if (dark)
+                                 androidx.compose.ui.graphics.Color(0xFF506880.toInt())
+                             else
+                                 androidx.compose.ui.graphics.Color(0xFF7A90B8.toInt()),
+            divider        = androidx.compose.ui.graphics.Color(divider),
+            inputBorder    = androidx.compose.ui.graphics.Color(inputBorder),
         )
     }
 
     fun isDark(): Boolean {
-        val id = KVUtils.getString("THEME_ID", "ember_dark")
-        return id.endsWith("_dark")
+        val id = KVUtils.getString("THEME_ID", "emefa_dark")
+        return id == "emefa_dark" || id == "emefa_midnight"
     }
 }

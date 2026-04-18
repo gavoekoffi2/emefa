@@ -732,7 +732,7 @@ public class ClawAccessibilityService extends AccessibilityService {
                 @SuppressWarnings("deprecation")
                 android.os.PowerManager.WakeLock wl = pm.newWakeLock(
                         android.os.PowerManager.SCREEN_DIM_WAKE_LOCK | android.os.PowerManager.ACQUIRE_CAUSES_WAKEUP,
-                        "PokeClaw:unlock"
+                        "EMEFA:unlock"
                 );
                 wl.acquire(3000);
                 wl.release();

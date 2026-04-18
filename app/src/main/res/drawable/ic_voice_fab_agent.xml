@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <!-- Icône haut-parleur EMEFA - l'assistante parle (bleu) -->
+    <path
+        android:fillColor="#2196F3"
+        android:pathData="M8,18 L8,30 L16,30 L28,42 L28,6 L16,18 Z" />
+    <path
+        android:fillColor="#2196F3"
+        android:pathData="M34.5,24 C34.5,19.8 32.1,16.2 28.5,14.4 L28.5,33.5 C32.1,31.8 34.5,28.2 34.5,24 Z" />
+    <path
+        android:fillColor="#2196F3"
+        android:pathData="M28.5,8.1 L28.5,11.8 C34.8,13.8 39.5,19.5 39.5,24 C39.5,28.5 34.8,34.2 28.5,36.2 L28.5,39.9 C36.9,37.7 43.5,31.5 43.5,24 C43.5,16.5 36.9,10.3 28.5,8.1 Z" />
+</vector>

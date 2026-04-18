@@ -17,6 +17,12 @@ import androidx.compose.runtime.collectAsState
 import ai.progenius.emefa.agent.llm.ModelConfigRepository
 import ai.progenius.emefa.appViewModel
 import ai.progenius.emefa.floating.FloatingCircleManager
+import ai.progenius.emefa.voice.VoiceManager
+import ai.progenius.emefa.utils.LanguageManager
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import ai.progenius.emefa.ui.settings.LlmConfigActivity
 import ai.progenius.emefa.ui.settings.SettingsActivity
 import ai.progenius.emefa.utils.KVUtils
@@ -31,10 +37,19 @@ import java.util.concurrent.Executors
  */
 class ComposeChatActivity : ComponentActivity() {
 
+    /**
+     * Applique la langue AVANT que l'activité ne charge ses ressources.
+     * Nécessaire car ComposeChatActivity hérite de ComponentActivity (pas BaseActivity).
+     */
+    override fun attachBaseContext(newBase: android.content.Context) {
+        super.attachBaseContext(LanguageManager.applyLanguage(newBase))
+    }
+
     companion object {
         private const val TAG = "ComposeChatActivity"
         private const val EXTRA_TASK = "task"
         private const val EXTRA_CHAT = "chat"
+        private const val REQUEST_RECORD_AUDIO = 101
     }
 
     private val executor = Executors.newSingleThreadExecutor()
@@ -125,6 +140,8 @@ class ComposeChatActivity : ComponentActivity() {
 
         // Check for updates
         ai.progenius.emefa.utils.UpdateChecker.checkForUpdate(this)
+        // Initialiser le bouton flottant vocal EMEFA
+        initVoiceFloatingButton()
 
         // Status bar color
         val themeColors = ThemeManager.getColors()
@@ -267,6 +284,43 @@ class ComposeChatActivity : ComponentActivity() {
         super.onDestroy()
         chatSessionController.onDestroy()
         executor.shutdown()
+        VoiceManager.cleanup()
+    }
+
+    // ==================== VOICE ====================
+    private fun initVoiceFloatingButton() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
+            != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(Manifest.permission.RECORD_AUDIO),
+                REQUEST_RECORD_AUDIO
+            )
+        } else {
+            setupVoiceButton()
+        }
+    }
+
+    private fun setupVoiceButton() {
+        VoiceManager.init(this)
+        if (VoiceManager.canDrawOverlays(this)) {
+            VoiceManager.showFloatingButton(this)
+        } else {
+            VoiceManager.requestOverlayPermission(this)
+        }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == REQUEST_RECORD_AUDIO &&
+            grantResults.isNotEmpty() &&
+            grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+            setupVoiceButton()
+        }
     }
 
     // ==================== CHAT ====================

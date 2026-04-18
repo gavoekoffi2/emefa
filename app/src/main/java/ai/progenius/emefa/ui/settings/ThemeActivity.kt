@@ -29,13 +29,15 @@ class ThemeActivity : BaseActivity() {
         val accent: Int
     )
 
-    // Only expose ember (brand color). Other themes kept in ThemeManager for future use.
+    // Thèmes EMEFA : Orange foncé + Bleu Nuit
     private val themes = listOf(
-        ThemeConfig("ember_dark", "Dark", true, Color.parseColor("#141010"), Color.parseColor("#D45A30"), Color.parseColor("#352A25"), Color.parseColor("#C0542E"), Color.parseColor("#2E2623"), Color.parseColor("#E8845A")),
-        ThemeConfig("ember_light", "Light", false, Color.parseColor("#F0E8E0"), Color.parseColor("#C0542E"), Color.parseColor("#E6D8CA"), Color.parseColor("#C0542E"), Color.parseColor("#D0C4B8"), Color.parseColor("#C0542E")),
+        ThemeConfig("emefa_dark",     "Sombre",         true,  Color.parseColor("#080F1E"), Color.parseColor("#C94D00"), Color.parseColor("#131F35"), Color.parseColor("#E85D04"), Color.parseColor("#0F1829"), Color.parseColor("#E85D04")),
+        ThemeConfig("emefa_light",    "Clair",          false, Color.parseColor("#F8F9FC"), Color.parseColor("#E85D04"), Color.parseColor("#EEF3FC"), Color.parseColor("#1A2B5E"), Color.parseColor("#FFFFFF"), Color.parseColor("#E85D04")),
+        ThemeConfig("emefa_midnight", "Minuit",         true,  Color.parseColor("#020810"), Color.parseColor("#D45500"), Color.parseColor("#0C1628"), Color.parseColor("#E85D04"), Color.parseColor("#080F1E"), Color.parseColor("#FF6B1A")),
+        ThemeConfig("emefa_white",    "Blanc Premium",  false, Color.parseColor("#FFFFFF"), Color.parseColor("#E85D04"), Color.parseColor("#F0F4FF"), Color.parseColor("#1A2B5E"), Color.parseColor("#FAFBFF"), Color.parseColor("#E85D04")),
     )
 
-    private var selectedThemeId = "ember_dark"
+    private var selectedThemeId = "emefa_dark"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -58,12 +60,13 @@ class ThemeActivity : BaseActivity() {
         }
         findViewById<TextView>(R.id.tvCurrentTheme)?.setTextColor(tc.aiText)
 
-        selectedThemeId = KVUtils.getString("THEME_ID", "ember_dark")
+        selectedThemeId = KVUtils.getString("THEME_ID", "emefa_dark")
 
-        val viewIds = listOf(R.id.themeEmberDark, R.id.themeEmberLight)
-        // Hide other theme previews
-        listOf(R.id.themeAbyssDark, R.id.themeMossDark, R.id.themeOnyxDark,
-               R.id.themeAbyssLight, R.id.themeMossLight, R.id.themeOnyxLight).forEach {
+        // Utiliser les 2 premiers slots de prévisualisation disponibles
+        val viewIds = listOf(R.id.themeEmberDark, R.id.themeEmberLight, R.id.themeAbyssDark, R.id.themeAbyssLight)
+        // Masquer les autres prévisualisations non utilisées
+        listOf(R.id.themeMossDark, R.id.themeOnyxDark,
+               R.id.themeMossLight, R.id.themeOnyxLight).forEach {
             findViewById<View>(it)?.visibility = View.GONE
         }
 

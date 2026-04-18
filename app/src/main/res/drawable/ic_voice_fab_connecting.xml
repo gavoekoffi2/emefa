@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <!-- Icône micro EMEFA - connexion en cours (orange) -->
+    <path
+        android:fillColor="#FF9800"
+        android:pathData="M24,6 C20.69,6 18,8.69 18,12 L18,24 C18,27.31 20.69,30 24,30 C27.31,30 30,27.31 30,24 L30,12 C30,8.69 27.31,6 24,6 Z" />
+    <path
+        android:fillColor="#FF9800"
+        android:pathData="M36,24 C36,30.63 30.63,36 24,36 C17.37,36 12,30.63 12,24 L8,24 C8,32.84 14.84,40.12 24,41.8 L24,46 L28,46 L28,41.8 C37.16,40.12 44,32.84 44,24 Z" />
+</vector>

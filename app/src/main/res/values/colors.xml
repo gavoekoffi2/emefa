@@ -25,21 +25,21 @@
     <color name="colorContainerHighest">#FFD1D1D6</color>
     <color name="colorContainerInverse">#FF2C2C2E</color>
 
-    <!-- Backgrounds - EMEFA Dark Premium -->
-    <color name="colorBgPrimary">#FF0C111B</color>
-    <color name="colorBgSecondary">#FF151D2E</color>
-    <color name="colorBgTertiary">#FF1A2438</color>
+    <!-- Backgrounds - EMEFA Dark Premium (Bleu nuit profond) -->
+    <color name="colorBgPrimary">#FF080F1E</color>
+    <color name="colorBgSecondary">#FF0F1829</color>
+    <color name="colorBgTertiary">#FF131F35</color>
 
-    <!-- Chat EMEFA -->
-    <color name="colorChatUserBubble">#FF1A2B5E</color>
-    <color name="colorChatAiBubble">#FFFFF3E8</color>
-    <color name="colorChatAiBubbleBorder">#FFFFD0A0</color>
+    <!-- Chat EMEFA : Orange foncé + Bleu nuit -->
+    <color name="colorChatUserBubble">#FFC94D00</color>
+    <color name="colorChatAiBubble">#FF131F35</color>
+    <color name="colorChatAiBubbleBorder">#FF1E3050</color>
     <color name="colorChatAvatarBg">#FFE85D04</color>
-    <color name="colorChatInputBorder">#FFD0D8F0</color>
+    <color name="colorChatInputBorder">#FF1A2B45</color>
     <color name="colorChatSendText">#FFE85D04</color>
     <color name="colorChatToolOk">#FFE85D04</color>
-    <color name="colorChatToolDefault">#FF7A8DB0</color>
-    <color name="colorChatDivider">#FFE8EEFF</color>
+    <color name="colorChatToolDefault">#FF4A6080</color>
+    <color name="colorChatDivider">#FF0F1A2E</color>
 
     <!-- Borders & Dividers -->
     <color name="colorBorderLow">#0A000000</color>
