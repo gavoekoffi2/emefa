@@ -135,7 +135,7 @@ class SettingsActivity : BaseActivity() {
         val groups = listOf(
             R.id.permissionsGroup, R.id.channelGroup, R.id.modelGroup,
             R.id.appearanceGroup, R.id.toolsGroup, R.id.remoteGroup,
-            R.id.assistantsGroup, R.id.paymentsGroup, R.id.knowledgeGroup, R.id.aboutGroup
+            R.id.assistantsGroup, R.id.paymentsGroup, R.id.knowledgeGroup, R.id.voiceGroup, R.id.aboutGroup
         )
         for (id in groups) {
             val g = findViewById<MenuGroup>(id) ?: continue
@@ -425,6 +425,51 @@ class SettingsActivity : BaseActivity() {
             setTrailingText("Via MoneyFusion")
         }
 
+        // Voix / LiveKit
+        val voiceGroup = findViewById<MenuGroup>(R.id.voiceGroup)
+        voiceGroup.setTitle("🎙️ Voix & Conversations")
+        voiceGroup.addMenuItem(
+            leadingIcon = android.R.drawable.ic_btn_speak_now,
+            title = "Activer la Voix (LiveKit)",
+            onClick = {
+                val configured = ai.progenius.emefa.utils.KVUtils.getString("livekit_url", "").isNotEmpty()
+                if (configured) {
+                    ai.progenius.emefa.voice.VoiceManager.getInstance(this).toggleFloatingButton()
+                } else {
+                    showLiveKitConfigDialog()
+                }
+            },
+            showDivider = true
+        ).apply {
+            val configured = ai.progenius.emefa.utils.KVUtils.getString("livekit_url", "").isNotEmpty()
+            setTrailingText(if (configured) "✅ Activé" else "Configurer")
+        }
+        voiceGroup.addMenuItem(
+            leadingIcon = android.R.drawable.ic_menu_edit,
+            title = "Configurer LiveKit Cloud",
+            onClick = { showLiveKitConfigDialog() },
+            showDivider = true
+        ).apply {
+            val url = ai.progenius.emefa.utils.KVUtils.getString("livekit_url", "")
+            setTrailingText(if (url.isNotEmpty()) url.take(30) + "..." else "Non configuré")
+        }
+        voiceGroup.addMenuItem(
+            leadingIcon = android.R.drawable.ic_menu_info_details,
+            title = "Bouton flottant micro",
+            onClick = {
+                val hasOverlay = android.provider.Settings.canDrawOverlays(this)
+                if (!hasOverlay) {
+                    startActivity(Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION))
+                } else {
+                    ai.progenius.emefa.voice.VoiceManager.getInstance(this).toggleFloatingButton()
+                    Toast.makeText(this, "Bouton micro activé/désactivé", Toast.LENGTH_SHORT).show()
+                }
+            },
+            showDivider = false
+        ).apply {
+            setTrailingText("Appuyer pour parler")
+        }
+
           // About
         val aboutGroup = findViewById<MenuGroup>(R.id.aboutGroup)
         aboutGroup.setTitle(getString(R.string.settings_group_about))
@@ -694,6 +739,63 @@ class SettingsActivity : BaseActivity() {
                 }
             }
             .setNegativeButton(getString(R.string.btn_cancel), null)
+            .show()
+    }
+
+    private fun showLiveKitConfigDialog() {
+        val currentUrl = ai.progenius.emefa.utils.KVUtils.getString("livekit_url", "")
+        val currentKey = ai.progenius.emefa.utils.KVUtils.getString("livekit_api_key", "")
+        val currentSecret = ai.progenius.emefa.utils.KVUtils.getString("livekit_api_secret", "")
+
+        val layout = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding(48, 32, 48, 16)
+        }
+        val urlInput = android.widget.EditText(this).apply {
+            hint = "URL LiveKit (ex: wss://xxx.livekit.cloud)"
+            setText(currentUrl)
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_URI
+        }
+        val keyInput = android.widget.EditText(this).apply {
+            hint = "API Key"
+            setText(currentKey)
+        }
+        val secretInput = android.widget.EditText(this).apply {
+            hint = "API Secret"
+            setText(currentSecret)
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+        }
+        layout.addView(android.widget.TextView(this).apply { text = "URL du serveur LiveKit :" })
+        layout.addView(urlInput)
+        layout.addView(android.widget.TextView(this).apply { text = "API Key :" })
+        layout.addView(keyInput)
+        layout.addView(android.widget.TextView(this).apply { text = "API Secret :" })
+        layout.addView(secretInput)
+        layout.addView(android.widget.TextView(this).apply {
+            text = "💡 Obtenez vos clés gratuitement sur cloud.livekit.io"
+            setTextColor(android.graphics.Color.parseColor("#60A5FA"))
+            textSize = 12f
+            setPadding(0, 12, 0, 0)
+        })
+
+        android.app.AlertDialog.Builder(this)
+            .setTitle("🎙️ Configuration Voix LiveKit")
+            .setView(layout)
+            .setPositiveButton("Enregistrer") { _, _ ->
+                val url = urlInput.text.toString().trim()
+                val key = keyInput.text.toString().trim()
+                val secret = secretInput.text.toString().trim()
+                if (url.isNotEmpty()) {
+                    ai.progenius.emefa.utils.KVUtils.putString("livekit_url", url)
+                    ai.progenius.emefa.utils.KVUtils.putString("livekit_api_key", key)
+                    ai.progenius.emefa.utils.KVUtils.putString("livekit_api_secret", secret)
+                    Toast.makeText(this, "✅ Configuration LiveKit enregistrée !", Toast.LENGTH_SHORT).show()
+                    recreate()
+                } else {
+                    Toast.makeText(this, "L'URL est obligatoire", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("Annuler", null)
             .show()
     }
 }

@@ -32,6 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import ai.progenius.emefa.R
 import ai.progenius.emefa.agent.skill.Skill
 import ai.progenius.emefa.agent.skill.SkillCategory
@@ -413,7 +414,7 @@ private fun ChatTopBar(
             },
             navigationIcon = {
                 IconButton(onClick = onMenuClick) {
-                    Icon(Icons.Default.Menu, contentDescription = "Menu")
+                    Icon(Icons.Default.Menu, contentDescription = stringResource(R.string.chat_menu))
                 }
             },
             actions = {
@@ -425,7 +426,7 @@ private fun ChatTopBar(
                     border = if (selectedTab == "local") androidx.compose.foundation.BorderStroke(1.dp, colors.aiBubbleBorder) else null,
                 ) {
                     Text(
-                        "Local",
+                        stringResource(R.string.chat_local_model),
                         fontSize = 12.sp,
                         color = if (selectedTab == "local") colors.accent else colors.textTertiary,
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
@@ -439,14 +440,14 @@ private fun ChatTopBar(
                     border = if (selectedTab == "cloud") androidx.compose.foundation.BorderStroke(1.dp, colors.aiBubbleBorder) else null,
                 ) {
                     Text(
-                        "Cloud",
+                        stringResource(R.string.chat_cloud_model),
                         fontSize = 12.sp,
                         color = if (selectedTab == "cloud") colors.accent else colors.textTertiary,
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
                     )
                 }
                 IconButton(onClick = onSettings) {
-                    Icon(Icons.Default.Settings, contentDescription = "Settings")
+                    Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.chat_settings))
                 }
             },
             colors = TopAppBarDefaults.topAppBarColors(
@@ -475,7 +476,7 @@ private fun ChatTopBar(
             Spacer(Modifier.width(4.dp))
             Icon(
                 Icons.Default.UnfoldMore,
-                contentDescription = "Switch model",
+                contentDescription = stringResource(R.string.chat_switch_model),
                 tint = colors.textTertiary,
                 modifier = Modifier.size(12.dp),
             )
@@ -540,13 +541,13 @@ private fun ChatTopBar(
                     } else {
                         // No API key configured
                         DropdownMenuItem(
-                            text = { Text("No API key configured", fontSize = 13.sp, color = colors.textTertiary) },
+                            text = { Text(stringResource(R.string.chat_no_api_key), fontSize = 13.sp, color = colors.textTertiary) },
                             onClick = { showModelMenu = false; onSettings() },
                         )
                     }
                     HorizontalDivider()
                     DropdownMenuItem(
-                        text = { Text("Configure API key...", fontSize = 13.sp, color = colors.accent) },
+                        text = { Text(stringResource(R.string.chat_configure_api_key), fontSize = 13.sp, color = colors.accent) },
                         onClick = { showModelMenu = false; onSettings() },
                     )
                 } else {
@@ -573,13 +574,13 @@ private fun ChatTopBar(
                         )
                     } else {
                         DropdownMenuItem(
-                            text = { Text("No local model downloaded", fontSize = 13.sp, color = colors.textTertiary) },
+                            text = { Text(stringResource(R.string.chat_no_local_model), fontSize = 13.sp, color = colors.textTertiary) },
                             onClick = { showModelMenu = false; onSettings() },
                         )
                     }
                     HorizontalDivider()
                     DropdownMenuItem(
-                        text = { Text("Download models...", fontSize = 13.sp, color = colors.accent) },
+                        text = { Text(stringResource(R.string.chat_download_models), fontSize = 13.sp, color = colors.accent) },
                         onClick = { showModelMenu = false; onSettings() },
                     )
                 }
@@ -610,7 +611,7 @@ private fun PermissionBanner(onClick: () -> Unit, colors: EmefaColors) {
             Icon(Icons.Outlined.Shield, contentDescription = null, tint = colors.accent, modifier = Modifier.size(20.dp))
             Spacer(Modifier.width(8.dp))
             Text(
-                "Permissions needed. Tap to fix.",
+                stringResource(R.string.chat_permissions_needed),
                 color = colors.accent,
                 fontSize = 13.sp,
                 modifier = Modifier.weight(1f),
@@ -930,9 +931,9 @@ private fun ChatInputBar(
                 placeholder = {
                     Text(
                         when {
-                            isLocalModel && isTaskMode -> "Describe a phone task..."
-                            !isLocalModel -> "Chat or give a task..."
-                            else -> "Chat with local AI..."
+                            isLocalModel && isTaskMode -> stringResource(R.string.chat_hint_task_local)
+                            !isLocalModel -> stringResource(R.string.chat_hint_cloud)
+                            else -> stringResource(R.string.chat_hint_local)
                         },
                         color = if (isTaskMode && isLocalModel) colors.accent.copy(alpha = 0.5f) else colors.textTertiary,
                         fontSize = 14.sp,
@@ -995,9 +996,9 @@ private fun ChatInputBar(
                         else -> Icons.Default.ArrowUpward
                     },
                     contentDescription = when {
-                        isTaskRunning -> "Stop"
-                        isAwaitingReply -> "Waiting for reply"
-                        else -> "Send"
+                        isTaskRunning -> stringResource(R.string.chat_stop)
+                        isAwaitingReply -> stringResource(R.string.chat_waiting)
+                        else -> stringResource(R.string.chat_send)
                     },
                     tint = Color.White,
                     modifier = Modifier.size(14.dp),
@@ -1046,14 +1047,14 @@ private fun SkillShortcutBar(
                 )
                 Spacer(Modifier.width(6.dp))
                 Text(
-                    "Skills",
+                    stringResource(R.string.chat_skills),
                     fontSize = 12.sp,
                     color = colors.textTertiary,
                     modifier = Modifier.weight(1f),
                 )
                 Icon(
                     if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                    contentDescription = if (expanded) "Collapse" else "Expand",
+                    contentDescription = if (expanded) stringResource(R.string.chat_collapse) else stringResource(R.string.chat_expand),
                     tint = colors.textTertiary,
                     modifier = Modifier.size(16.dp),
                 )
@@ -1138,14 +1139,14 @@ private fun DownloadOverlay(progress: Int, colors: EmefaColors) {
                 )
                 Spacer(Modifier.height(16.dp))
                 Text(
-                    "Downloading your AI brain",
+                    stringResource(R.string.chat_downloading_brain),
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     color = colors.textPrimary,
                 )
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    "This only happens once",
+                    stringResource(R.string.chat_downloading_once),
                     fontSize = 13.sp,
                     color = colors.textTertiary,
                 )
@@ -1365,13 +1366,13 @@ private fun QuickTasksPanel(
         ) {
             Icon(
                 if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                contentDescription = "Toggle",
+                contentDescription = stringResource(R.string.chat_toggle),
                 tint = colors.accent,
                 modifier = Modifier.size(12.dp),
             )
             Spacer(Modifier.width(6.dp))
             Text(
-                "Quick Task Templates",
+                stringResource(R.string.chat_quick_tasks),
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Medium,
                 color = colors.accent,
@@ -1467,13 +1468,13 @@ private fun QuickTasksPanel(
                         Spacer(Modifier.width(8.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                if (monitorActive) "Active" else "Monitor & Auto-Reply",
+                                if (monitorActive) stringResource(R.string.chat_monitor_active) else stringResource(R.string.chat_monitor_start),
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = colors.textPrimary,
                             )
                             Text(
-                                if (monitorActive) "Monitoring active — use the top bar to stop" else "Watch messages and reply automatically",
+                                if (monitorActive) stringResource(R.string.chat_monitor_running) else stringResource(R.string.chat_monitor_desc),
                                 fontSize = 9.sp,
                                 color = colors.textTertiary,
                             )
@@ -1526,7 +1527,7 @@ private fun SidebarContent(
                         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.Edit, contentDescription = null, tint = colors.textPrimary, modifier = Modifier.size(20.dp))
                             Spacer(Modifier.width(12.dp))
-                            Text("Rename", color = colors.textPrimary)
+                            Text(stringResource(R.string.chat_rename), color = colors.textPrimary)
                         }
                     }
                     TextButton(
@@ -1539,14 +1540,14 @@ private fun SidebarContent(
                         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.Delete, contentDescription = null, tint = Color(0xFFF87171), modifier = Modifier.size(20.dp))
                             Spacer(Modifier.width(12.dp))
-                            Text("Delete", color = Color(0xFFF87171))
+                            Text(stringResource(R.string.chat_delete), color = Color(0xFFF87171))
                         }
                     }
                 }
             },
             confirmButton = {},
             dismissButton = {
-                TextButton(onClick = { actionTarget = null }) { Text("Cancel", color = colors.textSecondary) }
+                TextButton(onClick = { actionTarget = null }) { Text(stringResource(R.string.chat_cancel), color = colors.textSecondary) }
             },
             containerColor = colors.surface,
         )
@@ -1556,16 +1557,16 @@ private fun SidebarContent(
     if (deleteTarget != null) {
         AlertDialog(
             onDismissRequest = { deleteTarget = null },
-            title = { Text("Delete conversation?", color = colors.textPrimary) },
+            title = { Text(stringResource(R.string.chat_delete_confirm_title), color = colors.textPrimary) },
             text = { Text(deleteTarget!!.title, color = colors.textSecondary, maxLines = 2, overflow = TextOverflow.Ellipsis) },
             confirmButton = {
                 TextButton(onClick = {
                     onDeleteConversation(deleteTarget!!)
                     deleteTarget = null
-                }) { Text("Delete", color = Color(0xFFF87171)) }
+                }) { Text(stringResource(R.string.chat_delete), color = Color(0xFFF87171)) }
             },
             dismissButton = {
-                TextButton(onClick = { deleteTarget = null }) { Text("Cancel", color = colors.textSecondary) }
+                TextButton(onClick = { deleteTarget = null }) { Text(stringResource(R.string.chat_cancel), color = colors.textSecondary) }
             },
             containerColor = colors.surface,
         )
@@ -1575,7 +1576,7 @@ private fun SidebarContent(
     if (renameTarget != null) {
         AlertDialog(
             onDismissRequest = { renameTarget = null },
-            title = { Text("Rename conversation", color = colors.textPrimary) },
+            title = { Text(stringResource(R.string.chat_rename_title), color = colors.textPrimary) },
             text = {
                 androidx.compose.material3.OutlinedTextField(
                     value = renameText,
@@ -1598,7 +1599,7 @@ private fun SidebarContent(
                         onRenameConversation(renameTarget!!, newName)
                     }
                     renameTarget = null
-                }) { Text("Save", color = colors.accent) }
+                }) { Text(stringResource(R.string.chat_save), color = colors.accent) }
             },
             dismissButton = {
                 TextButton(onClick = { renameTarget = null }) { Text("Cancel", color = colors.textSecondary) }

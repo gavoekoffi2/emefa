@@ -71,6 +71,12 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content" />
 
+            <!-- Voix / LiveKit -->
+            <ai.progenius.emefa.widget.MenuGroup
+                android:id="@+id/voiceGroup"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+
             <!-- About -->
             <ai.progenius.emefa.widget.MenuGroup
                 android:id="@+id/aboutGroup"
