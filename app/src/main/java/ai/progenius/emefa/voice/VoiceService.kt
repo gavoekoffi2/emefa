@@ -12,9 +12,6 @@ import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import io.livekit.android.LiveKit
-import io.livekit.android.LiveKitOverrides
-import io.livekit.android.RoomOptions
-import io.livekit.android.audio.AudioSwitchHandler
 import io.livekit.android.events.RoomEvent
 import io.livekit.android.events.collect
 import io.livekit.android.room.Room
@@ -32,7 +29,6 @@ import ai.progenius.emefa.ui.chat.ComposeChatActivity
 
 /**
  * Service de conversation vocale EMEFA via LiveKit
- * Fonctionne en arrière-plan, accessible depuis tout l'app via le bouton flottant
  */
 class VoiceService : Service() {
 
@@ -65,13 +61,11 @@ class VoiceService : Service() {
         }
     }
 
-    // État de la session vocale
     sealed class VoiceState {
         object Idle : VoiceState()
         object Connecting : VoiceState()
         object Connected : VoiceState()
-        object Speaking : VoiceState()       // L'utilisateur parle
-        object AgentSpeaking : VoiceState()  // L'assistante répond
+        object AgentSpeaking : VoiceState()
         data class Error(val message: String) : VoiceState()
     }
 
@@ -106,12 +100,8 @@ class VoiceService : Service() {
                 startForeground(NOTIFICATION_ID, buildNotification("Connexion..."))
                 connectToRoom(url, token)
             }
-            ACTION_STOP -> {
-                disconnectAndStop()
-            }
-            ACTION_MUTE -> {
-                toggleMute()
-            }
+            ACTION_STOP -> disconnectAndStop()
+            ACTION_MUTE -> toggleMute()
         }
         return START_NOT_STICKY
     }
@@ -120,32 +110,22 @@ class VoiceService : Service() {
         serviceScope.launch {
             try {
                 _state.value = VoiceState.Connecting
-                updateNotification("Connexion à EMEFA...")
+                updateNotification("Connexion a EMEFA...")
 
-                // Créer la room LiveKit
-                val newRoom = LiveKit.create(
-                    appContext = applicationContext,
-                    overrides = LiveKitOverrides(
-                        audioHandler = AudioSwitchHandler(applicationContext)
-                    )
-                )
+                val newRoom = LiveKit.create(appContext = applicationContext)
                 room = newRoom
 
-                // Écouter les événements de la room
                 roomEventsJob = launch {
                     newRoom.events.collect { event ->
                         handleRoomEvent(event)
                     }
                 }
 
-                // Se connecter à la room
                 newRoom.connect(url, token)
-
-                // Activer le micro
                 newRoom.localParticipant.setMicrophoneEnabled(true)
 
                 _state.value = VoiceState.Connected
-                updateNotification("EMEFA à l'écoute...")
+                updateNotification("EMEFA a l'ecoute...")
 
             } catch (e: Exception) {
                 _state.value = VoiceState.Error(e.message ?: "Erreur de connexion")
@@ -157,15 +137,13 @@ class VoiceService : Service() {
     private fun handleRoomEvent(event: RoomEvent) {
         when (event) {
             is RoomEvent.TrackSubscribed -> {
-                // L'agent a commencé à parler
                 _state.value = VoiceState.AgentSpeaking
-                updateNotification("EMEFA répond...")
+                updateNotification("EMEFA repond...")
             }
             is RoomEvent.TrackUnsubscribed -> {
-                // L'agent a fini de parler
                 if (_state.value == VoiceState.AgentSpeaking) {
                     _state.value = VoiceState.Connected
-                    updateNotification("EMEFA à l'écoute...")
+                    updateNotification("EMEFA a l'ecoute...")
                 }
             }
             is RoomEvent.Disconnected -> {
@@ -181,7 +159,7 @@ class VoiceService : Service() {
             val newMuted = !_isMuted.value
             _isMuted.value = newMuted
             room?.localParticipant?.setMicrophoneEnabled(!newMuted)
-            updateNotification(if (newMuted) "Micro coupé" else "EMEFA à l'écoute...")
+            updateNotification(if (newMuted) "Micro coupe" else "EMEFA a l'ecoute...")
         }
     }
 
@@ -212,7 +190,7 @@ class VoiceService : Service() {
                 "EMEFA Voix",
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Session vocale avec l'assistante EMEFA"
+                description = "Session vocale avec EMEFA"
                 setShowBadge(false)
             }
             getSystemService(NotificationManager::class.java)
@@ -232,11 +210,11 @@ class VoiceService : Service() {
             PendingIntent.FLAG_IMMUTABLE
         )
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("EMEFA — Assistante vocale")
+            .setContentTitle("EMEFA - Assistante vocale")
             .setContentText(text)
             .setSmallIcon(R.mipmap.ic_launcher)
             .setContentIntent(mainIntent)
-            .addAction(R.drawable.ic_close, "Terminer", stopIntent)
+            .addAction(0, "Terminer", stopIntent)
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .build()
