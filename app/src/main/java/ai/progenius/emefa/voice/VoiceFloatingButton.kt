@@ -150,11 +150,6 @@ class VoiceFloatingButton(
                     view.setImageResource(R.drawable.ic_voice_fab_active)
                     view.alpha = 1.0f
                 }
-                is VoiceState.Speaking -> {
-                    startPulse(view, slow = false)
-                    view.setImageResource(R.drawable.ic_voice_fab_active)
-                    view.alpha = 1.0f
-                }
                 is VoiceState.AgentSpeaking -> {
                     startPulse(view, slow = false)
                     view.setImageResource(R.drawable.ic_voice_fab_agent)
