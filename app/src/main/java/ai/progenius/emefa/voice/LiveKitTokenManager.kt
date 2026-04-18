@@ -1,6 +1,6 @@
 package ai.progenius.emefa.voice
 
-import ai.progenius.emefa.KVUtils
+import ai.progenius.emefa.utils.KVUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
