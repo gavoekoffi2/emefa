@@ -1311,6 +1311,19 @@ private fun QuickTasksPanel(
 ) {
     var expanded by remember { mutableStateOf(true) }
 
+    // Cas d'usage administratifs à haute valeur
+    val adminTasks = listOf(
+        "📊 Crée un tableau Excel de suivi des dépenses mensuelles",
+        "💳 Génère une facture professionnelle pour une prestation de 150 000 FCFA",
+        "📝 Rédige un contrat de travail pour un employé à durée déterminée",
+        "📅 Crée un planning hebdomadaire pour mon équipe de 5 personnes",
+        "💼 Rédige un rapport d'activité mensuel pour ma direction",
+        "💹 Analyse ce tableau de chiffres et dis-moi si mon entreprise est rentable",
+        "📧 Rédige une lettre de relance pour un client qui n'a pas payé",
+        "📈 Crée un tableau de bord pour suivre mes indicateurs de performance",
+        "🧑‍💼 Rédige une offre d'emploi pour recruter un commercial",
+        "📝 Prépare un compte-rendu de réunion avec les points clés et les décisions",
+    )
     // Cas d'usage professionnels Cloud (multi-étapes, IA cloud)
     val cloudOnlyTasks = listOf(
         "💼 Rédige un email professionnel pour un client qui attend sa commande",
@@ -1341,12 +1354,12 @@ private fun QuickTasksPanel(
         "📲 Quelle version d'Android j'utilise ?",
         "📋 Lis mon presse-papiers et explique ce que c'est",
     )
-    // Cloud: cloud-only → reasoning → deterministic
-    // Local: reasoning first (impressive) → deterministic
+    // Cloud: admin → cloud → métiers → quotidien
+    // Local: métiers → quotidien
     val quickTasks = if (isLocalModel) {
         reasoningTasks + deterministicTasks
     } else {
-        cloudOnlyTasks + reasoningTasks + deterministicTasks
+        adminTasks + cloudOnlyTasks + reasoningTasks + deterministicTasks
     }
 
     Column(
