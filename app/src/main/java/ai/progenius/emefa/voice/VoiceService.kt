@@ -18,8 +18,6 @@ import io.livekit.android.audio.AudioSwitchHandler
 import io.livekit.android.events.RoomEvent
 import io.livekit.android.events.collect
 import io.livekit.android.room.Room
-import io.livekit.android.room.track.LocalAudioTrack
-import io.livekit.android.room.track.LocalAudioTrackOptions
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -30,7 +28,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import ai.progenius.emefa.R
-import ai.progenius.emefa.ui.main.MainActivity
+import ai.progenius.emefa.ui.chat.ComposeChatActivity
 
 /**
  * Service de conversation vocale EMEFA via LiveKit
@@ -85,7 +83,6 @@ class VoiceService : Service() {
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var room: Room? = null
-    private var localAudioTrack: LocalAudioTrack? = null
     private var roomEventsJob: Job? = null
 
     inner class VoiceBinder : Binder() {
@@ -142,10 +139,10 @@ class VoiceService : Service() {
                 }
 
                 // Se connecter à la room
-                newRoom.connect(url, token, RoomOptions())
+                newRoom.connect(url, token)
 
                 // Activer le micro
-                localAudioTrack = newRoom.localParticipant.setMicrophoneEnabled(true)
+                newRoom.localParticipant.setMicrophoneEnabled(true)
 
                 _state.value = VoiceState.Connected
                 updateNotification("EMEFA à l'écoute...")
@@ -183,7 +180,7 @@ class VoiceService : Service() {
         serviceScope.launch {
             val newMuted = !_isMuted.value
             _isMuted.value = newMuted
-            localAudioTrack?.enabled = !newMuted
+            room?.localParticipant?.setMicrophoneEnabled(!newMuted)
             updateNotification(if (newMuted) "Micro coupé" else "EMEFA à l'écoute...")
         }
     }
@@ -196,9 +193,7 @@ class VoiceService : Service() {
         serviceScope.launch {
             roomEventsJob?.cancel()
             room?.disconnect()
-            room?.release()
             room = null
-            localAudioTrack = null
             _state.value = VoiceState.Idle
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
@@ -208,7 +203,6 @@ class VoiceService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         serviceScope.cancel()
-        room?.release()
     }
 
     private fun createNotificationChannel() {
@@ -229,7 +223,7 @@ class VoiceService : Service() {
     private fun buildNotification(text: String): Notification {
         val mainIntent = PendingIntent.getActivity(
             this, 0,
-            Intent(this, MainActivity::class.java),
+            Intent(this, ComposeChatActivity::class.java),
             PendingIntent.FLAG_IMMUTABLE
         )
         val stopIntent = PendingIntent.getService(
