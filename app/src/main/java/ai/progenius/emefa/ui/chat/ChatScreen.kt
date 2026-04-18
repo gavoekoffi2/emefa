@@ -1187,19 +1187,18 @@ private fun EmptyStateWithPrompts(
     // Local: show chat examples (chat only, tasks go to Workflows tab)
     val prompts = if (!isLocalModel) {
         listOf(
-            Prompt("What time is it in Tokyo?", false),
-            Prompt("Help me write a birthday message", false),
-            Prompt("💬 Send hi to Mom on WhatsApp", true),
+            Prompt("💼 Rédige un email professionnel pour un client", false),
+            Prompt("📊 Analyse mes ventes du mois et donne des conseils", false),
+            Prompt("💬 Envoie un message à un client sur WhatsApp", true),
         )
     } else {
         listOf(
-            Prompt("Tell me a joke", false),
-            Prompt("What can you do?", false),
-            Prompt("Help me draft an email", false),
+            Prompt("🤔 Que peux-tu faire pour m'aider ?", false),
+            Prompt("📅 Aide-moi à planifier ma journée de travail", false),
+            Prompt("📝 Rédige un devis pour un client", false),
         )
     }
-
-    val headerText = if (!isLocalModel) "Cloud AI" else "Local AI"
+    val headerText = if (!isLocalModel) "EMEFA Cloud" else "EMEFA Local"
 
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -1312,35 +1311,35 @@ private fun QuickTasksPanel(
 ) {
     var expanded by remember { mutableStateOf(true) }
 
-    // Cloud-only tasks at the top (multi-step, Siri/GA can't do these)
-    // Cloud-only tasks (multi-step, Siri can't do)
+    // Cas d'usage professionnels Cloud (multi-étapes, IA cloud)
     val cloudOnlyTasks = listOf(
-        "🦞 Open Reddit and search for emefa",
-        "🎬 Search YouTube for funny cat fails",
-        "📦 Install Telegram from Play Store",
-        "🐦 Check what's trending on Twitter and tell me",
-        "💬 Check my latest WhatsApp chat and summarize it",
-        "📋 Copy the latest email subject and Google it",
-        "📧 Write an email saying I'll be late today",
+        "💼 Rédige un email professionnel pour un client qui attend sa commande",
+        "📊 Analyse mes ventes et dis-moi comment augmenter mon chiffre d'affaires",
+        "📝 Crée un devis pour une prestation de service de 500 000 FCFA",
+        "🏥 Explique-moi comment gérer les stocks dans mon commerce",
+        "💰 Comment faire un business plan pour ouvrir une boutique ?",
+        "📣 Rédige un message publicitaire pour mes réseaux sociaux",
+        "🤝 Comment négocier avec un fournisseur pour avoir de meilleurs prix ?",
+        "📱 Vérifie mes dernières notifications WhatsApp et résume-les",
     )
-    // Reasoning tasks (1-2 tool calls + LLM analysis) — impressive, work on both
+    // Cas d'usage métiers (médecin, architecte, enseignant, agriculteur...)
     val reasoningTasks = listOf(
-        "📵 Check my notifications — anything important?",
-        "📋 Read my clipboard and explain what it says",
-        "🧹 Check my storage and apps — what can I delete?",
-        "🔔 Read my notifications and summarize",
-        "🔋 Check my battery and tell me if I need to charge",
+        "🏠 Je suis architecte : aide-moi à rédiger un contrat de construction",
+        "👨‍⚕️ Je suis médecin : quels sont les symptômes du paludisme et le traitement ?",
+        "🌾 Je suis agriculteur : quand planter le maïs en saison des pluies ?",
+        "📚 Je suis enseignant : crée un cours sur les fractions pour des élèves de CM2",
+        "⚖️ Je suis avocat : rédige une mise en demeure pour impayé",
     )
-    // Simple deterministic tasks (1 tool, no reasoning)
+    // Tâches simples du quotidien
     val deterministicTasks = listOf(
-        "💬 Send hi to Mom on WhatsApp",
-        "📱 What apps do I have?",
-        "🌡️ How hot is my phone?",
-        "🔵 Is bluetooth on?",
-        "🔋 How much battery left?",
-        "📞 Call Mom",
-        "💾 How much storage do I have?",
-        "📲 What Android version am I running?",
+        "💬 Envoie un message à un client sur WhatsApp",
+        "📱 Quelles applications j'ai sur mon téléphone ?",
+        "🔔 Lis mes notifications et dis-moi ce qui est urgent",
+        "🔋 Combien de batterie il me reste ?",
+        "📞 Appelle Maman",
+        "💾 Combien d'espace de stockage il me reste ?",
+        "📲 Quelle version d'Android j'utilise ?",
+        "📋 Lis mon presse-papiers et explique ce que c'est",
     )
     // Cloud: cloud-only → reasoning → deterministic
     // Local: reasoning first (impressive) → deterministic
