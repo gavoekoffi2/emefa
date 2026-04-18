@@ -15,12 +15,21 @@ import androidx.core.view.updatePadding
 import com.blankj.utilcode.util.AdaptScreenUtils
 import com.blankj.utilcode.util.BarUtils
 import ai.progenius.emefa.R
+import ai.progenius.emefa.utils.LanguageManager
 
 /**
  *
  * Screen adaptation uses pt; using dp on some devices causes toast line breaks at incorrect positions
  */
 open class BaseActivity : AppCompatActivity() {
+
+    /**
+     * Applique la langue AVANT que l'activité ne charge ses ressources.
+     * C'est la méthode clé pour que la traduction fonctionne correctement.
+     */
+    override fun attachBaseContext(newBase: android.content.Context) {
+        super.attachBaseContext(LanguageManager.applyLanguage(newBase))
+    }
 
     override fun getResources(): Resources {
         val resources = super.getResources()

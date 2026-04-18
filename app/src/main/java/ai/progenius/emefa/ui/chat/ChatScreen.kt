@@ -401,9 +401,9 @@ private fun ChatTopBar(
             title = {
                 Text(
                     buildAnnotatedString {
-                        append("Poke")
+                        append("EME")
                         withStyle(SpanStyle(color = colors.accent)) {
-                            append("Claw")
+                            append("FA")
                         }
                     },
                     fontWeight = FontWeight.Bold,

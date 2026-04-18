@@ -1,18 +1,18 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- 应用主题 - 浅色 -->
-    <style name="Theme.EMEFA" parent="Theme.Material3.Light.NoActionBar">
+    <!-- Thème EMEFA - Dark Premium -->
+    <style name="Theme.EMEFA" parent="Theme.Material3.Dark.NoActionBar">
         <!-- Primary colors -->
         <item name="colorPrimary">@color/colorBrandPrimary</item>
         <item name="colorOnPrimary">@color/colorBrandOnPrimary</item>
         <item name="colorPrimaryContainer">@color/colorBrandContainer</item>
         <item name="colorOnPrimaryContainer">@color/colorBrandOnContainer</item>
 
-        <!-- Background colors -->
+        <!-- Background colors - Dark Premium -->
         <item name="android:colorBackground">@color/colorBgPrimary</item>
         <item name="colorOnBackground">@color/colorTextPrimary</item>
-        <item name="colorSurface">@color/colorContainerBrighten</item>
+        <item name="colorSurface">@color/colorBgSecondary</item>
         <item name="colorOnSurface">@color/colorTextPrimary</item>
-        <item name="colorSurfaceVariant">@color/colorContainerBase</item>
+        <item name="colorSurfaceVariant">@color/colorBgTertiary</item>
         <item name="colorOnSurfaceVariant">@color/colorTextSecondary</item>
 
         <!-- Outline -->

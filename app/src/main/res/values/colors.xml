@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Text -->
-    <color name="colorTextPrimary">#F5000000</color>
-    <color name="colorTextSecondary">#AD000000</color>
-    <color name="colorTextTertiary">#61000000</color>
-    <color name="colorTextDisabled">#33000000</color>
-    <color name="colorTextInverse">#FFFFFFFF</color>
+    <!-- Text - EMEFA Dark Premium -->
+    <color name="colorTextPrimary">#F0ECEFF5</color>
+    <color name="colorTextSecondary">#A0B0C8</color>
+    <color name="colorTextTertiary">#607080</color>
+    <color name="colorTextDisabled">#404858</color>
+    <color name="colorTextInverse">#FF0C111B</color>
     <color name="colorTextFixedWhitePrimary">#E6FFFFFF</color>
     <color name="colorTextFixedWhiteSecondary">#99FFFFFF</color>
     <color name="colorTextFixedBlackPrimary">#F5000000</color>
@@ -25,10 +25,10 @@
     <color name="colorContainerHighest">#FFD1D1D6</color>
     <color name="colorContainerInverse">#FF2C2C2E</color>
 
-    <!-- Backgrounds -->
-    <color name="colorBgPrimary">#FFFFFFFF</color>
-    <color name="colorBgSecondary">#FFF2F2F7</color>
-    <color name="colorBgTertiary">#FFFFFFFF</color>
+    <!-- Backgrounds - EMEFA Dark Premium -->
+    <color name="colorBgPrimary">#FF0C111B</color>
+    <color name="colorBgSecondary">#FF151D2E</color>
+    <color name="colorBgTertiary">#FF1A2438</color>
 
     <!-- Chat EMEFA -->
     <color name="colorChatUserBubble">#FF1A2B5E</color>
